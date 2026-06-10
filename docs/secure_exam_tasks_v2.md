@@ -453,3 +453,22 @@
 - [x] Add submit confirmation dialog in TSEExamChildClient
 - [x] Implement zero-question check before Secure Desktop spawn
 
+
+
+### Step 2I.9.5D Final Submit Handler & Parent Cleanup Stabilization
+- [x] TSEExamChildClient.java - volatile fields: finalSubmitInProgress, allowProgrammaticExit, autoSaveTimer class-level
+- [x] Submit button: guard double-submit, stop autoSaveTimer truoc khi submit
+- [x] Confirm dialog: "Quay lai" khong lam gi, "Nop bai" moi trigger flow
+- [x] Tach writeFinalPayloadAndExit() va writeAutosavePayload() - log rieng biet
+- [x] Exit mechanism: 1 background thread duy nhat (JCEF cleanup + halt), EDT chi dispose frame
+- [x] Khong con race condition giua System.exit() va Runtime.halt()
+- [x] JCEF cleanup chay tren background thread, khong block EDT
+- [x] autoSaveTimer: check finalSubmitInProgress truoc khi chay, stop khi final submit
+- [x] allowProgrammaticExit + WindowClosing check
+- [x] TSEProductionParentSubmitLabLauncher.java - timeout 30s cho submitExam().get()
+- [x] TimeoutException catch rieng voi log [TSE_SUBMIT]
+- [x] rustProc.waitFor(): dynamic timeout = examCfg.durationMinutes + 15 (fallback 240)
+- [x] Sau Rust exit: force-kill process tree bang taskkill /F /T /PID <rustPid>
+- [x] Log [TSE_PARENT] Found submit_payload.enc. Using FINAL submit payload.
+- [x] Log [TSE_PARENT] WARNING: submit_payload.enc not found. Falling back to autosave_payload.enc.
+- [x] mvn clean install - BUILD SUCCESS (0 error, 38.5s)

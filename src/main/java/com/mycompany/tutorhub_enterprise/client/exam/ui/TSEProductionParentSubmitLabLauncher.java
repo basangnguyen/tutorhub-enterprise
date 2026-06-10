@@ -114,7 +114,8 @@ public class TSEProductionParentSubmitLabLauncher {
                     String payloadContent = CryptoUtils.decryptWrapper(payloadEncrypted, currentKeyB64);
                     log(logArea, "Decrypted payload size: " + payloadContent.length());
                     
-                    TSESubmitResult submitRes = service.submitExam(currentSessionId, currentExamId, payloadContent).get();
+                    TSESubmitResult submitRes = service.submitExam(currentSessionId, currentExamId, payloadContent)
+                            .get(30, java.util.concurrent.TimeUnit.SECONDS);
                     
                     if (submitRes.success) {
                         setStatus(statusLabel, "Submit successful");
@@ -138,6 +139,10 @@ public class TSEProductionParentSubmitLabLauncher {
                         log(logArea, "Please click Retry Submit or contact Admin. Payload remains in: " + currentSessionTempDir.toAbsolutePath());
                         SwingUtilities.invokeLater(() -> retryBtn.setVisible(true));
                     }
+                } catch (java.util.concurrent.TimeoutException tex) {
+                    setStatus(statusLabel, "Submit Timeout");
+                    log(logArea, "[TSE_SUBMIT] Server submit timeout after 30 seconds. Please retry.");
+                    SwingUtilities.invokeLater(() -> retryBtn.setVisible(true));
                 } catch (Exception ex) {
                     setStatus(statusLabel, "Submit Error");
                     log(logArea, "Submit Exception: " + ex.getMessage());
@@ -516,18 +521,19 @@ public class TSEProductionParentSubmitLabLauncher {
                             } catch (Exception e) {}
                         }).start();
                         
-                        // 10. Wait for Rust (Reasonable timeout of 4 hours for exam)
+                        // 10. Wait for Rust — dynamic timeout based on exam duration
+                        long waitTimeMinutes = (examCfg.durationMinutes > 0)
+                                ? (long) examCfg.durationMinutes + 15
+                                : 240L; // fallback: 240 min if duration unknown
                         setStatus(statusLabel, "Waiting for exam client...");
-                        log(logArea, "Waiting for Rust process to finish...");
+                        log(logArea, "[TSE_CLEANUP] Waiting for Rust process (timeout: " + waitTimeMinutes + " minutes)...");
                         
-                        boolean exited = rustProc.waitFor(240, java.util.concurrent.TimeUnit.MINUTES);
+                        boolean exited = rustProc.waitFor(waitTimeMinutes, java.util.concurrent.TimeUnit.MINUTES);
                         if (!exited) {
-                            log(logArea, "[TSE_CLEANUP] WARNING: Rust process still alive after 240 mins, force terminating...");
+                            log(logArea, "[TSE_CLEANUP] WARNING: Rust still alive after " + waitTimeMinutes + " minutes. Force terminating...");
                             rustProc.destroyForcibly();
                         }
                         int rustExitCode = exited ? rustProc.exitValue() : -1;
-                        log(logArea, "[TSE_CLEANUP] Child process exited code: " + rustExitCode);
-                        log(logArea, "[TSE_CLEANUP] Switching back Default Desktop done");
                         log(logArea, "[TSE_CLEANUP] Rust process exited code: " + rustExitCode);
                         
                         SwingUtilities.invokeLater(() -> {
@@ -537,8 +543,14 @@ public class TSEProductionParentSubmitLabLauncher {
                             log(logArea, "Parent restored.");
                         });
                         
-                        // Check for lingering process
+                        // Force-kill Rust process tree by PID (cleans up any orphaned JCEF renderer subprocesses)
+                        long rustPid = rustProc.pid();
+                        log(logArea, "[TSE_CLEANUP] Checking remaining TutorHub_LockdownCore processes...");
                         try {
+                            if (rustPid > 0) {
+                                Runtime.getRuntime().exec(new String[]{"taskkill", "/F", "/T", "/PID", String.valueOf(rustPid)});
+                                log(logArea, "[TSE_CLEANUP] Force-killed process tree for PID " + rustPid + " (cleans up JCEF renderers).");
+                            }
                             Process checkProc = Runtime.getRuntime().exec("tasklist /fi \"imagename eq TutorHub_LockdownCore.exe\"");
                             try (BufferedReader reader = new BufferedReader(new InputStreamReader(checkProc.getInputStream()))) {
                                 String line;
@@ -550,14 +562,14 @@ public class TSEProductionParentSubmitLabLauncher {
                                 }
                                 if (found) {
                                     log(logArea, "[TSE_CLEANUP] WARNING: TutorHub_LockdownCore.exe is STILL RUNNING in the background!");
-                                    log(logArea, "[TSE_CLEANUP] Force terminating remaining process...");
+                                    log(logArea, "[TSE_CLEANUP] Force terminating remaining process by image name...");
                                     Runtime.getRuntime().exec("taskkill /F /IM TutorHub_LockdownCore.exe");
                                 } else {
-                                    log(logArea, "[TSE_CLEANUP] No TutorHub_LockdownCore process remains");
+                                    log(logArea, "[TSE_CLEANUP] No TutorHub_LockdownCore process remains.");
                                 }
                             }
                         } catch (Exception processEx) {
-                            log(logArea, "Cleanup check error: " + processEx.getMessage());
+                            log(logArea, "[TSE_CLEANUP] Cleanup check error: " + processEx.getMessage());
                         }
                         
                         Path autosaveFile = currentSessionTempDir.resolve("autosave_payload.enc");
@@ -566,14 +578,14 @@ public class TSEProductionParentSubmitLabLauncher {
                             log(logArea, "WARNING: Rust/Child exited with code " + rustExitCode + ". Checking for payloads...");
                         }
                         
-                        // 11. Rust returned to default desktop. Check payload.
+                        // 11. Rust returned to default desktop. Prefer FINAL payload, fallback to autosave.
                         if (Files.exists(currentPayloadFile)) {
                             setStatus(statusLabel, "Payload received");
-                            log(logArea, "Found submit_payload.enc! Reading and decrypting...");
+                            log(logArea, "[TSE_PARENT] Found submit_payload.enc. Using FINAL submit payload.");
                             submitLogic.run();
                         } else if (Files.exists(autosaveFile)) {
                             setStatus(statusLabel, "Recovery available");
-                            log(logArea, "Không tìm thấy bài nộp chính thức, nhưng có bản lưu tạm (autosave_payload.enc).");
+                            log(logArea, "[TSE_PARENT] WARNING: submit_payload.enc not found. Falling back to autosave_payload.enc.");
                             log(logArea, "Đang dùng bản lưu tạm để nộp bài...");
                             currentPayloadFile = autosaveFile;
                             submitLogic.run();
