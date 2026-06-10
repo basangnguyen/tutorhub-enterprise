@@ -1,0 +1,2449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>tldraw Board</title>
+    <link rel="stylesheet" href="https://unpkg.com/tldraw@2.4.2/tldraw.css" />
+    <style>
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+        }
+        #root {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 64px;
+            height: calc(100% - 64px) !important;
+            overflow: hidden;
+        }
+
+        /* Làm trong suốt Tldraw để hiện nền giấy của Body */
+        .tl-container { background: transparent !important; }
+        .tl-background { background: transparent !important; }
+        
+        /* CSS Background cho các loại giấy */
+        body.paper-lined {
+            background-color: #fdfdfd;
+            background-image: repeating-linear-gradient(transparent, transparent 31px, #cbd5e1 31px, #cbd5e1 32px);
+            background-attachment: local;
+        }
+        
+        body.paper-grid {
+            background-color: #fdfdfd;
+            background-image: 
+                linear-gradient(#cbd5e1 1px, transparent 1px),
+                linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+            background-size: 32px 32px;
+            background-attachment: local;
+        }
+        
+        body.paper-dark-lined {
+            background-color: #1e293b;
+            background-image: repeating-linear-gradient(transparent, transparent 31px, #475569 31px, #475569 32px);
+            background-attachment: local;
+        }
+        
+        body.paper-dark-grid {
+            background-color: #1e293b;
+            background-image: 
+                linear-gradient(#475569 1px, transparent 1px),
+                linear-gradient(90deg, #475569 1px, transparent 1px);
+            background-size: 32px 32px;
+            background-attachment: local;
+        }
+
+        body.paper-dots {
+            background-color: #fdfdfd;
+            background-image: radial-gradient(#cbd5e1 2px, transparent 2px);
+            background-size: 24px 24px;
+            background-attachment: local;
+        }
+        body.paper-dark-dots {
+            background-color: #1e293b;
+            background-image: radial-gradient(#475569 2px, transparent 2px);
+            background-size: 24px 24px;
+            background-attachment: local;
+        }
+        body.paper-blueprint {
+            background-color: #1e3a8a;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            background-attachment: local;
+        }
+        body.paper-dark-blueprint {
+            background-color: #1e3a8a;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            background-attachment: local;
+        }
+        body.paper-blackboard { background-color: #1b3d2b; }
+        body.paper-dark-blackboard { background-color: #1b3d2b; }
+
+        body.paper-notebook {
+            background-color: #fdfdfd;
+            background-image: 
+                linear-gradient(90deg, transparent 79px, #fca5a5 79px, #fca5a5 81px, transparent 81px),
+                repeating-linear-gradient(transparent, transparent 31px, #cbd5e1 31px, #cbd5e1 32px);
+            background-attachment: local;
+        }
+        body.paper-dark-notebook {
+            background-color: #1e293b;
+            background-image: 
+                linear-gradient(90deg, transparent 79px, #7f1d1d 79px, #7f1d1d 81px, transparent 81px),
+                repeating-linear-gradient(transparent, transparent 31px, #475569 31px, #475569 32px);
+            background-attachment: local;
+        }
+
+        body.paper-music {
+            background-color: #fdfdfd;
+            background-image: repeating-linear-gradient(
+                transparent 0px, transparent 40px,
+                #94a3b8 40px, #94a3b8 41px,
+                transparent 41px, transparent 52px,
+                #94a3b8 52px, #94a3b8 53px,
+                transparent 53px, transparent 64px,
+                #94a3b8 64px, #94a3b8 65px,
+                transparent 65px, transparent 76px,
+                #94a3b8 76px, #94a3b8 77px,
+                transparent 77px, transparent 88px,
+                #94a3b8 88px, #94a3b8 89px,
+                transparent 89px, transparent 160px
+            );
+            background-attachment: local;
+        }
+        body.paper-dark-music {
+            background-color: #1e293b;
+            background-image: repeating-linear-gradient(
+                transparent 0px, transparent 40px,
+                #475569 40px, #475569 41px,
+                transparent 41px, transparent 52px,
+                #475569 52px, #475569 53px,
+                transparent 53px, transparent 64px,
+                #475569 64px, #475569 65px,
+                transparent 65px, transparent 76px,
+                #475569 76px, #475569 77px,
+                transparent 77px, transparent 88px,
+                #475569 88px, #475569 89px,
+                transparent 89px, transparent 160px
+            );
+            background-attachment: local;
+        }
+
+        /* Ẩn UI nếu đang ở chế độ readonly hoặc để nhúng đẹp hơn (đã bỏ) */
+        /* .tlui-layout { background: transparent !important; } */
+
+        /* CSS HACK: Chuyển thanh công cụ Excalidraw sang dọc nằm bên TRÁI (Chuẩn Zoom/Teams) */
+        .excalidraw .App-menu_top .App-toolbar {
+            position: fixed !important;
+            left: 20px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 48px !important;
+            min-width: 48px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+            border-radius: 8px !important;
+            background-color: var(--color-surface-low) !important;
+            flex-direction: column !important;
+            z-index: 1000 !important;
+        }
+
+        /* BẮT BUỘC toàn bộ các container bên trong (Stack_dir_row) phải chuyển thành cột dọc */
+        .excalidraw .App-menu_top .App-toolbar div,
+        .excalidraw .App-menu_top .App-toolbar label {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            align-items: center !important;
+            margin: 0 !important;
+        }
+        
+        /* Chỉnh lại khoảng cách cho đẹp */
+        .excalidraw .App-menu_top .App-toolbar > div {
+            gap: 5px !important;
+            padding: 5px 0 !important;
+        }
+
+        /* Dịch khu vực thuộc tính (Properties) sang phải một chút để không đè lên toolbar */
+        .App-menu__left {
+            position: absolute !important;
+            left: 80px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            height: auto !important;
+        }
+
+        .video-bubble { pointer-events: auto; transition: transform 0.2s; }
+        .video-bubble:hover { transform: scale(1.05); cursor: pointer; }
+    </style>
+    <!-- Thư viện StackBlitz SDK -->
+    <script src="https://unpkg.com/@stackblitz/sdk/bundles/sdk.umd.js"></script>
+    <!-- Thư viện jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Thư viện YouTube Iframe API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- Thư viện FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Zoom Bottom Bar */
+        #zoom-bottom-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 64px;
+            background: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            z-index: 9999;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.4);
+            pointer-events: auto;
+        }
+
+        .zoom-bottom-btn {
+            background: transparent;
+            color: #ffffff;
+            border: none;
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .zoom-bottom-btn span {
+            font-size: 11px;
+            margin-top: 6px;
+            font-family: sans-serif;
+            color: #d1d5db;
+        }
+
+        .zoom-bottom-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .zoom-bottom-btn:active {
+            transform: translateY(1px);
+        }
+
+        .zoom-bottom-btn.active {
+            color: #10b981;
+        }
+        
+        .zoom-bottom-btn.danger {
+            color: #ef4444;
+        }
+        
+        .zoom-bottom-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .zoom-bottom-divider {
+            width: 1px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 10px;
+        }
+
+        /* Tooltip */
+        .zoom-bottom-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 65px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            color: #f8fafc;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            font-family: sans-serif;
+            font-weight: normal;
+            z-index: 10000;
+        }
+
+        .zoom-bottom-btn:hover::after {
+            opacity: 1;
+        }
+        
+        /* Zoom Video Container (Top Horizontal) */
+        #video-sidebar {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            max-width: 90%;
+            height: auto;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 9000;
+            display: none;
+            flex-direction: row;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: 10px;
+        }
+
+        /* YouTube Fullscreen Mode */
+        .yt-fullscreen-mode {
+            top: 100px !important;
+            left: 20px !important;
+            right: 20px !important;
+            bottom: 80px !important;
+            width: calc(100% - 40px) !important;
+            height: calc(100% - 180px) !important;
+            border-radius: 12px !important;
+            transform: none !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important;
+        }
+        
+        .yt-fullscreen-mode #yt-player-container {
+            height: calc(100% - 30px) !important;
+        }
+        
+        .yt-fullscreen-mode #yt-overlay {
+            height: calc(100% - 30px) !important;
+        }
+
+        #lobby-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+            z-index: 10000; display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: white; font-family: sans-serif;
+        }
+        .emoji-bubble {
+            position: fixed; bottom: 80px; left: 50%;
+            font-size: 40px; pointer-events: none;
+            animation: emoji-float-up 3s ease-out forwards;
+            z-index: 9999;
+        }
+        @keyframes emoji-float-up {
+            0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+            20% { transform: translate(calc(-50% - 20px), -50px) scale(1.2); opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translate(calc(-50% + 20px), -200px) scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="paper-lined">
+    <!-- Lobby Overlay -->
+    <div id="lobby-overlay">
+        <h2 style="margin-bottom: 10px;">Vui lòng đợi</h2>
+        <p style="color: #bbb;">Giáo viên sẽ sớm duyệt bạn vào lớp...</p>
+    </div>
+
+    <!-- Reaction Menu Container -->
+    <div id="reaction-menu" style="position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: #252526; padding: 10px; border-radius: 8px; border: 1px solid #444; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 9500; display: none; gap: 10px;">
+        <button onclick="triggerReaction('👍')" style="background:none;border:none;font-size:24px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">👍</button>
+        <button onclick="triggerReaction('❤️')" style="background:none;border:none;font-size:24px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">❤️</button>
+        <button onclick="triggerReaction('😂')" style="background:none;border:none;font-size:24px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">😂</button>
+        <button onclick="triggerReaction('😮')" style="background:none;border:none;font-size:24px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">😮</button>
+        <button onclick="triggerReaction('👏')" style="background:none;border:none;font-size:24px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">👏</button>
+        <button onclick="triggerReaction('🎉')" style="background:none;border:none;font-size:24px;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🎉</button>
+    </div>
+
+    <!-- Thêm input ẩn để upload file -->
+    <input type="file" id="upload-doc-input" accept=".pdf,image/*" style="display: none;" onchange="handleDocumentUpload(event)">
+
+    <!-- Zoom Bottom Bar (Meeting Controls) -->
+    <div id="zoom-bottom-bar">
+        <!-- Nhóm Audio/Video (Trái) -->
+        <button id="mute-all-btn" class="zoom-bottom-btn" data-tooltip="Tắt Mic tất cả" onclick="muteAllStudents()">
+            <i class="fa-solid fa-microphone-lines-slash"></i>
+            <span>Mute All</span>
+        </button>
+        <button id="start-video-btn" class="zoom-bottom-btn" data-tooltip="Bật/Tắt Camera" onclick="startVideoCall()">
+            <i class="fa-solid fa-video"></i>
+            <span>Camera</span>
+        </button>
+
+        <div class="zoom-bottom-divider"></div>
+
+        <!-- Nhóm Tương tác (Giữa) -->
+        <button id="share-screen-btn" class="zoom-bottom-btn" data-tooltip="Chia sẻ màn hình" onclick="toggleScreenShare()">
+            <i class="fa-solid fa-desktop"></i>
+            <span>Share</span>
+        </button>
+        <button id="record-btn" class="zoom-bottom-btn" data-tooltip="Ghi hình lớp học" onclick="toggleRecording()">
+            <i class="fa-solid fa-record-vinyl"></i>
+            <span>Record</span>
+        </button>
+        <button id="raise-hand-btn" class="zoom-bottom-btn" data-tooltip="Giơ tay phát biểu" onclick="toggleRaiseHand()">
+            <i class="fa-regular fa-hand"></i>
+            <span>Raise</span>
+        </button>
+        <button id="react-btn" class="zoom-bottom-btn" data-tooltip="Thả cảm xúc" onclick="toggleReactionMenu(event)">
+            <i class="fa-regular fa-face-smile"></i>
+            <span>React</span>
+        </button>
+
+        <div class="zoom-bottom-divider"></div>
+
+        <!-- Nhóm Công cụ TutorHub (Apps) -->
+    <div class="toolbar-btn" onclick="toggleCodeMode()">
+      <i class="fas fa-code"></i>
+      <span>Code</span>
+    </div>
+    <!-- Thêm nút Thí Nghiệm (PhET) -->
+    <div class="toolbar-btn" onclick="openPhetModal()">
+      <i class="fas fa-flask"></i>
+      <span>Thí nghiệm</span>
+    </div>
+    <!-- Add Arena button -->
+        <button id="arena-toggle-btn" class="zoom-bottom-btn" data-tooltip="Đấu trường (Chấm điểm)" onclick="toggleJudgePanel()">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Arena</span>
+        </button>
+        <button id="cowatch-btn" class="zoom-bottom-btn" data-tooltip="Cùng xem Video" onclick="toggleCoWatchModal()">
+            <i class="fa-solid fa-tv"></i>
+            <span>YouTube</span>
+        </button>
+        <button id="upload-doc-btn" class="zoom-bottom-btn" data-tooltip="Chèn Tài liệu (PDF/Ảnh)" onclick="document.getElementById('upload-doc-input').click()">
+            <i class="fa-regular fa-file-pdf"></i>
+            <span>Files</span>
+        </button>
+        <button class="zoom-bottom-btn" data-tooltip="Gõ Toán Học / Hóa Học" onclick="document.getElementById('math-modal').style.display='block'">
+            <i class="fa-solid fa-square-root-variable"></i>
+            <span>Math</span>
+        </button>
+        <button class="zoom-bottom-btn" data-tooltip="Vẽ Sơ đồ khối (Mermaid)" onclick="document.getElementById('mermaid-modal').style.display='block'">
+            <i class="fa-solid fa-diagram-project"></i>
+            <span>Diagram</span>
+        </button>
+        <button class="zoom-bottom-btn" data-tooltip="Dán đoạn Code lên bảng" onclick="if(window.addCodeNode) window.addCodeNode()">
+            <i class="fa-solid fa-file-code"></i>
+            <span>Snippet</span>
+        </button>
+        <button class="zoom-bottom-btn" data-tooltip="Tạo Trắc nghiệm" onclick="if(window.addQuizNode) window.addQuizNode()">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Quiz</span>
+        </button>
+
+        <div class="zoom-bottom-divider"></div>
+
+        <!-- Nhóm Hệ thống (Phải) -->
+        <button class="zoom-bottom-btn" data-tooltip="Danh sách Lớp" onclick="togglePeopleSidebar()" style="position: relative;">
+            <i class="fa-solid fa-user-group"></i>
+            <span>People</span>
+            <span id="roster-badge" style="position: absolute; top: 5px; right: 5px; background: #ef4444; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #1e1e1e; display: none;">1</span>
+        </button>
+        
+        <button class="zoom-bottom-btn" data-tooltip="Lưu bảng vẽ" onclick="triggerSaveBoard()">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Save</span>
+        </button>
+        <button class="zoom-bottom-btn" data-tooltip="Cài đặt" onclick="toggleBoardSettingsModal()">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </button>
+
+        <button class="zoom-bottom-btn danger" data-tooltip="Thoát lớp học" onclick="triggerCloseBoard()">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Leave</span>
+        </button>
+    </div>
+
+    <!-- Video Sidebar Bên Phải -->
+    <div id="video-sidebar">
+        <!-- Chứa các Video Call thay vì để bay lung tung -->
+    </div>
+
+    <!-- People Sidebar Panel -->
+    <div id="people-sidebar" style="display: none; position: absolute; top: 0; right: 0; width: 320px; height: calc(100% - 64px); background: #1e1e1e; border-left: 1px solid #333; flex-direction: column; z-index: 9500; font-family: sans-serif; box-shadow: -4px 0 15px rgba(0,0,0,0.5); transition: transform 0.3s ease; transform: translateX(100%);">
+        <!-- Header -->
+        <div style="padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; background: #252526;">
+            <div style="font-weight: bold; color: white; font-size: 15px;">👥 Người tham gia (<span id="roster-count">1</span>)</div>
+            <button onclick="togglePeopleSidebar()" style="background: transparent; border: none; color: #888; cursor: pointer; font-size: 16px;"><i class="fa-solid fa-times"></i></button>
+        </div>
+        
+        <!-- Search -->
+        <div style="padding: 10px 15px; border-bottom: 1px solid #333;">
+            <input type="text" id="roster-search" placeholder="Tìm kiếm người tham gia..." style="width: 100%; padding: 8px 12px; border-radius: 4px; border: 1px solid #444; background: #2d2d30; color: white; outline: none; font-size: 13px; box-sizing: border-box;" oninput="renderRoster()">
+        </div>
+
+        <!-- Host Controls (Only show if Teacher) -->
+        <div id="roster-host-controls" style="display: none; padding: 10px 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 10px;">
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <label style="color: white; font-size: 13px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="lobby-toggle" checked onchange="handleToggleLobby()"> Phòng chờ
+                </label>
+                <button onclick="handleAdmitAll()" style="padding: 4px 8px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Duyệt tất cả</button>
+            </div>
+            <div style="display: flex; width: 100%; gap: 10px;">
+                <button onclick="handleMuteAll()" style="flex: 1; padding: 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;"><i class="fa-solid fa-microphone-lines-slash"></i> Tắt tất cả</button>
+                <button onclick="handleLowerAllHands()" style="flex: 1; padding: 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;"><i class="fa-solid fa-hand-holding-hand"></i> Hạ tay tất cả</button>
+            </div>
+        </div>
+
+        <!-- Participant List -->
+        <div id="roster-list" style="flex: 1; overflow-y: auto; padding: 10px 0; scrollbar-width: thin; scrollbar-color: #555 #1e1e1e;">
+            <!-- Rendered by JS -->
+        </div>
+    </div>
+
+    <!-- Ask Unmute Modal -->
+    <div id="ask-unmute-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252526; border-radius: 8px; padding: 25px; z-index: 10005; width: 350px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); text-align: center; color: white; font-family: sans-serif; border: 1px solid #444;">
+        <i class="fa-solid fa-microphone" style="font-size: 30px; color: #3b82f6; margin-bottom: 15px;"></i>
+        <h3 style="margin: 0 0 10px 0;">Giáo viên yêu cầu bạn bật Mic</h3>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 25px;">Giáo viên đang muốn bạn phát biểu, bạn có đồng ý bật Microphone không?</p>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="document.getElementById('ask-unmute-modal').style.display='none'" style="flex: 1; padding: 10px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Bỏ qua</button>
+            <button onclick="acceptUnmuteRequest()" style="flex: 1; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Đồng ý Bật Mic</button>
+        </div>
+    </div>
+
+    <!-- Modal Cài đặt Bảng vẽ -->
+    <div id="board-settings-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30,30,40,0.95); backdrop-filter: blur(10px); border-radius: 12px; padding: 25px; z-index: 10000; width: 350px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); color: white; font-family: sans-serif; border: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="margin-top: 0; color: #fff; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">⚙️ Cài đặt Bảng vẽ</h3>
+        
+        <div style="margin-top: 20px;">
+            <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Chế độ nền tối (Dark Mode)</span>
+                <input type="checkbox" id="chk-dark-mode" onchange="applyBoardSettings()" style="width: 18px; height: 18px;">
+            </label>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Bảng vẽ vô hạn (Infinite)</span>
+                <input type="checkbox" id="chk-infinite" onchange="applyBoardSettings()" checked style="width: 18px; height: 18px;">
+            </label>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <label style="display: block; margin-bottom: 5px;">Loại giấy (Lưới/Ngang/Trơn):</label>
+            <select id="cb-paper-mode" onchange="applyBoardSettings()" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; outline: none;">
+                <option value="lined">Kẻ ngang (Lined)</option>
+                <option value="grid">Ô ly vuông (Grid)</option>
+                <option value="notebook">Vở học sinh (Notebook)</option>
+                <option value="dots">Chấm bi (Dots)</option>
+                <option value="music">Khuông nhạc (Music Sheet)</option>
+                <option value="blueprint">Bản thiết kế (Blueprint)</option>
+                <option value="blackboard">Bảng phấn (Blackboard)</option>
+                <option value="plain">Trơn (Plain)</option>
+            </select>
+        </div>
+
+        <button onclick="toggleBoardSettingsModal()" style="width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 25px; font-weight: bold;">Đóng</button>
+    </div>
+
+    <!-- Modal chọn nguồn Co-watch -->
+    <div id="cowatch-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252526; border-radius: 8px; padding: 20px; z-index: 10000; width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); color: white; font-family: sans-serif;">
+        <h3 style="margin-top: 0; color: #d946ef;">📺 Chọn nguồn Cùng xem Video</h3>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Lưu ý: Chỉ Giáo viên mới có quyền chọn và điều khiển Video để cả lớp cùng xem.</p>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">1. Từ YouTube (Dán link):</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="cowatch-yt-input" placeholder="https://www.youtube.com/watch?v=..." style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: white;">
+                <button onclick="startCoWatchYT()" style="padding: 8px 15px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Phát YT</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 15px; border-top: 1px solid #444; padding-top: 15px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">2. Từ Reels (Thước phim lớp học):</label>
+            <p style="font-size: 12px; color: #888; margin-top: 0;">Mở Tab Locket Class và bấm Play để đồng bộ cho toàn bộ học sinh.</p>
+            <button onclick="startCoWatchReels()" style="width: 100%; padding: 10px; background: #7c3aed; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">📱 Mở Tab Reels nội bộ</button>
+        </div>
+
+        <button onclick="toggleCoWatchModal()" style="width: 100%; padding: 8px; background: transparent; color: #ccc; border: 1px solid #555; border-radius: 4px; cursor: pointer; margin-top: 10px;">Hủy bỏ</button>
+    </div>
+
+    <!-- Modal Toán Học (MathLive) -->
+    <div id="math-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252526; border-radius: 8px; padding: 20px; z-index: 10000; width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); color: white; font-family: sans-serif;">
+        <h3 style="margin-top: 0; color: #4ade80;">➗ Công thức Toán học</h3>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Sử dụng bàn phím ảo bên dưới hoặc gõ trực tiếp phím để tạo công thức.</p>
+        
+        <math-field id="math-field-input" style="width: 100%; font-size: 24px; padding: 10px; background: #1e1e1e; border: 1px solid #555; border-radius: 6px; color: white; outline: none;"></math-field>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <button onclick="document.getElementById('math-modal').style.display='none'" style="padding: 8px 15px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Hủy</button>
+            <button onclick="insertMathFormula()" style="padding: 8px 15px; background: #4ade80; color: #111; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Chèn vào Bảng</button>
+        </div>
+    </div>
+
+    <!-- Modal Mermaid Diagram -->
+    <div id="mermaid-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252526; border-radius: 8px; padding: 20px; z-index: 10000; width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); color: white; font-family: sans-serif;">
+        <h3 style="margin-top: 0; color: #60a5fa;">📊 Vẽ Sơ đồ bằng Text (Mermaid)</h3>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 10px;">Gõ mã Mermaid để tạo Sơ đồ thuật toán, Mindmap, Gantt chart...</p>
+        
+        <textarea id="mermaid-input" style="width: 100%; height: 200px; padding: 10px; background: #1e1e1e; border: 1px solid #555; border-radius: 6px; color: #d4d4d4; font-family: monospace; resize: none; outline: none;">graph TD
+    A[Bắt đầu] --> B{Điều kiện};
+    B -- Đúng --> C[Kết quả 1];
+    B -- Sai --> D[Kết quả 2];</textarea>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <button onclick="document.getElementById('mermaid-modal').style.display='none'" style="padding: 8px 15px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Hủy</button>
+            <button onclick="insertMermaidDiagram()" style="padding: 8px 15px; background: #3b82f6; color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Tạo Sơ Đồ</button>
+        </div>
+    </div>
+
+    <!-- PhET Experiments Modal -->
+    <div class="modal-overlay" id="phet-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 10005; align-items: center; justify-content: center;">
+      <div class="modal" style="width: 800px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; background: #fff; border-radius: 8px; padding: 20px; color: #1e293b; font-family: sans-serif;">
+        <h2 style="margin-top: 0; color: #3b82f6;">Phòng Thí Nghiệm Ảo (PhET)</h2>
+        <input 
+          type="text" 
+          id="phet-search" 
+          placeholder="Tìm kiếm thí nghiệm (VD: Điện, Lực, Phân số, Atom...)" 
+          onkeyup="filterPhet()"
+          style="width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box;"
+        >
+        <div class="phet-grid" id="phet-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; overflow-y: auto; padding: 10px; margin-top: 15px;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+          <button onclick="closePhetModal()" style="padding: 10px 20px; background: #94a3b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Khung nổi phát YouTube -->
+    <div id="cowatch-yt-floating" style="display: none; position: absolute; bottom: 20px; right: 20px; width: 400px; height: 260px; background: #000; z-index: 9998; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: move;">
+        <div id="yt-header" style="height: 30px; background: #222; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; cursor: move;">
+            <span style="color: white; font-size: 12px; font-family: sans-serif; font-weight: bold;">📺 Đang cùng xem</span>
+            <div>
+                <button onclick="toggleYTFullscreen()" style="background: transparent; border: none; color: white; cursor: pointer; margin-right: 12px;"><i class="fa-solid fa-expand"></i></button>
+                <button onclick="closeCoWatchYT()" style="background: transparent; border: none; color: white; cursor: pointer;">❌</button>
+            </div>
+        </div>
+        <div id="yt-player-container" style="width: 100%; height: 230px; pointer-events: none;">
+            <div id="yt-player"></div>
+        </div>
+        <!-- Lớp phủ ngăn học sinh ấn vào iframe -->
+        <div id="yt-overlay" style="position: absolute; top: 30px; left: 0; width: 100%; height: 230px; z-index: 10;"></div>
+    </div>
+
+    <!-- Code Editor Container (Ẩn mặc định) -->
+    <div id="code-wrapper" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; background: #1e1e1e; flex-direction: row; font-family: sans-serif; padding-top: 45px; box-sizing: border-box;">
+        
+        <!-- STACKBLITZ CONTAINER (Flex: 1) -->
+        <div id="editor-container" style="flex: 1; border: none;"></div>
+
+
+        <!-- CỘT 3: JUDGE PANEL (Ẩn mặc định, 300px) -->
+        <div id="judge-panel" style="display: none; width: 350px; background: #252526; border-left: 1px solid #333; flex-direction: column;">
+            <div style="padding: 10px; background: #2d2d30; color: #f59e0b; font-size: 13px; font-weight: bold; border-bottom: 1px solid #444; display: flex; justify-content: space-between;">
+                <span>🏆 BÀI TẬP & CHẤM ĐIỂM</span>
+                <button onclick="toggleJudgePanel()" style="background: transparent; border: none; color: #ccc; cursor: pointer;">❌</button>
+            </div>
+            <div style="flex: 1; padding: 15px; overflow-y: auto; color: #ccc; font-size: 13px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-weight: bold; color: #fff;">Đề bài (Markdown):</div>
+                <textarea id="judge-desc" style="width: 100%; height: 100px; background: #1e1e1e; color: #fff; border: 1px solid #444; padding: 5px; resize: vertical;" placeholder="Nhập đề bài vào đây..."></textarea>
+                
+                <div style="font-weight: bold; color: #fff; margin-top: 10px;">Dữ liệu Test (Input stdin):</div>
+                <textarea id="judge-input" style="width: 100%; height: 60px; background: #1e1e1e; color: #fff; border: 1px solid #444; padding: 5px; resize: vertical; font-family: monospace;" placeholder="VD: 5 10"></textarea>
+                
+                <div style="font-weight: bold; color: #fff; margin-top: 10px;">Kết quả kỳ vọng (Expected Output):</div>
+                <textarea id="judge-output" style="width: 100%; height: 60px; background: #1e1e1e; color: #fff; border: 1px solid #444; padding: 5px; resize: vertical; font-family: monospace;" placeholder="VD: 15"></textarea>
+                
+                <button onclick="publishProblem()" style="background: #3b82f6; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;">
+                    📢 Giao bài cho Cả lớp
+                </button>
+                <hr style="border: 0; border-top: 1px solid #444; width: 100%; margin: 15px 0;">
+                
+                <button onclick="submitCodeForJudging()" style="background: #10b981; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">
+                    ✅ NỘP BÀI (Chấm điểm)
+                </button>
+                <div id="judge-result" style="margin-top: 10px; font-weight: bold; text-align: center; font-size: 16px;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="chatbox" style="display:none; position:fixed; bottom: 80px; right: 80px; width: 320px; height: 450px; background: #222; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10001; flex-direction: column; font-family: sans-serif; border: 1px solid #444;">
+        <!-- Header -->
+        <div style="display:flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #444; color: #ddd; font-weight: bold; font-size: 14px;">
+            <div style="display:flex; gap: 15px;">
+                <span style="cursor:pointer; color: #10b981;">Chat</span>
+                <span style="cursor:pointer; color: #777;">Question(0)</span>
+            </div>
+            <div style="cursor:pointer; color: #999;" onclick="toggleChatbox()">✖</div>
+        </div>
+        <!-- Messages Area -->
+        <div id="chat-messages" style="flex:1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: #555 #222;">
+            <!-- Tin nhắn sẽ được append vào đây -->
+            <div style="text-align: center; color: #666; font-size: 11px; margin-bottom: 10px;">New messages below</div>
+        </div>
+        <!-- Input Area -->
+        <div style="padding: 10px; border-top: 1px solid #444; display: flex; gap: 8px; background: #2a2a2a; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+            <input type="text" id="chat-input" placeholder="Type your message..." style="flex: 1; padding: 8px 12px; border-radius: 4px; border: none; background: #333; color: white; outline: none; font-size: 13px;" onkeypress="if(event.key==='Enter') sendChatMessage()">
+            <button onclick="sendChatMessage()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;">Send</button>
+        </div>
+    </div>
+
+    <div id="tutorhub-chat-btn-fixed" onclick="toggleChatbox()" style="position: fixed; right: 20px; bottom: 20px; z-index: 10000; background: #fff; width: 48px; height: 48px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; cursor: pointer; color: #333;" title="Chatbox">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+
+    <!-- Tự động tiêm (Inject) nút Chat vào thanh công cụ Excalidraw sau khi load -->
+    <script>
+  function closeCodeModal() {
+    document.getElementById('code-modal').style.display = 'none';
+  }
+
+  function insertCodeShape() {
+    const codeStr = document.getElementById('code-input').value;
+    if (!codeStr.trim()) return;
+
+    if (window.addCodeNode) {
+      window.addCodeNode(codeStr);
+    }
+    closeCodeModal();
+  }
+
+  /* PhET Simulation Modal Logic */
+  // Dữ liệu phetSims (119+ thí nghiệm) đã được nạp từ file src/phetData.js
+  
+  function renderPhetGrid(query = '') {
+    const grid = document.getElementById('phet-grid');
+    grid.innerHTML = '';
+    
+    const sims = window.phetSims || [];
+    const lowerQuery = query.toLowerCase();
+    const filteredSims = sims.filter(sim => 
+      sim.title.toLowerCase().includes(lowerQuery) || 
+      sim.category.toLowerCase().includes(lowerQuery)
+    );
+
+    if (filteredSims.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 20px;">Không tìm thấy thí nghiệm nào phù hợp.</div>';
+      return;
+    }
+
+    filteredSims.forEach(sim => {
+      const card = document.createElement('div');
+      card.style.border = '1px solid #ccc';
+      card.style.borderRadius = '8px';
+      card.style.padding = '15px';
+      card.style.cursor = 'pointer';
+      card.style.backgroundColor = '#f9fafb';
+      card.style.transition = 'background-color 0.2s, border-color 0.2s';
+      card.style.textAlign = 'center';
+      
+      card.onmouseover = () => card.style.backgroundColor = '#e0e7ff';
+      card.onmouseout = () => card.style.backgroundColor = '#f9fafb';
+      card.onclick = () => {
+        if (window.addPhetNode) {
+          window.addPhetNode(sim.url);
+        }
+        closePhetModal();
+      };
+
+      card.innerHTML = `
+        <div style="font-size: 12px; color: #6366f1; font-weight: bold; margin-bottom: 5px;">${sim.category}</div>
+        <div style="font-weight: 600; font-size: 14px; color: #1e293b;">${sim.title}</div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  function filterPhet() {
+    const query = document.getElementById('phet-search').value;
+    renderPhetGrid(query);
+  }
+
+  function openPhetModal() {
+    document.getElementById('phet-search').value = '';
+    renderPhetGrid();
+    document.getElementById('phet-modal').style.display = 'flex';
+  }
+
+  function closePhetModal() {
+    document.getElementById('phet-modal').style.display = 'none';
+  }
+
+  // Khởi tạo LiveKit Client (sử dụng thư viện livekit-client tải từ CDN)
+        function toggleChatbox() {
+            const chatbox = document.getElementById('chatbox');
+            if (chatbox.style.display === 'none') {
+                chatbox.style.display = 'flex';
+                document.getElementById('chat-input').focus();
+            } else {
+                chatbox.style.display = 'none';
+            }
+        }
+
+        let isScreenSharing = false;
+        async function toggleScreenShare() {
+            if (!window.currentRoom) return;
+            const btn = document.getElementById('share-screen-btn');
+            try {
+                if (isScreenSharing) {
+                    await window.currentRoom.localParticipant.setScreenShareEnabled(false);
+                    isScreenSharing = false;
+                    btn.classList.remove('active');
+                } else {
+                    await window.currentRoom.localParticipant.setScreenShareEnabled(true);
+                    isScreenSharing = true;
+                    btn.classList.add('active');
+                }
+            } catch (e) {
+                console.info("SCREEN_SHARE_ERROR: " + e.message + " | Name: " + e.name);
+            }
+        }
+
+        async function toggleRaiseHand() {
+            if (!window.currentRoom) return;
+            const btn = document.getElementById('raise-hand-btn');
+            
+            try {
+                // Parse current metadata
+                let currentMeta = { role: window.currentUserRole, displayName: window.currentUserName, isHandRaised: false, handRaisedAt: null };
+                if (window.currentRoom.localParticipant.metadata) {
+                    currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata);
+                }
+                
+                // Toggle state
+                currentMeta.isHandRaised = !currentMeta.isHandRaised;
+                currentMeta.handRaisedAt = currentMeta.isHandRaised ? Date.now() : null;
+                
+                await window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta));
+                
+                if (currentMeta.isHandRaised) {
+                    showToast("Bạn đã giơ tay phát biểu ✋", 3000);
+                    btn.classList.add('active');
+                } else {
+                    showToast("Bạn đã hạ tay xuống.", 3000);
+                    btn.classList.remove('active');
+                }
+                
+                // Fallback broadcast if server drops metadata
+                const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentUserName, metadata: JSON.stringify(currentMeta) });
+                window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
+                
+                if (typeof renderRoster === 'function') renderRoster();
+                
+            } catch (e) {
+                console.info("RAISE_HAND_ERROR: " + e.message);
+            }
+        }
+
+        async function muteAllStudents() {
+            if (!window.currentRoom) return;
+            try {
+                // Send a mute_all signal to all users
+                const payload = JSON.stringify({ type: 'mute_all', sender: window.currentRoom.localParticipant.identity });
+                const encoder = new TextEncoder();
+                await window.currentRoom.localParticipant.publishData(encoder.encode(payload), { reliable: true });
+                
+                showToast("Đã gửi lệnh tắt Mic toàn lớp!", 3000);
+            } catch (e) {
+                console.error("MUTE_ALL_ERROR: ", e);
+            }
+        }
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let isRecording = false;
+        
+        async function toggleRecording() {
+            const btn = document.getElementById('record-btn');
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) recordedChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        recordedChunks = [];
+                        
+                        showToast("Đang tải Video lên Server (Backblaze)...", 5000);
+                        const formData = new FormData();
+                        formData.append('video', blob, 'record.webm');
+                        
+                        try {
+                            const res = await fetch('https://hocba299-3-tutorhub-sync.hf.space/upload-record', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                const finalUrl = data.url || data.localPath;
+                                showToast(`Đã lưu Video! <a href="#" onclick="window.cefQuery({request: 'OPEN_URL:' + '${finalUrl}'}); return false;" style="color: #60a5fa; text-decoration: underline;">👉 Bấm vào đây để xem</a>`, 15000);
+                                console.info("RECORDING_URL: " + finalUrl);
+                            } else {
+                                console.error("Upload error:", data.error);
+                                showToast("Lỗi khi tải video lên server!", 5000);
+                            }
+                        } catch (err) {
+                            console.error("Upload failed", err);
+                        }
+                        
+                        // Reset stream tracks
+                        stream.getTracks().forEach(t => t.stop());
+                        btn.classList.remove('active');
+                        isRecording = false;
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.classList.add('active');
+                    showToast("Bắt đầu ghi hình lớp học!", 3000);
+                    
+                } catch (err) {
+                    console.error("Lỗi bắt đầu ghi hình: ", err);
+                    showToast("Lỗi: " + err.message, 5000);
+                }
+            } else {
+                mediaRecorder.stop();
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text || !window.currentRoom) return;
+            
+            const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const payload = JSON.stringify({ type: 'chat', sender: 'Me', time: timeStr, text: text });
+            
+            const encoder = new TextEncoder();
+            try {
+                window.currentRoom.localParticipant.publishData(encoder.encode(payload), { reliable: true });
+            } catch (e) {
+                console.info("CHAT_SEND_ERROR: " + e.message);
+            }
+            
+            appendChatMessage('Me', timeStr, text, true);
+            input.value = '';
+        }
+
+        window.sendQuizVote = function(shapeId, optionIndex) {
+            if (!window.currentRoom) return;
+            const payload = JSON.stringify({ type: 'quiz_vote', shapeId: shapeId, option: optionIndex });
+            const encoder = new TextEncoder();
+            try {
+                window.currentRoom.localParticipant.publishData(encoder.encode(payload), { reliable: true });
+                // Tự kích hoạt event cho chính mình để local React cũng nhận được
+                window.dispatchEvent(new CustomEvent('quiz_vote_received', { detail: { shapeId, option: optionIndex } }));
+            } catch (e) {
+                console.info("QUIZ_VOTE_ERROR: " + e.message);
+            }
+        };
+
+        // Bổ sung phím tắt toàn cục
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modals = ['math-modal', 'mermaid-modal', 'phet-modal', 'cowatch-modal', 'board-settings-modal'];
+                modals.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+            }
+            // Ngăn phím Delete/Backspace vô tình xóa shape trên bảng khi đang gõ text
+            if ((e.key === 'Backspace' || e.key === 'Delete') && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'MATH-FIELD')) {
+                e.stopPropagation();
+            }
+        });
+
+        // Xử lý thanh trượt độ dày nét bút
+        function updateCustomStrokeWidth(val) {
+            const v = parseInt(val);
+            if (v === 0) {
+                window.__TLDRAW_CUSTOM_STROKE_WIDTH = undefined;
+                document.getElementById('custom-stroke-val').innerText = 'Nét: Mặc định';
+            } else {
+                window.__TLDRAW_CUSTOM_STROKE_WIDTH = v;
+                document.getElementById('custom-stroke-val').innerText = 'Nét: ' + v;
+            }
+        }
+
+        function appendChatMessage(sender, time, text, isSelf) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.style.display = 'flex';
+            msgDiv.style.flexDirection = 'column';
+            msgDiv.style.alignItems = isSelf ? 'flex-end' : 'flex-start';
+            
+            msgDiv.innerHTML = `
+                <span style="font-size: 11px; color: #aaa; margin-bottom: 2px;">${sender} - ${time}</span>
+                <div style="background: ${isSelf ? '#10b981' : '#333'}; color: white; padding: 8px 12px; border-radius: 6px; font-size: 13px; max-width: 85%; word-wrap: break-word;">${text}</div>
+            `;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+
+    <div id="root"></div>
+
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10005; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+    <script>
+        function showToast(message, duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.innerHTML = message;
+            toast.style.background = 'rgba(0, 0, 0, 0.8)';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+            toast.style.fontSize = '14px';
+            toast.style.transition = 'opacity 0.3s ease';
+            toast.style.opacity = '0';
+            toast.style.pointerEvents = 'auto';
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.style.opacity = '1', 10);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // --- Hệ thống âm thanh siêu nhỏ (Web Audio API) ---
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+
+        function playNotificationSound() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } catch (e) {}
+        }
+
+        function playRaiseHandSound() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, ctx.currentTime);
+                osc.frequency.setValueAtTime(600, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {}
+        }
+        // ----------------------------------------------------
+
+        // Tích hợp phím tắt Tldraw
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <script>
+        window.setInfiniteMode = (isInfinite) => {
+            // Excalidraw mặc định là Infinite
+        };
+
+        // Hàm export dữ liệu mới kết hợp Thumbnail do JS tạo
+        window.requestSaveBoardAndThumbnail = async () => {
+            if (!window.tldrawAPI) return;
+            const elements = window.tldrawAPI.getSceneElements();
+            const appState = window.tldrawAPI.getAppState();
+            
+            const files = window.tldrawAPI.getFiles();
+            const jsonStr = JSON.stringify({ elements: elements, appState: { theme: appState.theme, viewBackgroundColor: appState.viewBackgroundColor }, files: files });
+            let thumbBase64 = "";
+
+            try {
+                // Xuất ảnh PNG độ phân giải chuẩn, không bị nhiễu UI
+                const blob = await ExcalidrawLib.exportToBlob({
+                    elements,
+                    appState: { ...appState, exportWithDarkMode: appState.theme === 'dark' },
+                    files: window.tldrawAPI.getFiles(),
+                    mimeType: "image/png"
+                });
+                
+                // Đọc blob thành base64
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                    const base64data = reader.result.split(',')[1];
+                    if (window.cefQuery) {
+                        window.cefQuery({ request: 'SAVE_DATA:' + jsonStr + '|||THUMBNAIL_SEP|||' + base64data, persistent: false, onSuccess: function(r){}, onFailure: function(e,m){} });
+                    }
+                };
+            } catch(e) {
+                console.error("Export thumbnail failed", e);
+                if (window.cefQuery) {
+                    window.cefQuery({ request: 'SAVE_DATA:' + jsonStr + '|||THUMBNAIL_SEP|||' + thumbBase64, persistent: false, onSuccess: function(r){}, onFailure: function(e,m){} });
+                }
+            }
+        };
+
+        let ws = null;
+        let isSyncing = false;
+
+        window.loadBoardData = (jsonStr, boardId) => {
+            window.currentBoardId = boardId; // Lưu lại để LiveKit dùng
+            if (!window.tldrawAPI) return;
+            try {
+                if (jsonStr && jsonStr !== 'null') {
+                    const data = JSON.parse(jsonStr);
+                    if (data.files && Object.keys(data.files).length > 0) {
+                        window.tldrawAPI.addFiles(Object.values(data.files));
+                    }
+                    window.tldrawAPI.updateScene({
+                        elements: data.elements,
+                        appState: data.appState
+                    });
+                }
+                
+                // Real-time Sync WebSocket
+                if (ws) ws.close();
+                if (boardId) {
+                    ws = new WebSocket('wss://hocba299-3-tutorhub-sync.hf.space/?roomId=' + boardId);
+                    
+                    ws.onopen = () => console.log('Connected to Sync Server for room ' + boardId);
+                    
+                    ws.onmessage = (event) => {
+                        if (!window.tldrawAPI) return;
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'sync') {
+                                isSyncing = true;
+                                window.tldrawAPI.updateScene({
+                                    elements: data.elements,
+                                    commitToHistory: false // Không thêm vào undo history khi nhận từ remote
+                                });
+                                // Reset flag sau khi updateScene xong
+                                setTimeout(() => isSyncing = false, 50);
+                            }
+                        } catch (e) {
+                            console.error('Sync error', e);
+                        }
+                    };
+
+                    window.tldrawAPI.onChange((elements, appState) => {
+                        if (isSyncing) return;
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            // Chỉ broadcast elements để giảm tải, appState ko cần broadcast
+                            ws.send(JSON.stringify({
+                                type: 'sync',
+                                elements: elements
+                            }));
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Invalid board data", e);
+            }
+            
+            // Auto-save
+            if (!window.autoSaveInterval) {
+                window.autoSaveInterval = setInterval(() => {
+                    console.log('Auto saving...');
+                    window.requestSaveBoardAndThumbnail();
+                }, 300000);
+            }
+            connectToLiveKit();
+        };
+
+        let livekitRoom = null;
+        
+        async function connectToLiveKit() {
+            if (window.currentRoom) return; // Đã kết nối
+
+            const LIVEKIT_URL = 'wss://tutorhub-enterprise-q820cqx7.livekit.cloud'; 
+            
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                window.currentUserName = urlParams.get('name') || 'Guest_' + Math.floor(Math.random()*1000);
+                window.currentUserRole = urlParams.get('role') === 'teacher' ? 'teacher' : 'student';
+
+                const currentRoomId = window.currentBoardId || 'default-room';
+                const safeName = encodeURIComponent(window.currentUserName);
+                const res = await fetch(`https://hocba299-3-tutorhub-sync.hf.space/livekit/token?room=${currentRoomId}&username=${safeName}`);
+                const data = await res.json();
+                
+                if (!data.token) {
+                    console.error('Lỗi lấy token từ server!');
+                    return;
+                }
+
+                const room = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+                window.currentRoom = room;
+
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    if (track.kind === LivekitClient.Track.Kind.Video || track.kind === LivekitClient.Track.Kind.Audio) {
+                        const element = track.attach();
+                        
+                        if (track.source === LivekitClient.Track.Source.ScreenShare) {
+                            element.style.width = '80vw';
+                            element.style.height = '70vh';
+                            element.style.objectFit = 'contain';
+                            element.style.background = '#000';
+                            element.style.border = '2px solid #10b981';
+                            element.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+                            
+                            const wrapper = document.createElement('div');
+                            wrapper.id = 'screenshare-' + participant.identity;
+                            wrapper.style.position = 'absolute';
+                            wrapper.style.top = '10%';
+                            wrapper.style.left = '50%';
+                            wrapper.style.transform = 'translateX(-50%)';
+                            wrapper.style.zIndex = '9998';
+                            wrapper.style.display = 'flex';
+                            wrapper.style.flexDirection = 'column';
+                            
+                            const header = document.createElement('div');
+                            header.style.background = '#10b981';
+                            header.style.color = 'white';
+                            header.style.padding = '8px 15px';
+                            header.style.fontWeight = 'bold';
+                            header.style.display = 'flex';
+                            header.style.justifyContent = 'space-between';
+                            header.style.borderTopLeftRadius = '8px';
+                            header.style.borderTopRightRadius = '8px';
+                            header.innerHTML = `<span>🖥 Màn hình của: ${participant.identity}</span> <span style="cursor:pointer;" onclick="this.parentElement.parentElement.remove()">✖</span>`;
+                            
+                            wrapper.appendChild(header);
+                            wrapper.appendChild(element);
+                            document.body.appendChild(wrapper);
+                            
+                        } else if (track.kind === LivekitClient.Track.Kind.Video) {
+                            element.style.width = '160px';
+                            element.style.height = '90px';
+                            element.style.objectFit = 'cover';
+                            element.style.borderRadius = '4px';
+                            element.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+                            element.style.border = '2px solid #ef4444'; 
+                            
+                            const wrapper = document.createElement('div');
+                            wrapper.id = 'participant-' + participant.identity;
+                            wrapper.style.position = 'relative';
+                            wrapper.classList.add('video-bubble');
+                            
+                            const nameTag = document.createElement('div');
+                            nameTag.innerText = participant.identity;
+                            nameTag.style.position = 'absolute';
+                            nameTag.style.bottom = '-5px';
+                            nameTag.style.background = '#ef4444';
+                            nameTag.style.color = '#fff';
+                            nameTag.style.padding = '2px 8px';
+                            nameTag.style.borderRadius = '10px';
+                            nameTag.style.fontSize = '12px';
+                            nameTag.style.left = '50%';
+                            nameTag.style.transform = 'translateX(-50%)';
+                            
+                            const viewCodeBtn = document.createElement('button');
+                            viewCodeBtn.innerText = '👁️ Code';
+                            viewCodeBtn.style.position = 'absolute';
+                            viewCodeBtn.style.top = '5px';
+                            viewCodeBtn.style.right = '5px';
+                            viewCodeBtn.style.background = '#10b981';
+                            viewCodeBtn.style.color = '#fff';
+                            viewCodeBtn.style.border = 'none';
+                            viewCodeBtn.style.borderRadius = '4px';
+                            viewCodeBtn.style.fontSize = '10px';
+                            viewCodeBtn.style.padding = '2px 5px';
+                            viewCodeBtn.style.cursor = 'pointer';
+                            viewCodeBtn.onclick = () => {
+                                const container = document.getElementById('editor-container');
+                                container.innerHTML = `<iframe src="${HUGGING_FACE_URL}/login?user=${participant.identity}" style="width:100%; height:100%; border:none;"></iframe>`;
+                                if (!isCodeMode) toggleCodeMode();
+                                showToast("Đang xem Code của " + participant.identity, 3000);
+                            };
+                            
+                            wrapper.appendChild(element);
+                            wrapper.appendChild(nameTag);
+                            wrapper.appendChild(viewCodeBtn);
+                            document.getElementById('video-sidebar').style.display = 'flex';
+                            document.getElementById('video-sidebar').appendChild(wrapper);
+                        } else {
+                            document.getElementById('video-sidebar').appendChild(element);
+                        }
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                    track.detach();
+                    
+                    if (track.source === LivekitClient.Track.Source.ScreenShare) {
+                        const ssElement = document.getElementById('screenshare-' + participant.identity);
+                        if (ssElement) ssElement.remove();
+                    } else if (track.kind === LivekitClient.Track.Kind.Video) {
+                        const vidElement = document.getElementById('participant-' + participant.identity);
+                        if (vidElement) vidElement.remove();
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+                    const wrapper = document.getElementById('participant-' + participant.identity);
+                    if (wrapper) wrapper.remove();
+                    if (typeof renderRoster === 'function') renderRoster();
+                });
+
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, () => {
+                    if (typeof renderRoster === 'function') renderRoster();
+                });
+                room.on(LivekitClient.RoomEvent.TrackMuted, () => { if (typeof renderRoster === 'function') renderRoster(); });
+                room.on(LivekitClient.RoomEvent.TrackUnmuted, () => { if (typeof renderRoster === 'function') renderRoster(); });
+                room.on(LivekitClient.RoomEvent.ParticipantMetadataChanged, () => { if (typeof renderRoster === 'function') renderRoster(); });
+                room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, () => { if (typeof renderRoster === 'function') renderRoster(); });
+
+                room.on(LivekitClient.RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    try {
+                        const decoder = new TextDecoder();
+                        const data = JSON.parse(decoder.decode(payload));
+                        
+                        if (data.type === 'quiz_vote') {
+                            // Bắn event ra window để React (QuizShape) xử lý
+                            window.dispatchEvent(new CustomEvent('quiz_vote_received', { detail: data }));
+                        } else if (data.type === 'chat') {
+                            const senderName = participant ? participant.identity : data.sender;
+                            appendChatMessage(senderName, data.time, data.text, false);
+                            playNotificationSound();
+                            
+                            const chatbox = document.getElementById('chatbox');
+                            if (chatbox.style.display === 'none') {
+                                toggleChatbox();
+                            }
+                        } else if (data.type === 'raise_hand') {
+                            const senderName = participant ? participant.identity : data.sender;
+                            showToast("Học sinh " + senderName + " đang giơ tay phát biểu! ✋", 5000);
+                            
+                            // Add a visual indicator to their video if exists
+                            const vidBubble = document.getElementById('participant-' + senderName);
+                            if (vidBubble) {
+                                let handIcon = vidBubble.querySelector('.hand-icon');
+                                if (!handIcon) {
+                                    handIcon = document.createElement('div');
+                                    handIcon.className = 'hand-icon';
+                                    handIcon.innerText = '✋';
+                                    handIcon.style.position = 'absolute';
+                                    handIcon.style.top = '5px';
+                                    handIcon.style.right = '5px';
+                                    handIcon.style.fontSize = '20px';
+                                    handIcon.style.background = 'rgba(255,255,255,0.8)';
+                                    handIcon.style.borderRadius = '50%';
+                                    handIcon.style.padding = '2px';
+                                    handIcon.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
+                                    vidBubble.appendChild(handIcon);
+                                    
+                                    // Auto hide after 10s
+                                    setTimeout(() => {
+                                        if (handIcon.parentNode) handIcon.remove();
+                                    }, 10000);
+                                }
+                            }
+                        } else if (data.type === 'mute_all') {
+                            if (window.currentRoom && window.currentRoom.localParticipant) {
+                                window.currentRoom.localParticipant.setMicrophoneEnabled(false).then(() => {
+                                    showToast("Giáo viên đã tắt Mic của bạn để giữ trật tự!", 5000);
+                                }).catch(err => {
+                                    console.error("Lỗi khi bị Mute All: ", err);
+                                });
+                            }
+                        } else if (data.type === 'roster_force_mute') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && data.target === window.currentRoom.localParticipant.identity) {
+                                window.currentRoom.localParticipant.setMicrophoneEnabled(false).catch(e => console.error(e));
+                                showToast("Giáo viên đã tắt Mic của bạn.", 5000);
+                            }
+                        } else if (data.type === 'roster_ask_unmute') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && data.target === window.currentRoom.localParticipant.identity) {
+                                document.getElementById('ask-unmute-modal').style.display = 'block';
+                            }
+                        } else if (data.type === 'roster_kick') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && data.target === window.currentRoom.localParticipant.identity) {
+                                triggerCloseBoard();
+                            }
+                        } else if (data.type === 'roster_mute_all') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && window.currentUserRole !== 'teacher') {
+                                window.currentRoom.localParticipant.setMicrophoneEnabled(false).catch(e => console.error(e));
+                                showToast("Giáo viên đã tắt Mic của bạn để giữ trật tự!", 5000);
+                            }
+                        } else if (data.type === 'roster_lower_all_hands') {
+                            if (window.currentRoom && window.currentRoom.localParticipant) {
+                                const currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata);
+                                if (currentMeta.isHandRaised) {
+                                    currentMeta.isHandRaised = false;
+                                    window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta));
+                                }
+                            }
+                        } else if (data.type === 'roster_lower_hand') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && data.target === window.currentRoom.localParticipant.identity) {
+                                const currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata, window.currentRoom.localParticipant.identity);
+                                currentMeta.isHandRaised = false;
+                                
+                                if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
+                                window.rosterMetadataCache[window.currentRoom.localParticipant.identity] = currentMeta;
+                                
+                                try { window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta)); } catch(e){}
+                                
+                                const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentRoom.localParticipant.identity, metadata: JSON.stringify(currentMeta) });
+                                window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
+                            }
+                        } else if (data.type === 'roster_admit') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && data.target === window.currentRoom.localParticipant.identity) {
+                                const currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata, window.currentRoom.localParticipant.identity);
+                                currentMeta.isAdmitted = true;
+                                if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
+                                window.rosterMetadataCache[window.currentRoom.localParticipant.identity] = currentMeta;
+                                try { window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta)); } catch(e){}
+                                const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentRoom.localParticipant.identity, metadata: JSON.stringify(currentMeta) });
+                                window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
+                                if (typeof renderRoster === 'function') renderRoster();
+                                showToast("Giáo viên đã duyệt bạn vào lớp!", 5000);
+                            }
+                        } else if (data.type === 'roster_send_lobby') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && data.target === window.currentRoom.localParticipant.identity) {
+                                const currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata, window.currentRoom.localParticipant.identity);
+                                currentMeta.isAdmitted = false;
+                                if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
+                                window.rosterMetadataCache[window.currentRoom.localParticipant.identity] = currentMeta;
+                                try { window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta)); } catch(e){}
+                                const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentRoom.localParticipant.identity, metadata: JSON.stringify(currentMeta) });
+                                window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
+                                if (typeof renderRoster === 'function') renderRoster();
+                            }
+                        } else if (data.type === 'roster_admit_all') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && window.currentUserRole === 'student') {
+                                const currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata, window.currentRoom.localParticipant.identity);
+                                if (!currentMeta.isAdmitted) {
+                                    currentMeta.isAdmitted = true;
+                                    if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
+                                    window.rosterMetadataCache[window.currentRoom.localParticipant.identity] = currentMeta;
+                                    try { window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta)); } catch(e){}
+                                    const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentRoom.localParticipant.identity, metadata: JSON.stringify(currentMeta) });
+                                    window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
+                                    if (typeof renderRoster === 'function') renderRoster();
+                                    showToast("Giáo viên đã duyệt tất cả vào lớp!", 5000);
+                                }
+                            }
+                        } else if (data.type === 'roster_reaction') {
+                            if (typeof showReactionAnimation === 'function') showReactionAnimation(data.emoji, data.sender);
+                        } else if (data.type === 'roster_lobby_status') {
+                            window.lobbyEnabled = data.enabled;
+                            if (typeof renderRoster === 'function') renderRoster();
+                        } else if (data.type === 'roster_sync_metadata') {
+                            // Cập nhật metadata "chay" nếu server LiveKit không phát (Workaround)
+                            if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
+                            window.rosterMetadataCache[data.sender] = typeof data.metadata === 'string' ? JSON.parse(data.metadata) : data.metadata;
+                            if (typeof renderRoster === 'function') renderRoster();
+                        } else if (data.type === 'yt_sync') {
+                            if (data.action === 'open') {
+                                isYtTeacher = false;
+                                openYTPlayer(data.videoId, data.time, false);
+                            } else if (data.action === 'close') {
+                                closeCoWatchYT();
+                            } else if (data.action === 'sync') {
+                                if (!isYtTeacher && ytPlayer && ytPlayer.seekTo) {
+                                    const timeDiff = Math.abs(ytPlayer.getCurrentTime() - data.time);
+                                    if (timeDiff > 2) ytPlayer.seekTo(data.time);
+                                    
+                                    if (data.state === 1 && ytPlayer.getPlayerState() !== 1) ytPlayer.playVideo();
+                                    else if (data.state === 2 && ytPlayer.getPlayerState() !== 2) ytPlayer.pauseVideo();
+                                }
+                            }
+                        } else if (data.type === 'draw_sync') {
+                            if (window.tldrawAPI) {
+                                window.isReceivingSync = true;
+                                window.tldrawAPI.updateScene({ elements: data.elements });
+                                setTimeout(() => window.isReceivingSync = false, 50);
+                            }
+                        } else if (data.type === 'document_sync') {
+                            showToast("Giáo viên vừa tải lên 1 tài liệu mới!", 3000);
+                            if (typeof insertImageToExcalidraw === 'function') {
+                                insertImageToExcalidraw(data.url, data.yPos);
+                            }
+                        } else if (data.type === 'workspace_sync') {
+                            if (!isCodeMode) {
+                                toggleCodeMode();
+                                showToast("Giáo viên đã mở Môi trường lập trình Workspace!", 4000);
+                            }
+                            // Bỏ qua đồng bộ code vì StackBlitz có môi trường độc lập
+                        } else if (data.type === 'judge_publish') {
+                            if (!isCodeMode) toggleCodeMode();
+                            const panel = document.getElementById('judge-panel');
+                            if (panel.style.display === 'none') panel.style.display = 'flex';
+                            
+                            document.getElementById('judge-desc').value = data.desc;
+                            document.getElementById('judge-input').value = data.input;
+                            document.getElementById('judge-output').value = data.expected;
+                            showToast("Giáo viên vừa giao Bài tập mới! Hãy mở Đấu trường!", 5000);
+                        } else if (data.type === 'run_output') {
+                            if (!isCodeMode) toggleCodeMode();
+                            document.getElementById('terminal-output').innerText = data.result;
+                            document.getElementById('run-status').innerText = "Đã nhận kết quả";
+                        }
+                    } catch (e) {
+                        console.error('Lỗi nhận data:', e);
+                    }
+                });
+
+                await room.connect(LIVEKIT_URL, data.token);
+                console.log("LiveKit connected successfully!");
+                
+                // Cập nhật Metadata cho Roster
+                const initMetadata = JSON.stringify({
+                    role: window.currentUserRole,
+                    displayName: window.currentUserName,
+                    isHandRaised: false,
+                    handRaisedAt: null,
+                    isAdmitted: window.currentUserRole === 'teacher' ? true : false // Teacher always admitted, student depends on lobby
+                });
+                
+                if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
+                window.rosterMetadataCache[window.currentRoom.localParticipant.identity] = JSON.parse(initMetadata);
+
+                try {
+                    if (room.localParticipant.setMetadata) {
+                        await room.localParticipant.setMetadata(initMetadata);
+                    }
+                } catch(e) {
+                    console.warn("Lỗi setMetadata, có thể do thiếu quyền từ Server: ", e);
+                }
+                
+                // Broadcast backup
+                setTimeout(() => {
+                    if (window.currentRoom && window.currentRoom.localParticipant) {
+                        const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentRoom.localParticipant.identity, metadata: initMetadata });
+                        const encoder = new TextEncoder();
+                        window.currentRoom.localParticipant.publishData(encoder.encode(metaPayload), { reliable: true });
+                    }
+                }, 1000);
+                
+                // Gởi thêm 1 lần nữa sau 5 giây để chắc chắn người khác nhận được
+                setTimeout(() => {
+                    if (window.currentRoom && window.currentRoom.localParticipant) {
+                        const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentRoom.localParticipant.identity, metadata: initMetadata });
+                        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
+                    }
+                }, 5000);
+            } catch (e) {
+                console.error("Lỗi kết nối LiveKit:", e);
+            }
+        }
+
+        async function startVideoCall() {
+            if (!window.currentRoom) {
+                alert("Đang kết nối tới phòng học, vui lòng thử lại sau vài giây...");
+                return;
+            }
+            
+            document.getElementById('start-video-btn').style.display = 'none';
+            
+            try {
+                await window.currentRoom.localParticipant.enableCameraAndMicrophone();
+                
+                const localTrackPub = window.currentRoom.localParticipant.getTrackPublication(LivekitClient.Track.Source.Camera);
+                if (localTrackPub && localTrackPub.track) {
+                    const element = localTrackPub.track.attach();
+                    element.style.width = '160px';
+                    element.style.height = '90px';
+                    element.style.objectFit = 'cover';
+                    element.style.borderRadius = '4px';
+                    element.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+                    element.style.border = '2px solid #3b82f6';
+                    element.style.transform = 'scaleX(-1)';
+                    element.style.background = '#000';
+                    
+                    const wrapper = document.createElement('div');
+                    wrapper.style.position = 'relative';
+                    
+                    const nameTag = document.createElement('div');
+                    nameTag.innerText = 'Bạn';
+                    nameTag.style.position = 'absolute';
+                    nameTag.style.bottom = '-5px';
+                    nameTag.style.background = '#3b82f6';
+                    nameTag.style.color = '#fff';
+                    nameTag.style.padding = '2px 8px';
+                    nameTag.style.borderRadius = '10px';
+                    nameTag.style.fontSize = '12px';
+                    nameTag.style.left = '50%';
+                    nameTag.style.transform = 'translateX(-50%)';
+                    
+                    wrapper.appendChild(element);
+                    wrapper.appendChild(nameTag);
+                    
+                    const sidebar = document.getElementById('video-sidebar');
+                    sidebar.style.display = 'flex';
+                    sidebar.appendChild(wrapper);
+                }
+
+            } catch (e) {
+                console.error("Lỗi bật camera:", e);
+                alert("Không thể bật Camera. Vui lòng cấp quyền! Lỗi chi tiết: " + e.message);
+                document.getElementById('start-video-btn').style.display = 'flex';
+            }
+        }
+        
+        async function handleDocumentUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            showToast("Đang xử lý tài liệu...", 3000);
+            
+            if (file.type === "application/pdf") {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    showToast(`Tìm thấy ${pdf.numPages} trang PDF. Đang tải lên...`, 3000);
+                    
+                    let startY = window.tldrawAPI ? window.tldrawAPI.getAppState().scrollY : 0;
+                    
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const viewport = page.getViewport({ scale: 2.0 });
+                        
+                        const canvas = document.createElement("canvas");
+                        const ctx = canvas.getContext("2d");
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        
+                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                        
+                        canvas.toBlob(async (blob) => {
+                            await uploadAndInsertImage(blob, "pdf-page-" + pageNum + ".png", startY + (pageNum - 1) * (viewport.height + 50));
+                        }, "image/png");
+                    }
+                } catch (e) {
+                    console.error("Lỗi xử lý PDF:", e);
+                    showToast("Lỗi xử lý PDF: " + e.message);
+                }
+            } else if (file.type.startsWith("image/")) {
+                await uploadAndInsertImage(file, file.name, window.tldrawAPI ? window.tldrawAPI.getAppState().scrollY : 0);
+            }
+            
+            event.target.value = '';
+        }
+        
+        async function uploadAndInsertImage(blobOrFile, fileName, yPos) {
+            const formData = new FormData();
+            formData.append('file', blobOrFile, fileName);
+            
+            try {
+                const res = await fetch("https://hocba299-3-tutorhub-vscode.hf.space/upload-document", {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const url = data.url;
+                    insertImageToExcalidraw(url, yPos);
+                    
+                    if (window.currentRoom) {
+                        const strData = JSON.stringify({ type: 'document_sync', url: url, yPos: yPos });
+                        const encoder = new TextEncoder();
+                        await window.currentRoom.localParticipant.publishData(encoder.encode(strData), LivekitClient.DataPacket_Kind.RELIABLE);
+                    }
+                } else {
+                    showToast("Lỗi tải tài liệu: " + data.error);
+                }
+            } catch (e) {
+                console.error("Lỗi upload tài liệu:", e);
+                showToast("Lỗi kết nối Server: " + e.message);
+            }
+        }
+        
+        async function insertImageToExcalidraw(url, yPos = 0) {
+            if (!window.tldrawAPI) return;
+            
+            try {
+                const proxyUrl = "https://hocba299-3-tutorhub-vscode.hf.space/proxy-image?url=" + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                const blob = await response.blob();
+                
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const dataURL = reader.result;
+                    const fileId = "file-" + Date.now() + Math.random().toString(36).substring(2, 9);
+                    
+                    const img = new Image();
+                    img.onload = () => {
+                        window.tldrawAPI.addFiles([{
+                            id: fileId,
+                            dataURL: dataURL,
+                            mimeType: blob.type,
+                            created: Date.now()
+                        }]);
+                        
+                        const elements = window.tldrawAPI.getSceneElements();
+                        const newElement = {
+                            id: "img-" + Date.now() + Math.random().toString(36).substring(2, 9),
+                            type: "image",
+                            fileId: fileId,
+                            x: -window.tldrawAPI.getAppState().scrollX + 50,
+                            y: -window.tldrawAPI.getAppState().scrollY + yPos,
+                            width: img.width / 2,
+                            height: img.height / 2,
+                            angle: 0,
+                            strokeColor: "transparent",
+                            backgroundColor: "transparent",
+                            fillStyle: "hachure",
+                            strokeWidth: 1,
+                            strokeStyle: "solid",
+                            roughness: 1,
+                            opacity: 100,
+                            groupIds: [],
+                            roundness: null,
+                            isDeleted: false,
+                            boundElements: null,
+                            updated: Date.now(),
+                            link: null,
+                            locked: false
+                        };
+                        
+                        window.tldrawAPI.updateScene({ elements: [...elements, newElement] });
+                        
+                        // Kích hoạt đồng bộ nét vẽ sau khi chèn
+                        if (window.performDrawSync) {
+                            setTimeout(() => window.performDrawSync(window.tldrawAPI.getSceneElements()), 100);
+                        }
+                    };
+                    img.src = dataURL;
+                };
+                reader.readAsDataURL(blob);
+            } catch (e) {
+                console.error("Lỗi chèn ảnh vào bảng:", e);
+            }
+        }
+
+        // ==========================================
+        // TÍNH NĂNG VS CODE THẬT (HUGGING FACE CODE-SERVER)
+        // ==========================================
+        let isCodeMode = false;
+
+        // Lưu đường link Hugging Face Space của Sếp ở đây!
+        let HUGGING_FACE_URL = "https://hocba299-3-tutorhub-vscode.hf.space";
+
+        function toggleCodeMode() {
+            isCodeMode = !isCodeMode;
+            const wrapper = document.getElementById('code-wrapper');
+            const root = document.getElementById('root');
+            const btn = document.getElementById('code-toggle-btn');
+            
+            if (isCodeMode) {
+                wrapper.style.display = 'flex';
+                root.style.display = 'none'; // Ẩn bảng vẽ
+                btn.classList.add('active');
+                
+                const container = document.getElementById('editor-container');
+                // Nếu chưa có iframe thì tạo, gọi qua endpoint /login để set Cookie
+                if (container.innerHTML.trim() === '') {
+                    const userName = window.currentRoom ? window.currentRoom.localParticipant.identity : "guest";
+                    container.innerHTML = `<iframe src="${HUGGING_FACE_URL}/login?user=${userName}" style="width:100%; height:100%; border:none;"></iframe>`;
+                }
+            } else {
+                wrapper.style.display = 'none';
+                root.style.display = 'block'; // Hiện lại bảng vẽ
+                btn.classList.remove('active');
+            }
+        }
+        
+        function toggleJudgePanel() {
+            const panel = document.getElementById('judge-panel');
+            panel.style.display = (panel.style.display === 'none') ? 'flex' : 'none';
+        }
+
+        // Giáo viên giao bài tập
+        function publishProblem() {
+            const desc = document.getElementById('judge-desc').value;
+            const input = document.getElementById('judge-input').value;
+            const expected = document.getElementById('judge-output').value;
+            
+            if (window.currentRoom) {
+                const strData = JSON.stringify({ type: 'judge_publish', desc: desc, input: input, expected: expected });
+                const encoder = new TextEncoder();
+                window.currentRoom.localParticipant.publishData(encoder.encode(strData), LivekitClient.DataPacket_Kind.RELIABLE);
+                alert("Đã giao bài tập cho cả lớp!");
+            }
+        }
+
+        // Học sinh nộp bài
+        async function submitCodeForJudging() {
+            if (HUGGING_FACE_URL.includes("huggingface.co/spaces") && !HUGGING_FACE_URL.includes("tutorhub")) {
+                alert("Bạn chưa cấu hình Link Máy chủ VS Code thật! Vui lòng làm theo hướng dẫn.");
+                return;
+            }
+            
+            const resultBox = document.getElementById('judge-result');
+            const stdin = document.getElementById('judge-input').value;
+            const expected = document.getElementById('judge-output').value.trim();
+            
+            resultBox.innerText = "Đang lấy mã nguồn từ VS Code Server...";
+            resultBox.style.color = "#f59e0b";
+
+            try {
+                // Tải toàn bộ File từ Máy chủ Hugging Face về thông qua Proxy API
+                const userName = window.currentRoom ? window.currentRoom.localParticipant.identity : "guest";
+                const response = await fetch(HUGGING_FACE_URL + `/tutorhub-api/get-code?user=${userName}`);
+                const resData = await response.json();
+                
+                if (!resData.success) {
+                    throw new Error("Lỗi Server: " + resData.error);
+                }
+                
+                const files = resData.files;
+                
+                // Ưu tiên nộp file main.py, nếu không có thì nộp index.js
+                let mainFileName = "";
+                if (files['main.py']) mainFileName = 'main.py';
+                else if (files['index.js']) mainFileName = 'index.js';
+                else {
+                    const fileNames = Object.keys(files).filter(f => !f.includes('node_modules') && !f.includes('package.json'));
+                    if (fileNames.length > 0) mainFileName = fileNames[0];
+                }
+
+                if (!mainFileName) {
+                    resultBox.innerText = "❌ Lỗi: Không tìm thấy file code nào!";
+                    resultBox.style.color = "#ef4444";
+                    return;
+                }
+
+                let lang = "python";
+                let wandboxCompiler = 'cpython-3.10.15';
+                if (mainFileName.endsWith('.js')) wandboxCompiler = 'nodejs-18.20.4';
+                if (mainFileName.endsWith('.java')) wandboxCompiler = 'openjdk-jdk-21+35';
+                if (mainFileName.endsWith('.cpp')) wandboxCompiler = 'gcc-13.2.0';
+
+                let codesArray = [];
+                for (let f in files) {
+                    if (f !== mainFileName && typeof files[f] === 'string' && !f.includes('node_modules')) {
+                        codesArray.push({ file: f, code: files[f] });
+                    }
+                }
+
+                resultBox.innerText = `Đang chấm điểm file ${mainFileName}...`;
+
+                const wandboxResponse = await fetch('https://wandbox.org/api/compile.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        compiler: wandboxCompiler,
+                        code: files[mainFileName],
+                        codes: codesArray,
+                        stdin: stdin
+                    })
+                });
+                
+                const data = await wandboxResponse.json();
+                let output = (data.program_message || "").trim();
+                
+                if (output === expected) {
+                    resultBox.innerText = `✅ PASSED (100 Điểm) - Đã chấm ${mainFileName}`;
+                    resultBox.style.color = "#10b981";
+                    showToast("Chúc mừng! Bạn đã giải thành công!", 4000);
+                } else {
+                    resultBox.innerText = `❌ FAILED - Output thực tế: ${output || 'Lỗi/Rỗng'}`;
+                    resultBox.style.color = "#ef4444";
+                }
+            } catch (e) {
+                resultBox.innerText = "Lỗi Server Chấm: " + e.message;
+            }
+        }
+
+    // ==========================================
+    // TÍNH NĂNG CO-WATCH & EXPORT PDF
+    // ==========================================
+
+    async function exportToPDF() {
+        if (!window.tldrawAPI) return;
+        try {
+            const elements = window.tldrawAPI.getSceneElements();
+            const appState = window.tldrawAPI.getAppState();
+            const files = window.tldrawAPI.getFiles();
+            
+            showToast("Đang tạo file PDF, vui lòng chờ...", 2000);
+            
+            const blob = await window.ExcalidrawLib.exportToBlob({
+                elements,
+                appState: { ...appState, exportWithDarkMode: false, viewBackgroundColor: "#ffffff" },
+                files,
+                mimeType: "image/png"
+            });
+            
+            const imgUrl = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                const { jsPDF } = window.jspdf;
+                const orientation = img.width > img.height ? "l" : "p";
+                const pdf = new jsPDF({ orientation: orientation, unit: "px", format: [img.width, img.height] });
+                pdf.addImage(img, 'PNG', 0, 0, img.width, img.height);
+                pdf.save("TutorHub_Board.pdf");
+                showToast("Đã lưu PDF thành công!", 3000);
+            };
+            img.src = imgUrl;
+        } catch (e) {
+            console.error("Lỗi xuất PDF", e);
+            alert("Lỗi khi tạo PDF!");
+        }
+    }
+
+    function insertMathFormula() {
+        const mathField = document.getElementById('math-field-input');
+        if (!mathField.value.trim()) return;
+        
+        if (window.addMathNode) {
+            window.addMathNode(mathField.value);
+        }
+        document.getElementById('math-modal').style.display = 'none';
+        mathField.value = ''; // Reset
+    }
+
+    function insertMermaidDiagram() {
+        const mermaidInput = document.getElementById('mermaid-input');
+        if (!mermaidInput.value.trim()) return;
+        
+        if (window.addMermaidNode) {
+            window.addMermaidNode(mermaidInput.value);
+        }
+        document.getElementById('mermaid-modal').style.display = 'none';
+    }
+
+    // ========== XỬ LÝ ĐỒNG BỘ CÙNG XEM (CO-WATCH) ==========
+    
+    function toggleCoWatchModal() {
+        const modal = document.getElementById('cowatch-modal');
+        modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function startCoWatchReels() {
+        toggleCoWatchModal();
+        if (window.cefQuery) {
+            window.cefQuery({ 
+                request: 'OPEN_REEL_COWATCH', 
+                persistent: false, 
+                onSuccess: function(r){}, 
+                onFailure: function(e,m){} 
+            });
+        }
+    }
+
+    let ytPlayer = null;
+    let isYtTeacher = false;
+    let ytSyncInterval = null;
+
+    function onYouTubeIframeAPIReady() {
+        console.log("YouTube API Ready");
+    }
+
+    function startCoWatchYT() {
+        const link = document.getElementById('cowatch-yt-input').value.trim();
+        
+        // Regex chuẩn để lấy ID video (hỗ trợ cả shorts, youtu.be, embed, tham số phụ)
+        const match = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+        
+        if (!match) {
+            alert("Link YouTube không hợp lệ hoặc không tìm thấy ID video!");
+            return;
+        }
+        
+        const videoId = match[1];
+        
+        toggleCoWatchModal();
+        isYtTeacher = true; // Chỉ người mở YT mới có quyền broadcast
+        openYTPlayer(videoId, 0, true);
+        
+        if (window.currentRoom) {
+            const payload = JSON.stringify({ type: 'yt_sync', action: 'open', videoId: videoId, time: 0, state: 1 });
+            window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        }
+    }
+
+    function openYTPlayer(videoId, startTime = 0, isTeacher = false) {
+        document.getElementById('cowatch-yt-floating').style.display = 'block';
+        document.getElementById('yt-overlay').style.display = isTeacher ? 'none' : 'block';
+        
+        if (ytPlayer) {
+            ytPlayer.loadVideoById(videoId, startTime);
+        } else {
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: { 
+                    'autoplay': 1, 
+                    'controls': 1
+                },
+                events: {
+                    'onReady': (e) => {
+                        if (startTime > 0) e.target.seekTo(startTime);
+                    },
+                    'onStateChange': onYTStateChange
+                }
+            });
+        }
+        
+        if (isTeacher) {
+            if (ytSyncInterval) clearInterval(ytSyncInterval);
+            ytSyncInterval = setInterval(broadcastYTState, 1500); 
+        }
+    }
+
+    function broadcastYTState() {
+        if (!ytPlayer || !ytPlayer.getPlayerState) return;
+        const state = ytPlayer.getPlayerState();
+        const time = ytPlayer.getCurrentTime();
+        
+        if (window.currentRoom) {
+            const payload = JSON.stringify({ type: 'yt_sync', action: 'sync', videoId: ytPlayer.getVideoData().video_id, time: time, state: state });
+            window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: false });
+        }
+    }
+
+    let isYTFullscreen = false;
+    function toggleYTFullscreen() {
+        const box = document.getElementById('cowatch-yt-floating');
+        isYTFullscreen = !isYTFullscreen;
+        if (isYTFullscreen) {
+            box.classList.add('yt-fullscreen-mode');
+        } else {
+            box.classList.remove('yt-fullscreen-mode');
+            // Remove inline top/left to fallback to default bottom-right
+            box.style.top = '';
+            box.style.left = '';
+        }
+    }
+
+    function closeCoWatchYT() {
+        document.getElementById('cowatch-yt-floating').style.display = 'none';
+        if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+        if (ytSyncInterval) clearInterval(ytSyncInterval);
+        
+        if (isYtTeacher && window.currentRoom) {
+            const payload = JSON.stringify({ type: 'yt_sync', action: 'close' });
+            window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+            isYtTeacher = false;
+        }
+    }
+
+    function onYTStateChange(event) {
+        if (!isYtTeacher || !window.currentRoom) return;
+        broadcastYTState();
+    }
+
+    function broadcastYTState() {
+        if (!ytPlayer || !ytPlayer.getPlayerState) return;
+        const state = ytPlayer.getPlayerState();
+        const time = ytPlayer.getCurrentTime();
+        
+        const payload = JSON.stringify({ type: 'yt_sync', action: 'sync', time: time, state: state });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+    }
+
+    // Drag functionality for Floating Modal
+    const floatingBox = document.getElementById('cowatch-yt-floating');
+    const header = document.getElementById('yt-header');
+    let isDragging = false, startX, startY, initialX, initialY;
+
+    header.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialX = floatingBox.offsetLeft;
+        initialY = floatingBox.offsetTop;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        floatingBox.style.left = (initialX + dx) + 'px';
+        floatingBox.style.top = (initialY + dy) + 'px';
+        floatingBox.style.right = 'auto';
+        floatingBox.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => { isDragging = false; });
+
+    // ==========================================
+    // UI HANDLERS (DOCK & SETTINGS)
+    // ==========================================
+    function toggleBoardSettingsModal() {
+        const modal = document.getElementById('board-settings-modal');
+        modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function applyBoardSettings() {
+        const isDark = document.getElementById('chk-dark-mode').checked;
+        const isInfinite = document.getElementById('chk-infinite').checked;
+        const paperMode = document.getElementById('cb-paper-mode').value;
+        
+        if (window.setPaperMode) window.setPaperMode(paperMode, isDark);
+        if (window.setInfiniteMode) window.setInfiniteMode(isInfinite);
+    }
+
+    function triggerSaveBoard() {
+        if (window.cefQuery) {
+            window.cefQuery({ request: 'REQUEST_SAVE_BOARD', persistent: false, onSuccess: function(r){}, onFailure: function(e,m){} });
+        } else {
+            console.log("Saving board..."); // Fallback if no JCEF
+        }
+    }
+
+    function triggerCloseBoard() {
+        if (window.cefQuery) {
+            window.cefQuery({ request: 'CLOSE_BOARD', persistent: false, onSuccess: function(r){}, onFailure: function(e,m){} });
+        } else {
+            console.log("Closing board...");
+        }
+    }
+
+    // ==========================================
+    // CLASS ROSTER (PEOPLE PANEL) LOGIC
+    // ==========================================
+    
+    function togglePeopleSidebar() {
+        const sidebar = document.getElementById('people-sidebar');
+        const isHidden = sidebar.style.display === 'none';
+        
+        if (isHidden) {
+            sidebar.style.display = 'flex';
+            sidebar.style.transform = 'translateX(0)';
+            if (window.currentUserRole === 'teacher') {
+                document.getElementById('roster-host-controls').style.display = 'flex';
+            }
+            renderRoster();
+        } else {
+            sidebar.style.transform = 'translateX(100%)';
+            setTimeout(() => sidebar.style.display = 'none', 300);
+        }
+    }
+
+    function parseMetadata(str, identity) {
+        let meta = null;
+        try {
+            if (str) meta = JSON.parse(str);
+        } catch(e) { }
+        
+        // Fallback to cache
+        if (!meta && window.rosterMetadataCache && window.rosterMetadataCache[identity]) {
+            meta = window.rosterMetadataCache[identity];
+        }
+        
+        return meta || { role: 'student', displayName: 'Unknown', isHandRaised: false, isAdmitted: true };
+    }
+
+    function renderRoster() {
+        if (!window.currentRoom) return;
+        
+        const listDiv = document.getElementById('roster-list');
+        const searchTerm = (document.getElementById('roster-search').value || '').toLowerCase();
+        
+        const participants = [];
+        
+        // Add Local Participant
+        if (window.currentRoom.localParticipant) {
+            const meta = parseMetadata(window.currentRoom.localParticipant.metadata, window.currentRoom.localParticipant.identity);
+            participants.push({
+                participant: window.currentRoom.localParticipant,
+                isLocal: true,
+                meta: meta,
+                id: window.currentRoom.localParticipant.identity
+            });
+        }
+        
+        // Add Remote Participants
+        window.currentRoom.remoteParticipants.forEach(rp => {
+            const meta = parseMetadata(rp.metadata, rp.identity);
+            participants.push({
+                participant: rp,
+                isLocal: false,
+                meta: meta,
+                id: rp.identity
+            });
+        });
+        
+        // Filter by search
+        let filtered = participants;
+        if (searchTerm) {
+            filtered = participants.filter(p => p.id.toLowerCase().includes(searchTerm) || (p.meta.displayName && p.meta.displayName.toLowerCase().includes(searchTerm)));
+        }
+
+        document.getElementById('roster-count').innerText = participants.length;
+        document.getElementById('roster-badge').innerText = participants.length;
+        document.getElementById('roster-badge').style.display = participants.length > 1 ? 'flex' : 'none';
+
+        // Setup lobby local overlay
+        const localP = participants.find(p => p.isLocal);
+        if (typeof window.lobbyEnabled === 'undefined') window.lobbyEnabled = true;
+        
+        if (localP && localP.meta.role === 'student' && window.lobbyEnabled && !localP.meta.isAdmitted) {
+            document.getElementById('lobby-overlay').style.display = 'flex';
+        } else {
+            document.getElementById('lobby-overlay').style.display = 'none';
+        }
+
+        // Sort Algorithm
+        filtered.sort((a, b) => {
+            if (a.isLocal) return -1;
+            if (b.isLocal) return 1;
+            if (!a.meta.isAdmitted && b.meta.isAdmitted) return -1; // Lobby on top
+            if (a.meta.isAdmitted && !b.meta.isAdmitted) return 1;
+            
+            if (a.meta.role === 'teacher' && b.meta.role !== 'teacher') return -1;
+            if (a.meta.role !== 'teacher' && b.meta.role === 'teacher') return 1;
+            
+            if (a.meta.isHandRaised && !b.meta.isHandRaised) return -1;
+            if (!a.meta.isHandRaised && b.meta.isHandRaised) return 1;
+            
+            if (a.meta.isHandRaised && b.meta.isHandRaised) {
+                return (a.meta.handRaisedAt || 0) - (b.meta.handRaisedAt || 0);
+            }
+            
+            return a.id.localeCompare(b.id);
+        });
+
+        // Render HTML
+        let html = '';
+        let currentSection = '';
+
+        filtered.forEach((p, index) => {
+            let section = p.meta.role === 'teacher' ? 'Giáo viên' : 'Học sinh';
+            if (!p.meta.isAdmitted) section = 'Phòng chờ';
+            
+            if (section !== currentSection) {
+                html += `<div style="font-size: 11px; color: #888; padding: 10px 15px 5px 15px; text-transform: uppercase; font-weight: bold;">${section}</div>`;
+                currentSection = section;
+            }
+
+            const isMuted = !p.participant.isMicrophoneEnabled;
+            const isCamOn = p.participant.isCameraEnabled;
+            const handIcon = p.meta.isHandRaised ? `<span style="background: #eab308; color: #000; border-radius: 4px; padding: 2px 4px; font-size: 10px; font-weight: bold; margin-right: 5px;">✋</span>` : '';
+            const meLabel = p.isLocal ? ' <span style="color: #aaa; font-size: 11px;">(Bạn)</span>' : '';
+            
+            const micColor = isMuted ? '#ef4444' : '#10b981';
+            const micIcon = isMuted ? 'fa-microphone-slash' : 'fa-microphone';
+            const camColor = isCamOn ? '#10b981' : '#ef4444';
+            const camIcon = isCamOn ? 'fa-video' : 'fa-video-slash';
+
+            // Hover Menu for Teachers
+            let hoverMenu = '';
+            if (!p.isLocal && window.currentUserRole === 'teacher') {
+                if (!p.meta.isAdmitted) {
+                    hoverMenu = `
+                    <div class="roster-actions" style="display: none; gap: 5px;">
+                        <button onclick="handleAdmit('${p.id}')" title="Duyệt vào lớp" style="background: #10b981; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-check"></i></button>
+                        <button onclick="handleKick('${p.id}')" title="Từ chối" style="background: #ef4444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    `;
+                } else {
+                    hoverMenu = `
+                    <div class="roster-actions" style="display: none; gap: 5px;">
+                        <button onclick="handleSendLobby('${p.id}')" title="Đưa ra phòng chờ" style="background: #eab308; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-person-walking-arrow-right"></i></button>
+                        ${!isMuted ? `<button onclick="handleForceMute('${p.id}')" title="Tắt Mic" style="background: #444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-microphone-slash"></i></button>` 
+                                   : `<button onclick="handleAskUnmute('${p.id}')" title="Yêu cầu bật Mic" style="background: #3b82f6; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-microphone"></i></button>`}
+                        ${p.meta.isHandRaised ? `<button onclick="handleLowerHand('${p.id}')" title="Hạ tay" style="background: #444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-hand-holding-hand"></i></button>` : ''}
+                        <button onclick="handleKick('${p.id}')" title="Đuổi" style="background: #ef4444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-ban"></i></button>
+                    </div>
+                    `;
+                }
+            }
+
+            html += `
+            <div onmouseover="this.querySelector('.roster-actions') && (this.querySelector('.roster-actions').style.display='flex'); this.style.background='#333'" 
+                 onmouseout="this.querySelector('.roster-actions') && (this.querySelector('.roster-actions').style.display='none'); this.style.background='transparent'" 
+                 style="padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2a2a; transition: background 0.2s;">
+                
+                <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #4b5563; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 14px;">
+                        ${(p.meta.displayName || p.id).charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div style="color: white; font-size: 14px; font-weight: 500;">${handIcon}${p.meta.displayName || p.id}${meLabel}</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    ${hoverMenu}
+                    <div style="display: flex; gap: 10px; color: #888;">
+                        <i class="fa-solid ${micIcon}" style="color: ${micColor}; font-size: 13px;"></i>
+                        <i class="fa-solid ${camIcon}" style="color: ${camColor}; font-size: 13px;"></i>
+                    </div>
+                </div>
+            </div>
+            `;
+        });
+        
+        listDiv.innerHTML = html;
+    }
+
+    // Handlers
+    function handleForceMute(targetId) {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_force_mute', target: targetId });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        showToast("Đã tắt mic học sinh.");
+    }
+    
+    function handleAskUnmute(targetId) {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_ask_unmute', target: targetId });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        showToast("Đã gởi yêu cầu bật mic đến học sinh.");
+    }
+    
+    function handleKick(targetId) {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_kick', target: targetId });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        showToast("Đã mời học sinh rời khỏi lớp.");
+    }
+
+    function handleMuteAll() {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_mute_all' });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        showToast("Đã tắt mic toàn bộ lớp.");
+    }
+
+    function handleLowerAllHands() {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_lower_all_hands' });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        showToast("Đã hạ tay toàn bộ lớp.");
+    }
+
+    function handleLowerHand(targetId) {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_lower_hand', target: targetId });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+    }
+
+    function handleToggleLobby() {
+        const toggle = document.getElementById('lobby-toggle');
+        window.lobbyEnabled = toggle.checked;
+        const payload = JSON.stringify({ type: 'roster_lobby_status', enabled: window.lobbyEnabled });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        renderRoster();
+    }
+
+    function handleAdmit(targetId) {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_admit', target: targetId });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+    }
+
+    function handleSendLobby(targetId) {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_send_lobby', target: targetId });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+    }
+
+    function handleAdmitAll() {
+        if (!window.currentRoom) return;
+        const payload = JSON.stringify({ type: 'roster_admit_all' });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+    }
+    
+    // ==========================================
+    // EMOJI REACTIONS LOGIC
+    // ==========================================
+    
+    function toggleReactionMenu(event) {
+        const menu = document.getElementById('reaction-menu');
+        menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        if (event) event.stopPropagation();
+    }
+    
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('reaction-menu');
+        const btn = document.getElementById('react-btn');
+        if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            menu.style.display = 'none';
+        }
+    });
+
+    function triggerReaction(emoji) {
+        document.getElementById('reaction-menu').style.display = 'none';
+        if (!window.currentRoom || !window.currentRoom.localParticipant) return;
+        const payload = JSON.stringify({ type: 'roster_reaction', emoji: emoji, sender: window.currentRoom.localParticipant.identity });
+        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+        
+        // Show for self
+        showReactionAnimation(emoji, window.currentRoom.localParticipant.identity);
+    }
+    
+    function showReactionAnimation(emoji, senderId) {
+        const vidBubble = document.getElementById('participant-' + senderId);
+        const emojiEl = document.createElement('div');
+        emojiEl.className = 'emoji-bubble';
+        emojiEl.innerText = emoji;
+        
+        if (vidBubble) {
+            const rect = vidBubble.getBoundingClientRect();
+            emojiEl.style.left = (rect.left + rect.width / 2) + 'px';
+            emojiEl.style.bottom = (window.innerHeight - rect.top) + 'px';
+        } else {
+            emojiEl.style.left = (40 + Math.random() * 20) + '%';
+        }
+        
+        document.body.appendChild(emojiEl);
+        setTimeout(() => {
+            if (emojiEl.parentNode) emojiEl.remove();
+        }, 3000);
+    }
+
+    // Modal popup Ask to Unmute
+    window.acceptUnmuteRequest = function() {
+        document.getElementById('ask-unmute-modal').style.display = 'none';
+        if (window.currentRoom && window.currentRoom.localParticipant) {
+            window.currentRoom.localParticipant.setMicrophoneEnabled(true).catch(e => console.error(e));
+        }
+    }
+
+    // Tự động kết nối LiveKit khi test trên Browser (Không phải JCEF)
+    setTimeout(() => {
+        if (typeof window.cefQuery === 'undefined') {
+            console.log('Chạy trên Browser (Không phải JCEF). Tự động kết nối LiveKit để test...');
+            connectToLiveKit();
+        }
+    }, 1500);
+    
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

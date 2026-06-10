@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Lavie 3D Desktop</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./node_modules/three/build/three.module.js",
+          "three/addons/": "./node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Khu vực dựng hình 3D -->
+    <canvas id="glcanvas"></canvas>
+
+    <!-- Khung chat Glassmorphism -->
+    <div id="chat-container">
+      <div id="chat-header">
+        Lavie AI Assistant
+      </div>
+      <div id="chat-messages">
+        <!-- Tin nhắn sẽ được JavaScript đẩy vào đây -->
+      </div>
+      <div id="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." />
+        <button id="mic-btn" title="Giữ để nói">🎤</button>
+        <button id="img-btn" title="Gửi ảnh">🖼️</button>
+        <button id="send-btn">Gửi</button>
+        <input type="file" id="image-upload" accept="image/*" hidden />
+      </div>
+    </div>
+
+    <!-- Script render 3D và logic -->
+    <script type="module" src="renderer.js"></script>
+  </body>
+</html>

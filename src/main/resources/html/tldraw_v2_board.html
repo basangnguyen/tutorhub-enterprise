@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tldraw v2 Board</title>
+    <!-- tldraw CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/tldraw@2.4.2/tldraw.css" />
+    <style>
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; }
+        .paper-lined { background-image: linear-gradient(rgba(0,0,0,.1) 1px, transparent 1px); background-size: 100% 30px; }
+        .paper-dark-lined { background-image: linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px); background-size: 100% 30px; }
+        .paper-grid { background-image: linear-gradient(rgba(0,0,0,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.1) 1px, transparent 1px); background-size: 30px 30px; }
+        .paper-dark-grid { background-image: linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px); background-size: 30px 30px; }
+    </style>
+    <!-- Import Maps cho phép sử dụng ES Modules (Được hỗ trợ hoàn hảo trên JCEF Chromium 122) -->
+    <!-- Import Maps cho phép sử dụng ES Modules chuẩn -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "tldraw": "https://esm.sh/tldraw@2.4.2?bundle"
+      }
+    }
+    </script>
+</head>
+<body class="paper-lined">
+    <div id="root" style="width: 100%; height: 100%"></div>
+
+    <script type="module">
+        import { Tldraw, exportToBlob } from 'tldraw'
+        import * as React from 'react'
+        import { createRoot } from 'react-dom/client'
+
+        function App() {
+            return React.createElement(
+                Tldraw, 
+                {
+                    onMount: (editor) => {
+                        window.tldrawEditor = editor;
+                        // Tắt menu và UI rườm rà
+                        editor.updateInstanceState({ isReadonly: false });
+                        
+                        // Báo cho Java qua cefQuery (JCEF Message Router)
+                        if (window.cefQuery) {
+                            window.cefQuery({ 
+                                request: 'EDITOR_READY', 
+                                persistent: false, 
+                                onSuccess: function(r){}, 
+                                onFailure: function(e,m){} 
+                            });
+                        }
+                    },
+                    persistenceKey: null // Không lưu cache tránh đầy RAM
+                }
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+
+        window.setPaperMode = (mode, isDark) => {
+            document.body.className = '';
+            if (mode === 'lined') {
+                document.body.classList.add(isDark ? 'paper-dark-lined' : 'paper-lined');
+            } else if (mode === 'grid') {
+                document.body.classList.add(isDark ? 'paper-dark-grid' : 'paper-grid');
+            }
+            if (window.tldrawEditor) {
+                window.tldrawEditor.user.updateUserPreferences({ isDarkMode: isDark });
+            }
+        };
+
+        window.setInfiniteMode = (isInfinite) => {
+            // tldraw mặc định vô hạn
+        };
+
+        window.requestSaveBoardAndThumbnail = async () => {
+            if (!window.tldrawEditor) return;
+            const snapshot = window.tldrawEditor.store.getSnapshot();
+            const jsonStr = JSON.stringify(snapshot);
+            
+            let thumbBase64 = "";
+
+            try {
+                const shapeIds = Array.from(window.tldrawEditor.getCurrentPageShapeIds());
+                if (shapeIds.length > 0) {
+                    const blob = await exportToBlob({
+                        editor: window.tldrawEditor,
+                        ids: shapeIds,
+                        format: 'png',
+                        opts: { background: false, dark: window.tldrawEditor.user.getIsDarkMode() }
+                    });
+                    
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = () => {
+                        const base64data = reader.result.split(',')[1];
+                        if (window.cefQuery) {
+                            window.cefQuery({ request: 'SAVE_DATA:' + jsonStr + '|||THUMBNAIL_SEP|||' + base64data, persistent: false, onSuccess: function(r){}, onFailure: function(e,m){} });
+                        }
+                    };
+                    return; // Return sớm để đợi FileReader callback
+                }
+            } catch(e) {
+                console.error("Export thumbnail failed", e);
+            }
+            
+            // Fallback gửi dữ liệu không có thumbnail nếu rỗng hoặc lỗi
+            if (window.cefQuery) {
+                window.cefQuery({ request: 'SAVE_DATA:' + jsonStr + '|||THUMBNAIL_SEP|||' + thumbBase64, persistent: false, onSuccess: function(r){}, onFailure: function(e,m){} });
+            }
+        };
+
+        let ws = null;
+        let isSyncing = false;
+
+        window.loadBoardData = (jsonStr, boardId) => {
+            if (!window.tldrawEditor) return;
+            try {
+                if (jsonStr && jsonStr !== 'null') {
+                    const snapshot = JSON.parse(jsonStr);
+                    window.tldrawEditor.store.loadSnapshot(snapshot);
+                }
+                
+                // Khởi tạo Real-time Sync
+                if (ws) ws.close();
+                if (boardId) {
+                    ws = new WebSocket('ws://localhost:1234/?roomId=' + boardId);
+                    
+                    ws.onopen = () => {
+                        console.log('Connected to Sync Server for room ' + boardId);
+                    };
+                    
+                    ws.onmessage = (event) => {
+                        if (!window.tldrawEditor) return;
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'sync') {
+                                isSyncing = true;
+                                window.tldrawEditor.store.mergeRemoteChanges(() => {
+                                    if (data.changes.added) window.tldrawEditor.store.put(Object.values(data.changes.added));
+                                    if (data.changes.updated) window.tldrawEditor.store.put(Object.values(data.changes.updated).map(u => u[1]));
+                                    if (data.changes.removed) window.tldrawEditor.store.remove(Object.keys(data.changes.removed));
+                                });
+                                isSyncing = false;
+                            }
+                        } catch (e) {
+                            console.error('Sync error', e);
+                            isSyncing = false;
+                        }
+                    };
+
+                    window.tldrawEditor.store.listen((historyEntry) => {
+                        if (isSyncing) return;
+                        if (historyEntry.source !== 'user') return; // Chỉ gửi những gì do user vẽ, bỏ qua các thay đổi tự động
+                        
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: 'sync',
+                                changes: historyEntry.changes
+                            }));
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Invalid board data", e);
+            }
+            
+            // Thiết lập Auto-save (Mỗi 5 phút)
+            if (!window.autoSaveInterval) {
+                window.autoSaveInterval = setInterval(() => {
+                    console.log('Auto saving...');
+                    window.requestSaveBoardAndThumbnail();
+                }, 300000); // 5 phút = 300,000 ms
+            }
+        };
+    </script>
+</body>
+</html>

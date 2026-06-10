@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+psycopg2-binary
+langchain-core
+langchain-groq
+langchain-huggingface
+langchain-chroma
+duckduckgo-search
+groq
+edge-tts
+google-generativeai
+Pillow
+requests
+beautifulsoup4
+sentence-transformers

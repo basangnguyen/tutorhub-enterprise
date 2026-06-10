@@ -1,0 +1,21 @@
+# Sử dụng môi trường Python 3.10
+FROM python:3.10-slim
+
+# Thư mục làm việc trong Docker
+WORKDIR /app
+
+# Copy requirements.txt và cài đặt thư viện
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy toàn bộ mã nguồn AI vào Docker
+COPY app.py .
+COPY chroma_db/ ./chroma_db/
+COPY static/ ./static/
+
+# Biến môi trường PORT (Cloud sẽ đè lên nếu cần)
+ENV PORT=7860
+EXPOSE 7860
+
+# Lệnh khởi động Server
+CMD ["python", "app.py"]

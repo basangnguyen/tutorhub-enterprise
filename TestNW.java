@@ -1,0 +1,1 @@
+import com.mycompany.tutorhub_enterprise.client.NetworkManager; public class TestNW { public static void main(String[] args) throws Exception { NetworkManager.getInstance().connect("localhost", 8888); System.out.println("Connected: " + NetworkManager.getInstance().isConnected()); System.exit(0); } }

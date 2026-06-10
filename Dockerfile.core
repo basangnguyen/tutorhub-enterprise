@@ -1,0 +1,15 @@
+# Sử dụng môi trường Java 21 gọn nhẹ nhất
+FROM eclipse-temurin:21-jre-alpine
+
+# Thư mục làm việc trong Docker
+WORKDIR /app
+
+# Copy file jar Server vào Docker
+COPY TutorServer.jar /app/TutorServer.jar
+
+# Biến môi trường PORT (Cloud sẽ đè lên nếu cần)
+ENV PORT=7860
+EXPOSE 7860
+
+# Lệnh khởi động Server
+CMD ["java", "-jar", "TutorServer.jar"]

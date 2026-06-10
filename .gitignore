@@ -1,0 +1,110 @@
+# Java / Maven
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Build output / release / installer
+dist/
+dist_app/
+release/
+runtime/
+build/
+*.msi
+*.zip
+*.7z
+
+# Installer/build exe exclusion
+# Note: src/main/resources/tools/TutorHub_LockdownCore.exe is permitted
+dist/*.exe
+release/*.exe
+
+# Rust build
+tutorhub_lockdown/target/
+
+# JCEF / runtime cache
+jcef_core_v2/
+ffmpeg.zip
+.jcef_core_tse/
+temp_jcef/
+
+# Logs / temp
+logs/
+*.log
+temp/
+temp_*/
+*.tmp
+*.bak
+*.old
+
+# Exam encrypted local files
+exam_context.enc
+submit_payload.enc
+autosave_payload.enc
+recovery_key.enc
+*_payload.tmp
+
+# IDE / OS
+.idea/
+.vscode/
+.nb-gradle/
+nbproject/private/
+*.iml
+.DS_Store
+Thumbs.db
+.agents/
+brain/
+
+# Node
+node_modules/
+web-admin/node_modules/
+ws-server/node_modules/
+
+# Secrets / credentials
+.env
+*.env
+*.pfx
+*.p12
+*.key
+*.pem
+*.crt
+secrets.properties
+application.local.properties
+application-prod.properties
+chroma_db/
+server_uploads/
+drive_uploads/
+
+# AI/debug temporary scripts
+fix_*.py
+replace*.py
+patch*.py
+**temp.py
+temp**.py
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Misc trash
+temp_check.txt
+temp_test.java
+test.py
+test_audio.wav
+test_img.jpg
+test_result.txt
+test_ws.py
+tutorhub_exam_cache.db
+update_neon_config.py
+vbs_log.txt
+tools/
+
+# Large binaries and media
+VideoEngine/
+jcef-bundle/
+src/main/resources/images/reel/
+lavie_desktop/models/
+static/audio/

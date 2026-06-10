@@ -1,0 +1,10 @@
+function toggleScreenShare() {
+            if (!window.currentRoom) return;
+            const btn = document.getElementById('share-screen-btn');
+            try {
+                if (isScreenSharing) {
+                    await window.currentRoom.localParticipant.setScreenShareEnabled(false);
+                    isScreenSharing = false;
+                    btn.classList.remove('active');
+                } else {
+                    await window.currentRoom.localParticipant.setScreenShareEnabled(

@@ -1,0 +1,2177 @@
+package com.mycompany.tutorhub_enterprise.client;
+
+import javafx.application.Platform;
+import javafx.geometry.Rectangle2D;
+import javafx.embed.swing.JFXPanel;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.dnd.*;
+import java.awt.datatransfer.*;
+import java.io.File;
+import java.util.List;
+import java.util.ArrayList;
+import java.net.URL;
+import java.util.TooManyListenersException;
+
+/**
+ * Dialog đăng video mới 3 bước phong cách MacOS:
+ * Bước 1: Chọn video (Upload zone)
+ * Bước 2: Chỉnh sửa video (Edit screen)
+ * Bước 3: Nhập thông tin & chia sẻ (Create reel)
+ */
+public class UploadReelDialog extends JDialog {
+
+    
+    private JFXPanel jfxPanel;
+    private JFXPanel jfxPanel3;
+    private MediaPlayer mediaPlayer;
+    private double mediaW = 0;
+    private double mediaH = 0;
+    private MediaView mediaView;
+    private java.util.List<java.awt.Image> timelineThumbs = new java.util.ArrayList<>();
+    private java.awt.Image customCoverImg;
+    private double coverPct = 0.0;
+    private boolean isCustomCover = false;
+    private JPanel coverTimeline;
+    private JPanel customCoverPreviewPanel;
+    private javafx.scene.control.Slider fxProgressSlider;
+    private javafx.scene.control.Label fxLblTime;
+    private javafx.scene.control.Label fxBtnPlay;
+    private javafx.scene.control.Label fxBtnVol;
+    private boolean isMuted = false;
+    private javafx.scene.image.ImageView coverFxView;
+    private double trimStartPct = 0.0;
+    private double trimEndPct = 1.0;
+    private boolean isDraggingStart = false;
+    private boolean isDraggingEnd = false;
+    private boolean isDraggingPlayhead = false;
+    
+    private javafx.scene.control.Label lblPlayOverlay;
+    private double mediaDurationSeconds = -1;
+
+    
+    private void disposeDialog() {
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.dispose();
+        }
+        UploadReelDialog.this.dispose();
+    }
+
+    private void setIconFromUrlAsync(javax.swing.JComponent comp, String urlStr, int w, int h) {
+        new Thread(() -> {
+            try {
+                java.awt.Image img = null;
+                if (urlStr.startsWith("http")) {
+                    java.net.URL url = new java.net.URL(urlStr);
+                    img = javax.imageio.ImageIO.read(url);
+                } else {
+                    java.net.URL localUrl = getClass().getResource(urlStr);
+                    if (localUrl != null) img = javax.imageio.ImageIO.read(localUrl);
+                }
+                if (img != null) {
+                    javax.swing.ImageIcon icon = new javax.swing.ImageIcon(img.getScaledInstance(w, h, java.awt.Image.SCALE_SMOOTH));
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        if (comp instanceof javax.swing.JLabel) ((javax.swing.JLabel)comp).setIcon(icon);
+                        else if (comp instanceof javax.swing.JButton) ((javax.swing.JButton)comp).setIcon(icon);
+                    });
+                }
+            } catch (Exception e) {}
+        }).start();
+    }
+
+
+    // ── Design System ──────────────────────────────────────────────────────────
+    private static final Color BG           = new Color(0xFAFAFC);
+    private static final Color WHITE        = Color.WHITE;
+    private static final Color PURPLE_LIGHT = new Color(0xEDE9FE);  // #EDE9FE
+    private static final Color PURPLE_MID   = new Color(0xA78BFA);  // #A78BFA pastel
+    private static final Color PURPLE_MAIN  = new Color(0x8B5CF6);  // #8B5CF6
+    private static final Color PURPLE_DARK  = new Color(0x7C3AED);
+    private static final Color PURPLE_ZONE  = new Color(0xF5F3FF);  // zone bg
+    private static final Color TEXT_MAIN    = new Color(0x111827);
+    private static final Color TEXT_MUTED   = new Color(0x6B7280);
+    private static final Color BORDER_LIGHT = new Color(0xE5E7EB);
+    private static final Color BORDER_PURPLE= new Color(0xC4B5FD);
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    private int currentStep = 1;          // 1, 2, 3
+    private File selectedFile;
+    private boolean isApproved = false;
+
+    private List<String> recentEmojis = new ArrayList<>();
+    private String caption    = "";
+    private String hashtags   = "";
+    private int    selectedCoverIndex = 0;
+    private boolean audioEnabled = true;
+
+    // ── Root card panel ────────────────────────────────────────────────────────
+    private JPanel cardPanel;
+    private CardLayout cardLayout;
+
+    // ── Step 1 widgets ────────────────────────────────────────────────────────
+    private JPanel dropZonePanel;
+    private JLabel lblDropInstruction;
+    private JLabel lblDropSub;
+    private java.io.File selectedVideo;
+    private JLabel lblFileError;
+    private boolean isDragOver = false;
+
+    // ── Step 2 widgets ────────────────────────────────────────────────────────
+    private JToggleButton[] coverBtns;
+    private JToggleButton   toggleAudio;
+
+    // ── Step 3 widgets ────────────────────────────────────────────────────────
+    private JTextPane txtCaption;
+    private JLabel lblCharCount;
+    private JToggleButton toggleShare;
+    
+    private JPanel step2VideoContainer;
+    private JPanel step3VideoContainer;
+
+    private JPanel shadow;
+
+    public UploadReelDialog(JFrame parent) {
+        super(parent, "", true);
+        setUndecorated(true);
+        if (parent != null) {
+            setSize(parent.getSize());
+            setLocation(parent.getLocation());
+        } else {
+            java.awt.GraphicsEnvironment ge = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment();
+            java.awt.Rectangle bounds = ge.getMaximumWindowBounds();
+            setSize(bounds.width, bounds.height);
+            setLocationRelativeTo(null);
+        }
+        setBackground(new Color(0, 0, 0, 160));
+        getRootPane().setBorder(BorderFactory.createEmptyBorder());
+
+        // Wrap the shadow panel to keep it centered
+        JPanel overlayWrapper = new JPanel(new GridBagLayout());
+        overlayWrapper.setOpaque(false);
+
+        // Outer shadow panel (acts as rounded container)
+        shadow = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // soft shadow
+                g2.setColor(new Color(0, 0, 0, 20));
+                for (int i = 0; i < 10; i++) {
+                    g2.setColor(new Color(0, 0, 0, 3 + i));
+                    g2.fillRoundRect(i, i + 4, getWidth() - i * 2, getHeight() - i * 2 - 4, 32, 32);
+                }
+                g2.setColor(WHITE);
+                g2.fillRoundRect(10, 10, getWidth() - 20, getHeight() - 20, 28, 28);
+                g2.dispose();
+            }
+        };
+        shadow.setOpaque(false);
+        shadow.setBorder(new EmptyBorder(14, 14, 14, 14));
+        shadow.setPreferredSize(new Dimension(760, 580)); // Initial size for Step 1
+        
+        overlayWrapper.add(shadow);
+        setContentPane(overlayWrapper);
+
+        cardLayout = new CardLayout();
+        cardPanel  = new JPanel(cardLayout);
+        cardPanel.setOpaque(false);
+
+        cardPanel.add(buildStep1(), "step1");
+        cardPanel.add(buildStep2(), "step2");
+        cardPanel.add(buildStep3(), "step3");
+
+        shadow.add(cardPanel, BorderLayout.CENTER);
+        cardLayout.show(cardPanel, "step1");
+
+        // Entrance animation
+        setOpacity(0f);
+        Timer fadeIn = new Timer(16, null);
+        final float[] op = {0f};
+        fadeIn.addActionListener(e -> {
+            op[0] += 0.07f;
+            if (op[0] >= 1f) { op[0] = 1f; fadeIn.stop(); }
+            setOpacity(op[0]);
+        });
+        fadeIn.start();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // STEP 1 – Upload zone
+    // ══════════════════════════════════════════════════════════════════════════
+    private JPanel buildStep1() {
+        JPanel root = new JPanel(new BorderLayout());
+        root.setOpaque(false);
+
+        // Close button (top-right)
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+        topBar.setBorder(new EmptyBorder(16, 0, 0, 16));
+        JButton btnClose = makeCloseBtn();
+        topBar.add(btnClose, BorderLayout.EAST);
+        root.add(topBar, BorderLayout.NORTH);
+
+        // Center content
+        JPanel center = new JPanel();
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.setOpaque(false);
+        center.setBorder(new EmptyBorder(8, 48, 24, 48));
+
+        JPanel zone = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0xD3C6FE)); // Light purple dashed border
+                g2.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{8f, 6f}, 0));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 24, 24);
+                if (isDragOver) {
+                    g2.setColor(new Color(139, 92, 246, 15));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                }
+                g2.dispose();
+            }
+        };
+        zone.setLayout(new BoxLayout(zone, BoxLayout.Y_AXIS));
+        zone.setOpaque(false);
+        zone.setBorder(new EmptyBorder(50, 24, 50, 24));
+
+        // Upload icon
+        JLabel uploadIcon = new JLabel("");
+        setIconFromUrlAsync(uploadIcon, "/images/icon/video_posting.png", 120, 120);
+        uploadIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
+        zone.add(uploadIcon);
+        zone.add(Box.createVerticalStrut(20));
+
+        lblDropInstruction = makeLabel("Kéo & thả video vào đây", 22, Font.BOLD, new Color(0x1F2937));
+        lblDropInstruction.setAlignmentX(Component.CENTER_ALIGNMENT);
+        zone.add(lblDropInstruction);
+        zone.add(Box.createVerticalStrut(8));
+
+        lblDropSub = makeLabel("hoặc chọn tệp từ máy tính", 14, Font.PLAIN, new Color(0x6B7280));
+        lblDropSub.setAlignmentX(Component.CENTER_ALIGNMENT);
+        zone.add(lblDropSub);
+        zone.add(Box.createVerticalStrut(24));
+
+        // Choose button
+        JButton btnChoose = buildChooseBtn();
+        btnChoose.setAlignmentX(Component.CENTER_ALIGNMENT);
+        zone.add(btnChoose);
+        zone.add(Box.createVerticalStrut(10));
+        
+        lblFileError = makeLabel("", 13, Font.PLAIN, new Color(0xEF4444));
+        lblFileError.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblFileError.setVisible(false);
+        zone.add(lblFileError);
+
+        // Drag-and-drop support
+        try {
+            DropTarget dt = new DropTarget();
+            dt.addDropTargetListener(new DropTargetAdapter() {
+                @Override public void dragEnter(DropTargetDragEvent e) {
+                    isDragOver = true;
+                    lblDropInstruction.setText("Thả video để tải lên");
+                    zone.repaint();
+                }
+                @Override public void dragExit(DropTargetEvent e) {
+                    isDragOver = false;
+                    lblDropInstruction.setText("Kéo & thả video vào đây");
+                    zone.repaint();
+                }
+                @Override public void drop(DropTargetDropEvent e) {
+                    isDragOver = false;
+                    try {
+                        e.acceptDrop(DnDConstants.ACTION_COPY);
+                        @SuppressWarnings("unchecked")
+                        List<File> files = (List<File>) e.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+                        if (!files.isEmpty()) {
+                            handleFileSelected(files.get(0));
+                        }
+                    } catch (Exception ex) { ex.printStackTrace(); }
+                    zone.repaint();
+                }
+            });
+            zone.setDropTarget(dt);
+        } catch (TooManyListenersException ignore) {}
+
+        // Click to open chooser
+        zone.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { openFileChooser(); }
+            @Override public void mouseEntered(MouseEvent e) { zone.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)); }
+        });
+        center.add(zone);
+        center.add(Box.createVerticalGlue());
+        root.add(center, BorderLayout.CENTER);
+        root.add(buildFormatInfo(), BorderLayout.SOUTH);
+        return root;
+    }
+
+    private JButton buildChooseBtn() {
+        JButton btn = new JButton("  Chọn từ máy tính") {
+            { setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("/images/icon/folder.svg", 20, 20)); }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? new Color(0x7C3AED) : PURPLE_MAIN);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setForeground(WHITE);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(240, 44));
+        btn.setMaximumSize(new Dimension(240, 44));
+        btn.addActionListener(e -> openFileChooser());
+        return btn;
+    }
+
+    private JPanel buildFormatInfo() {
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 24)) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(new Color(0xE5E7EB));
+                g2.drawLine(0, 0, getWidth(), 0);
+                g2.dispose();
+            }
+        };
+        footer.setOpaque(false);
+
+        String[][] infos = {
+            {"images/icon/MP4.svg", "MP4, MOV, WEBM"}, 
+            {"images/icon/cloud.svg", "Tối đa 1GB"}, 
+            {"images/icon/Clock.svg", "Tối đa 10 phút"}
+        };
+        for (int i = 0; i < infos.length; i++) {
+            if (i > 0) {
+                JPanel sep = new JPanel() {
+                    @Override protected void paintComponent(Graphics g) {
+                        g.setColor(new Color(0xE5E7EB));
+                        g.drawLine(getWidth()/2, 4, getWidth()/2, getHeight()-4);
+                    }
+                };
+                sep.setOpaque(false);
+                sep.setPreferredSize(new Dimension(60, 20));
+                footer.add(sep);
+            }
+            JLabel item = new JLabel("  " + infos[i][1]); 
+            item.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon(infos[i][0], 20, 20));
+            item.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            item.setForeground(new Color(0x4B5563));
+            footer.add(item);
+        }
+        return footer;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // STEP 2 – Edit video
+    // ══════════════════════════════════════════════════════════════════════════
+    private JPanel buildStep2() {
+        JPanel root = new JPanel(new BorderLayout(0, 0));
+        root.setOpaque(false);
+        root.add(buildStep2Header(), BorderLayout.NORTH);
+        
+        JPanel body = new JPanel(new BorderLayout(24, 0));
+        body.setOpaque(false);
+        body.setBorder(new EmptyBorder(12, 24, 16, 24));
+        
+        JPanel leftSection = new JPanel(new BorderLayout(0, 24));
+        leftSection.setOpaque(false);
+        
+        JPanel wrapper = new JPanel(new GridBagLayout());
+        wrapper.setOpaque(false);
+        wrapper.add(buildVideoPreviewMock(true));
+        
+        leftSection.add(wrapper, BorderLayout.CENTER);
+        leftSection.add(buildTimeline(), BorderLayout.SOUTH);
+        
+        body.add(leftSection, BorderLayout.CENTER);
+        body.add(buildEditSettings(), BorderLayout.EAST);
+        
+        root.add(body, BorderLayout.CENTER);
+        return root;
+    }
+
+    private JPanel buildStep2Header() {
+        JPanel hdr = new JPanel(new BorderLayout());
+        hdr.setOpaque(false);
+        hdr.setBorder(new EmptyBorder(6, 20, 6, 20));
+
+        JButton btnBack = makeBackBtn(() -> goTo("step1"));
+        hdr.add(btnBack, BorderLayout.WEST);
+
+        JLabel title = makeLabel("Chỉnh sửa video", 18, Font.PLAIN, TEXT_MAIN);
+        hdr.add(title, BorderLayout.CENTER);
+
+        JPanel eastBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        eastBtns.setOpaque(false);
+        
+        JButton btnExit = new JButton("Thoát") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? new Color(229, 231, 235) : new Color(243, 244, 246));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.setColor(new Color(209, 213, 219));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth()-3, getHeight()-3, 8, 8);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btnExit.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnExit.setForeground(new Color(55, 65, 81));
+        btnExit.setContentAreaFilled(false);
+        btnExit.setFocusPainted(false);
+        btnExit.setOpaque(false);
+        btnExit.setPreferredSize(new Dimension(90, 36));
+        btnExit.addActionListener(e -> disposeDialog());
+        
+        JButton btnNext = makePurpleBtn("Tiếp tục", () -> goTo("step3"));
+        btnNext.setPreferredSize(new Dimension(100, 36));
+        
+        eastBtns.add(btnExit);
+        eastBtns.add(btnNext);
+        hdr.add(eastBtns, BorderLayout.EAST);
+        return hdr;
+    }
+
+    private JPanel buildVideoPreviewMock(boolean showControls) {
+        step2VideoContainer = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x1C1C1E));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.setColor(new Color(0x9CA3AF));
+                g2.setStroke(new BasicStroke(5.0f));
+                g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 22, 22);
+                g2.dispose();
+            }
+        };
+        step2VideoContainer.setOpaque(false);
+        
+        if (jfxPanel == null) jfxPanel = new JFXPanel();
+        step2VideoContainer.add(jfxPanel, BorderLayout.CENTER);
+        return step2VideoContainer;
+    }
+    
+
+
+    private JPanel buildVideoControlBar() {
+        JPanel bar = new JPanel(new BorderLayout(8, 0)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0, 0, 0, 160));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 0, 0);
+                g2.dispose();
+            }
+        };
+        bar.setOpaque(false);
+        bar.setBorder(new EmptyBorder(6, 12, 6, 12));
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        left.setOpaque(false);
+        left.add(makeCtrlBtn("https://img.icons8.com/fluency-systems-filled/48/FFFFFF/play.png"));
+        left.add(makeCtrlLabel("00:00 / 01:32"));
+        bar.add(left, BorderLayout.WEST);
+
+        // Progress bar
+        JPanel pbPanel = new JPanel(new BorderLayout());
+        pbPanel.setOpaque(false);
+        JProgressBar pb = new JProgressBar(0, 100);
+        pb.setValue(0);
+        pb.setOpaque(false);
+        pb.setForeground(PURPLE_LIGHT);
+        pb.setBackground(new Color(255, 255, 255, 60));
+        pb.setBorderPainted(false);
+        pb.setPreferredSize(new Dimension(100, 3));
+        pbPanel.add(pb, BorderLayout.CENTER);
+        bar.add(pbPanel, BorderLayout.CENTER);
+
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        right.setOpaque(false);
+        right.add(makeCtrlBtn("https://img.icons8.com/fluency-systems-filled/48/FFFFFF/high-volume.png"));
+        bar.add(right, BorderLayout.EAST);
+
+        return bar;
+    }
+
+    private JPanel buildTimeline() {
+        JPanel timeline = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                // Explicitly clear background to prevent trails (smudges)
+                g2.setColor(Color.WHITE);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int trackH = 60;
+                int padding = 16;
+                int trackW = getWidth() - padding * 2;
+                
+                // Background
+                g2.setColor(new Color(243, 244, 246));
+                g2.fillRoundRect(0, 0, getWidth(), trackH, 16, 16);
+                
+                // Thumbs
+                if (!timelineThumbs.isEmpty()) {
+                    int thumbW = trackW / timelineThumbs.size();
+                    g2.setClip(new java.awt.geom.RoundRectangle2D.Float(padding, 0, trackW, trackH, 16, 16));
+                    for (int i = 0; i < timelineThumbs.size(); i++) {
+                        g2.drawImage(timelineThumbs.get(i), padding + i * thumbW, 0, thumbW, trackH, null);
+                    }
+                    g2.setClip(null);
+                }
+                
+                // Dim areas outside trims
+                g2.setClip(new java.awt.geom.RoundRectangle2D.Float(padding, 0, trackW, trackH, 16, 16));
+                g2.setColor(new Color(0, 0, 0, 150));
+                int startX = padding + (int)(trimStartPct * trackW);
+                int endX = padding + (int)(trimEndPct * trackW);
+                g2.fillRect(padding, 0, startX - padding, trackH);
+                g2.fillRect(endX, 0, (padding + trackW) - endX, trackH);
+                g2.setClip(null);
+                
+                // CapCut style trimmer
+                int hw = 12; // handle width
+                
+                // Black outline behind
+                g2.setColor(new Color(0, 0, 0, 80));
+                g2.fillRoundRect(startX - hw - 1, -2, hw + 2, trackH + 4, 8, 8);
+                g2.fillRoundRect(endX - 1, -2, hw + 2, trackH + 4, 8, 8);
+                g2.setStroke(new BasicStroke(4f));
+                g2.drawLine(startX, 1, endX, 1);
+                g2.drawLine(startX, trackH - 1, endX, trackH - 1);
+                
+                // White foreground
+                g2.setColor(WHITE);
+                g2.fillRoundRect(startX - hw, -1, hw, trackH + 2, 8, 8);
+                g2.fillRect(startX - hw/2, -1, hw/2, trackH + 2); // square right edge
+                
+                g2.fillRoundRect(endX, -1, hw, trackH + 2, 8, 8);
+                g2.fillRect(endX, -1, hw/2, trackH + 2); // square left edge
+                
+                g2.setStroke(new BasicStroke(2f));
+                g2.drawLine(startX, 1, endX, 1); // top border
+                g2.drawLine(startX, trackH - 1, endX, trackH - 1); // bottom border
+                
+                g2.setColor(new Color(107, 114, 128)); // Darker gray for inner lines
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawLine(startX - 8, trackH/2 - 4, startX - 8, trackH/2 + 4);
+                g2.drawLine(startX - 4, trackH/2 - 4, startX - 4, trackH/2 + 4);
+                g2.drawLine(endX + 4, trackH/2 - 4, endX + 4, trackH/2 + 4);
+                g2.drawLine(endX + 8, trackH/2 - 4, endX + 8, trackH/2 + 4);
+                
+                // Playhead
+                if (mediaPlayer != null && mediaPlayer.getTotalDuration().toMillis() > 0) {
+                    double progress = mediaPlayer.getCurrentTime().toMillis() / mediaPlayer.getTotalDuration().toMillis();
+                    int px = padding + (int)(progress * trackW);
+                    g2.setColor(WHITE);
+                    g2.fillRect(px, 0, 3, trackH);
+                    g2.fillRoundRect(px - 4, -4, 11, 8, 4, 4);
+                }
+                
+                // Draw time labels: left handle time and right handle time only
+                if (mediaPlayer != null) {
+                    double dur = mediaPlayer.getTotalDuration().toSeconds();
+                    if (dur > 0) {
+                        double startSec = trimStartPct * dur;
+                        double endSec = trimEndPct * dur;
+                        String sTime = String.format("%d:%02d", (int)(startSec/60), (int)(startSec%60));
+                        String eTime = String.format("%d:%02d", (int)(endSec/60), (int)(endSec%60));
+                        
+                        g2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+                        g2.setColor(new Color(82, 82, 91)); // Subtle gray, elegant
+                        
+                        // Left time below left handle
+                        int leftLabelX = startX - 16;
+                        g2.drawString(sTime, Math.max(0, leftLabelX), trackH + 20);
+                        
+                        // Right time below right handle
+                        int rightLabelX = endX;
+                        java.awt.FontMetrics fm = g2.getFontMetrics();
+                        int rightW = fm.stringWidth(eTime);
+                        g2.drawString(eTime, Math.min(rightLabelX, getWidth() - rightW - 2), trackH + 20);
+                    }
+                }
+                
+                g2.dispose();
+            }
+        };
+        timeline.setPreferredSize(new Dimension(0, 80)); // 60 for track + 20 for labels
+        
+        timeline.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                int padding = 16;
+                int trackW = timeline.getWidth() - padding * 2;
+                int startX = padding + (int)(trimStartPct * trackW);
+                int endX = padding + (int)(trimEndPct * trackW);
+                
+                if (mediaPlayer != null && mediaPlayer.getTotalDuration().toMillis() > 0) {
+                    double progress = mediaPlayer.getCurrentTime().toMillis() / mediaPlayer.getTotalDuration().toMillis();
+                    int px = padding + (int)(progress * trackW);
+                    if (Math.abs(e.getX() - px) <= 10) {
+                        isDraggingPlayhead = true;
+                        if(mediaPlayer.getStatus() == MediaPlayer.Status.PLAYING) mediaPlayer.pause();
+                        return;
+                    }
+                }
+                if (Math.abs(e.getX() - startX) <= 15) { isDraggingStart = true; }
+                else if (Math.abs(e.getX() - endX) <= 15) { isDraggingEnd = true; }
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                if (isDraggingPlayhead && mediaPlayer != null && fxBtnPlay != null) {
+                    mediaPlayer.play();
+                }
+                isDraggingStart = false;
+                isDraggingEnd = false;
+                isDraggingPlayhead = false;
+            }
+        });
+        
+        timeline.addMouseMotionListener(new MouseAdapter() {
+            @Override public void mouseDragged(MouseEvent e) {
+                int padding = 16;
+                int trackW = timeline.getWidth() - padding * 2;
+                double pct = (double)(e.getX() - padding) / trackW;
+                pct = Math.max(0, Math.min(1, pct));
+                
+                if (isDraggingStart) {
+                    trimStartPct = Math.min(pct, trimEndPct - 0.05); // min 5% duration
+                    timeline.repaint();
+                    if (mediaPlayer != null) mediaPlayer.seek(mediaPlayer.getTotalDuration().multiply(trimStartPct));
+                } else if (isDraggingEnd) {
+                    trimEndPct = Math.max(pct, trimStartPct + 0.05);
+                    timeline.repaint();
+                    if (mediaPlayer != null) mediaPlayer.seek(mediaPlayer.getTotalDuration().multiply(trimEndPct));
+                } else if (isDraggingPlayhead) {
+                    if (mediaPlayer != null) {
+                        mediaPlayer.seek(mediaPlayer.getTotalDuration().multiply(pct));
+                        timeline.repaint();
+                    }
+                }
+            }
+        });
+        
+        Timer t = new Timer(50, e -> {
+            if (mediaPlayer != null && mediaPlayer.getStatus() == MediaPlayer.Status.PLAYING) {
+                double progress = mediaPlayer.getCurrentTime().toMillis() / mediaPlayer.getTotalDuration().toMillis();
+                if (progress >= trimEndPct) {
+                    mediaPlayer.seek(mediaPlayer.getTotalDuration().multiply(trimStartPct));
+                }
+                timeline.repaint();
+            }
+        });
+        t.start();
+        
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setOpaque(false);
+        wrap.add(timeline, BorderLayout.CENTER);
+        return wrap;
+    }
+
+        // Combine Cover and Audio inside ONE panel
+    private JPanel buildEditSettings() {
+        JPanel panel = new JPanel() {
+            @Override public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                return new Dimension(320, d.height);
+            }
+        };
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(16, 16, 16, 16));
+        
+        JPanel bgPanel = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(BORDER_LIGHT);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.dispose();
+            }
+        };
+        bgPanel.setOpaque(false);
+        bgPanel.add(panel, BorderLayout.CENTER);
+
+        JLabel lblCover = makeLabel("Ảnh bìa", 15, Font.PLAIN, TEXT_MAIN);
+        lblCover.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(lblCover);
+        panel.add(Box.createVerticalStrut(10));
+        
+        // Instagram-style Cover Timeline
+        coverTimeline = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (timelineThumbs.isEmpty()) {
+                    g2.setColor(new Color(243, 244, 246));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                } else {
+                    int thumbW = getWidth() / timelineThumbs.size();
+                    g2.setClip(new java.awt.geom.RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 8, 8));
+                    for (int i = 0; i < timelineThumbs.size(); i++) {
+                        g2.drawImage(timelineThumbs.get(i), i * thumbW, 0, thumbW, getHeight(), null);
+                    }
+                    g2.setClip(null);
+                    
+                    if (!isCustomCover) {
+                        int scrubberW = 30;
+                        int px = (int)(coverPct * (getWidth() - scrubberW));
+                        
+                        g2.setColor(new Color(0, 0, 0, 80));
+                        g2.setStroke(new BasicStroke(4f));
+                        g2.drawRoundRect(px, 1, scrubberW, getHeight()-2, 6, 6);
+                        
+                        g2.setColor(WHITE);
+                        g2.setStroke(new BasicStroke(2f));
+                        g2.drawRoundRect(px, 1, scrubberW, getHeight()-2, 6, 6);
+                    }
+                }
+                g2.dispose();
+            }
+        };
+        coverTimeline.setPreferredSize(new Dimension(280, 50));
+        coverTimeline.setMaximumSize(new Dimension(280, 50));
+        coverTimeline.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        MouseAdapter coverMouse = new MouseAdapter() {
+            private void update(MouseEvent e) {
+                isCustomCover = false;
+                int scrubberW = 30;
+                double pct = (double)(e.getX() - scrubberW/2) / (coverTimeline.getWidth() - scrubberW);
+                coverPct = Math.max(0, Math.min(1, pct));
+                coverTimeline.repaint();
+                if (bgPanel != null) bgPanel.repaint();
+                if (mediaPlayer != null) {
+                    mediaPlayer.pause();
+                    mediaPlayer.seek(mediaPlayer.getTotalDuration().multiply(coverPct));
+                    if (coverFxView != null) coverFxView.setVisible(false);
+                }
+            }
+            @Override public void mousePressed(MouseEvent e) { update(e); }
+            @Override public void mouseDragged(MouseEvent e) { update(e); }
+        };
+        coverTimeline.addMouseListener(coverMouse);
+        coverTimeline.addMouseMotionListener(coverMouse);
+        coverTimeline.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(coverTimeline);
+        panel.add(Box.createVerticalStrut(20));
+        
+        JSeparator sep2 = new JSeparator();
+        sep2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        panel.add(sep2);
+        panel.add(Box.createVerticalStrut(15));
+        
+        JLabel lblOr = makeLabel("Hoặc chọn từ máy tính", 12, Font.PLAIN, TEXT_MUTED);
+        lblOr.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(lblOr);
+        panel.add(Box.createVerticalStrut(12));
+        
+        JButton btnPickCover = new JButton("   Tải lên") {
+            { setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/tailen.svg", 16, 16)); }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(248, 243, 255));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(new Color(216, 180, 254));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btnPickCover.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btnPickCover.setForeground(PURPLE_MAIN);
+        btnPickCover.setContentAreaFilled(false);
+        btnPickCover.setBorderPainted(false);
+        btnPickCover.setFocusPainted(false);
+        btnPickCover.setOpaque(false);
+        btnPickCover.setPreferredSize(new Dimension(120, 36));
+        btnPickCover.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        
+        JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        btnWrap.setOpaque(false);
+        btnWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnWrap.add(btnPickCover);
+        panel.add(btnWrap);
+        panel.add(Box.createVerticalStrut(12));
+        
+        JLabel lblFormat = makeLabel("Định dạng: JPG, PNG • Kích thước tối đa: 5MB", 10, Font.PLAIN, new Color(156, 163, 175));
+        lblFormat.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(lblFormat);
+        panel.add(Box.createVerticalStrut(12));
+        
+        JLabel coverImgLabel = new JLabel() {
+            @Override protected void paintComponent(Graphics g) {
+                if (customCoverImg == null) return;
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setClip(new java.awt.geom.RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 8, 8));
+                g2.drawImage(customCoverImg, 0, 0, getWidth(), getHeight(), null);
+                g2.setClip(null);
+                if (isCustomCover) {
+                    g2.setColor(new Color(34, 197, 94, 40));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                    g2.setColor(WHITE);
+                    g2.setStroke(new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    int ccx = getWidth()/2;
+                    int ccy = getHeight()/2;
+                    g2.drawLine(ccx - 10, ccy, ccx - 3, ccy + 8);
+                    g2.drawLine(ccx - 3, ccy + 8, ccx + 12, ccy - 8);
+                }
+                g2.setColor(new Color(255, 255, 255, 240));
+                g2.fillOval(getWidth()-28, 8, 20, 20);
+                g2.setColor(new Color(75, 85, 99));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawLine(getWidth()-23, 13, getWidth()-13, 23);
+                g2.drawLine(getWidth()-13, 13, getWidth()-23, 23);
+                g2.dispose();
+            }
+        };
+        coverImgLabel.setPreferredSize(new Dimension(248, 140));
+        coverImgLabel.setMaximumSize(new Dimension(248, 140));
+        coverImgLabel.setVisible(false);
+        coverImgLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        coverImgLabel.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                if (e.getX() >= coverImgLabel.getWidth() - 32 && e.getY() <= 32) {
+                    customCoverImg = null;
+                    isCustomCover = false;
+                    coverImgLabel.setVisible(false);
+                    if (coverFxView != null) coverFxView.setVisible(false);
+                } else {
+                    isCustomCover = true;
+                    if (mediaPlayer == null || mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING) {
+                        if (coverFxView != null) coverFxView.setVisible(true);
+                    }
+                }
+                if (coverTimeline != null) coverTimeline.repaint();
+                coverImgLabel.repaint();
+            }
+        });
+        
+        JPanel imgWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        imgWrap.setOpaque(false);
+        imgWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+        imgWrap.add(coverImgLabel);
+        panel.add(imgWrap);
+        
+        btnPickCover.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            if (chooser.showOpenDialog(UploadReelDialog.this) == JFileChooser.APPROVE_OPTION) {
+                try {
+                    customCoverImg = javax.imageio.ImageIO.read(chooser.getSelectedFile());
+                    if (customCoverImg != null) {
+                        isCustomCover = true;
+                        coverImgLabel.setVisible(true);
+                        coverImgLabel.repaint();
+                        if (coverTimeline != null) coverTimeline.repaint();
+                        bgPanel.revalidate();
+                        bgPanel.repaint();
+                        if (coverFxView != null) {
+                            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                            javax.imageio.ImageIO.write((java.awt.image.BufferedImage)customCoverImg, "png", bos);
+                            coverFxView.setImage(new javafx.scene.image.Image(new java.io.ByteArrayInputStream(bos.toByteArray())));
+                            if (mediaPlayer == null || mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING) {
+                                coverFxView.setVisible(true);
+                            }
+                        }
+                    }
+                } catch (Exception ex) { ex.printStackTrace(); }
+            }
+        });
+        
+        panel.add(Box.createVerticalStrut(20));
+        JSeparator sep3 = new JSeparator();
+        sep3.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        panel.add(sep3);
+        panel.add(Box.createVerticalStrut(15));
+        
+        JPanel audioRow = new JPanel(new BorderLayout(8, 0));
+        audioRow.setOpaque(false);
+        audioRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        audioRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        audioRow.add(makeLabel("Âm thanh", 15, Font.PLAIN, TEXT_MAIN), BorderLayout.WEST);
+        
+        JToggleButton btnMute = new JToggleButton() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (isSelected()) {
+                    g2.setColor(new Color(229, 231, 235));
+                    g2.fillRoundRect(0, 0, 38, 20, 20, 20);
+                    g2.setColor(WHITE);
+                    g2.fillOval(2, 2, 16, 16);
+                } else {
+                    g2.setColor(new Color(216, 180, 254));
+                    g2.fillRoundRect(0, 0, 38, 20, 20, 20);
+                    g2.setColor(WHITE);
+                    g2.fillOval(20, 2, 16, 16);
+                }
+                g2.dispose();
+            }
+        };
+        btnMute.setPreferredSize(new Dimension(38, 20));
+        btnMute.setContentAreaFilled(false);
+        btnMute.setBorderPainted(false);
+        btnMute.setFocusPainted(false);
+        btnMute.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnMute.addActionListener(e -> {
+            isMuted = btnMute.isSelected();
+            if (mediaPlayer != null) mediaPlayer.setMute(isMuted);
+        });
+        audioRow.add(btnMute, BorderLayout.EAST);
+        panel.add(audioRow);
+        
+        JPanel outerWrap = new JPanel(new BorderLayout());
+        outerWrap.setOpaque(false);
+        outerWrap.add(bgPanel, BorderLayout.NORTH);
+        return outerWrap;
+    }
+    // STEP 3 – Create reel info
+    // ══════════════════════════════════════════════════════════════════════════
+    private JPanel buildStep3() {
+        JPanel root = new JPanel(new BorderLayout(0, 0));
+        root.setOpaque(false);
+
+        root.add(buildStep3Header(), BorderLayout.NORTH);
+
+        JPanel body = new JPanel(new BorderLayout(24, 0));
+        body.setOpaque(false);
+        body.setBorder(new EmptyBorder(12, 24, 16, 24));
+
+        // Left: vertical video preview
+        body.add(buildVerticalVideoPreview(), BorderLayout.WEST);
+
+        // Right: info panel
+        body.add(buildReelInfoPanel(), BorderLayout.CENTER);
+
+        root.add(body, BorderLayout.CENTER);
+        return root;
+    }
+
+    private JPanel buildStep3Header() {
+        JPanel hdr = new JPanel(new BorderLayout());
+        hdr.setOpaque(false);
+        hdr.setBorder(new EmptyBorder(6, 20, 6, 20));
+
+        JButton btnBack = makeBackBtn(() -> goTo("step2"));
+        hdr.add(btnBack, BorderLayout.WEST);
+
+        JLabel title = makeLabel("Thước phim mới", 17, Font.BOLD, TEXT_MAIN);
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        hdr.add(title, BorderLayout.CENTER);
+
+        JButton btnShare = makeShareBtn("Chia sẻ", () -> {
+            caption  = txtCaption != null ? getCaptionText().trim() : "";
+            hashtags = "";
+            isApproved = true;
+            disposeDialog();
+        });
+        hdr.add(btnShare, BorderLayout.EAST);
+        return hdr;
+    }
+
+    private JPanel buildVerticalVideoPreview() {
+        JPanel outer = new JPanel(new GridBagLayout());
+        outer.setOpaque(false);
+
+        step3VideoContainer = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x1C1C1E));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.setColor(new Color(0x9CA3AF));
+                g2.setStroke(new BasicStroke(5.0f));
+                g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 22, 22);
+                g2.dispose();
+            }
+        };
+        step3VideoContainer.setOpaque(false);
+        step3VideoContainer.setLayout(new OverlayLayout(step3VideoContainer));
+        
+        outer.add(step3VideoContainer, new GridBagConstraints());
+        return outer;
+    }
+
+    private JPanel buildReelInfoPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setOpaque(false);
+
+        panel.add(Box.createVerticalGlue());
+
+        // Caption textarea
+        JPanel captionCard = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(new Color(0xD1D5DB));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 12, 12);
+                g2.dispose();
+            }
+        };
+        captionCard.setOpaque(false);
+        captionCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        captionCard.setPreferredSize(new Dimension(0, 200));
+        captionCard.setBorder(new EmptyBorder(16, 16, 12, 16));
+
+        txtCaption = new JTextPane();
+        txtCaption.setOpaque(false);
+        txtCaption.setBorder(null);
+        txtCaption.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        txtCaption.setForeground(new Color(0x9CA3AF));
+        txtCaption.setCaretColor(new Color(0x8B5CF6));
+        txtCaption.setText("Viết chú thích cho thước phim...");
+
+        txtCaption.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override public void focusGained(java.awt.event.FocusEvent e) {
+                if (txtCaption.getText().equals("Viết chú thích cho thước phim...")) {
+                    txtCaption.setText("");
+                    txtCaption.setForeground(new Color(0x374151));
+                }
+            }
+            @Override public void focusLost(java.awt.event.FocusEvent e) {
+                if (txtCaption.getText().trim().isEmpty()) {
+                    txtCaption.setText("Viết chú thích cho thước phim...");
+                    txtCaption.setForeground(new Color(0x9CA3AF));
+                }
+            }
+        });
+
+        JScrollPane captionScroll = new JScrollPane(txtCaption);
+        captionScroll.setBorder(null);
+        captionScroll.setOpaque(false);
+        captionScroll.getViewport().setOpaque(false);
+        captionCard.add(captionScroll, BorderLayout.CENTER);
+
+        JPanel captionBottom = new JPanel(new BorderLayout());
+        captionBottom.setOpaque(false);
+        JLabel lblEmoji = makeLabel("", 13, Font.PLAIN, TEXT_MUTED);
+        setIconFromUrlAsync(lblEmoji, "https://img.icons8.com/fluency-systems-regular/48/9CA3AF/happy.png", 20, 20);
+        lblEmoji.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        lblEmoji.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                showEmojiPicker(lblEmoji);
+            }
+        });
+        lblCharCount = makeLabel("0/2.200", 12, Font.PLAIN, new Color(0x6B7280));
+        captionBottom.add(lblEmoji, BorderLayout.WEST);
+        captionBottom.add(lblCharCount, BorderLayout.EAST);
+        captionCard.add(captionBottom, BorderLayout.SOUTH);
+
+        txtCaption.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { updateCharCount(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { updateCharCount(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { updateCharCount(); }
+        });
+
+        panel.add(captionCard);
+        panel.add(Box.createVerticalStrut(8));
+
+        // Option rows
+        JPanel rowLocation = buildOptionRow("map.svg", "Thêm vị trí");
+        JLabel lblLocationText = (JLabel) ((JPanel) rowLocation.getComponent(0)).getComponent(1);
+        rowLocation.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                MapPickerDialog dialog = new MapPickerDialog(UploadReelDialog.this);
+                dialog.setVisible(true);
+                if (dialog.isConfirmed()) {
+                    String addr = dialog.getSelectedAddress();
+                    if (addr.length() > 30) addr = addr.substring(0, 27) + "...";
+                    lblLocationText.setText(addr);
+                    lblLocationText.setForeground(TEXT_MAIN);
+                }
+            }
+        });
+        panel.add(rowLocation);
+        panel.add(Box.createVerticalStrut(4));
+        JPanel rowHashtag = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(new Color(0xD1D5DB));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 12, 12);
+                g2.dispose();
+            }
+        };
+        rowHashtag.setOpaque(false);
+        rowHashtag.setBorder(new EmptyBorder(8, 16, 8, 16));
+        rowHashtag.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+
+        JPanel leftHashtag = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        leftHashtag.setOpaque(false);
+        JLabel icnHashtag = makeLabel("", 14, Font.BOLD, PURPLE_MID);
+        com.formdev.flatlaf.extras.FlatSVGIcon hashSvg = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/hashtag.svg", 20, 20);
+        icnHashtag.setIcon(hashSvg);
+        leftHashtag.add(icnHashtag);
+        rowHashtag.add(leftHashtag, BorderLayout.WEST);
+
+        JTextField txtHashtag = new JTextField();
+        txtHashtag.setBorder(null);
+        txtHashtag.setOpaque(false);
+        txtHashtag.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        txtHashtag.setForeground(new Color(0x9CA3AF));
+        txtHashtag.setCaretColor(new Color(0x8B5CF6));
+        txtHashtag.setText("Thêm hashtag...");
+        
+        txtHashtag.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override public void focusGained(java.awt.event.FocusEvent e) {
+                if (txtHashtag.getText().equals("Thêm hashtag...")) {
+                    txtHashtag.setText("");
+                    txtHashtag.setForeground(new Color(0x374151));
+                }
+            }
+            @Override public void focusLost(java.awt.event.FocusEvent e) {
+                if (txtHashtag.getText().isEmpty()) {
+                    txtHashtag.setText("Thêm hashtag...");
+                    txtHashtag.setForeground(new Color(0x9CA3AF));
+                    hashtags = "";
+                } else {
+                    String[] tags = txtHashtag.getText().trim().split("\\s+");
+                    hashtags = "";
+                    for (String tag : tags) {
+                        if (!tag.startsWith("#")) tag = "#" + tag;
+                        hashtags += tag + " ";
+                    }
+                    txtHashtag.setText(hashtags.trim());
+                    txtHashtag.setForeground(new Color(0x374151));
+                }
+            }
+        });
+        rowHashtag.add(txtHashtag, BorderLayout.CENTER);
+        panel.add(rowHashtag);
+        panel.add(Box.createVerticalStrut(12));
+
+        // Share section
+        // Share section
+        JPanel shareHeader = new JPanel(new BorderLayout());
+        shareHeader.setOpaque(false);
+        shareHeader.setBorder(new EmptyBorder(16, 4, 8, 4));
+        shareHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        shareHeader.add(makeLabel("Chia sẻ lên", 15, Font.BOLD, new Color(0x1F2937)), BorderLayout.WEST);
+        panel.add(shareHeader);
+
+        // Share account card
+        panel.add(buildShareCard());
+        panel.add(Box.createVerticalGlue());
+        return panel;
+    }
+
+    private JPanel buildOptionRow(String iconName, String text) {
+        JPanel row = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(new Color(0xD1D5DB));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 12, 12);
+                g2.dispose();
+            }
+        };
+        row.setOpaque(false);
+        row.setBorder(new EmptyBorder(14, 16, 14, 16));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        row.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        left.setOpaque(false);
+        JLabel icn = makeLabel("", 14, Font.BOLD, PURPLE_MID);
+        com.formdev.flatlaf.extras.FlatSVGIcon rowSvg = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/" + iconName, 20, 20);
+        icn.setIcon(rowSvg);
+        left.add(icn);
+        left.add(makeLabel(text, 14, Font.PLAIN, new Color(0x374151)));
+        row.add(left, BorderLayout.WEST);
+        row.add(makeLabel(">", 16, Font.BOLD, new Color(0x9CA3AF)), BorderLayout.EAST);
+        return row;
+    }
+
+    private JPanel buildShareCard() {
+        JPanel card = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(new Color(0xD1D5DB));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 12, 12);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(12, 16, 12, 16));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
+
+        // Avatar container with purple ring
+        JPanel avatarContainer = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(WHITE);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(0x8B5CF6));
+                g2.setStroke(new BasicStroke(1.8f));
+                g2.drawOval(1, 1, getWidth() - 3, getHeight() - 3);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        avatarContainer.setOpaque(false);
+        avatarContainer.setPreferredSize(new Dimension(52, 52));
+        avatarContainer.setMaximumSize(new Dimension(52, 52));
+        avatarContainer.setBorder(new EmptyBorder(4, 4, 4, 4));
+
+        JLabel avt = new JLabel() {
+            private Image img;
+            @Override public void setIcon(Icon icon) {
+                if (icon instanceof ImageIcon) {
+                    this.img = ((ImageIcon)icon).getImage();
+                } else {
+                    this.img = null;
+                }
+                super.setIcon(icon);
+            }
+            @Override protected void paintComponent(Graphics g) {
+                if (getIcon() instanceof ImageIcon && img != null) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setClip(new java.awt.geom.Ellipse2D.Float(0, 0, getWidth(), getHeight()));
+                    g2.drawImage(img, 0, 0, getWidth(), getHeight(), null);
+                    g2.dispose();
+                } else {
+                    super.paintComponent(g);
+                }
+            }
+        };
+        avt.setHorizontalAlignment(SwingConstants.CENTER);
+        avatarContainer.add(avt, BorderLayout.CENTER);
+        
+        JPanel avatarWrapper = new JPanel(new GridBagLayout());
+        avatarWrapper.setOpaque(false);
+        avatarWrapper.add(avatarContainer);
+        
+        card.add(avatarWrapper, BorderLayout.WEST);
+
+        JPanel nameCol = new JPanel();
+        nameCol.setLayout(new BoxLayout(nameCol, BoxLayout.Y_AXIS));
+        nameCol.setOpaque(false);
+        nameCol.setBorder(new EmptyBorder(4, 14, 4, 14));
+        
+        JLabel lblName = makeLabel("Người dùng", 15, Font.BOLD, new Color(0x111827));
+        lblName.setAlignmentX(Component.LEFT_ALIGNMENT);
+        nameCol.add(lblName);
+        
+        nameCol.add(Box.createVerticalStrut(4));
+        
+        JComboBox<String> cbShare = new JComboBox<>(new String[]{"Công khai", "Chỉ mình tôi"});
+        cbShare.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cbShare.setBackground(Color.WHITE);
+        cbShare.setFocusable(false);
+        cbShare.setSelectedItem("Chỉ mình tôi");
+        cbShare.putClientProperty("JComboBox.buttonType", "roundRect");
+        cbShare.putClientProperty("JComboBox.padding", new Insets(2, 6, 2, 6));
+        cbShare.setAlignmentX(Component.LEFT_ALIGNMENT);
+        cbShare.setMaximumSize(new Dimension(110, 26));
+        
+        nameCol.add(cbShare);
+        card.add(nameCol, BorderLayout.CENTER);
+
+        Runnable updateShareUI = () -> {
+            String sel = (String) cbShare.getSelectedItem();
+            if ("Chỉ mình tôi".equals(sel)) {
+                String username = "Người dùng";
+                if (getOwner() instanceof MainDashboard) {
+                    MainDashboard md = (MainDashboard) getOwner();
+                    username = md.getUserName();
+                    if (username != null && username.contains("@")) {
+                        username = username.split("@")[0];
+                    }
+                    Image img = md.getAvatar();
+                    if (img != null) {
+                        avt.setIcon(new ImageIcon(img.getScaledInstance(44, 44, Image.SCALE_SMOOTH)));
+                    } else {
+                        setIconFromUrlAsync(avt, "https://img.icons8.com/color/96/circled-user-male-skin-type-4--v1.png", 44, 44);
+                    }
+                } else {
+                    setIconFromUrlAsync(avt, "https://img.icons8.com/color/96/circled-user-male-skin-type-4--v1.png", 44, 44);
+                }
+                lblName.setText(username);
+            } else {
+                lblName.setText("Mọi người");
+                avt.setIcon(null);
+                com.formdev.flatlaf.extras.FlatSVGIcon globeIcon = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/globe.svg", 44, 44);
+                if (globeIcon.hasFound()) avt.setIcon(globeIcon);
+            }
+        };
+        cbShare.addActionListener(e -> updateShareUI.run());
+        updateShareUI.run();
+        
+        return card;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Helpers: UI primitives
+    // ══════════════════════════════════════════════════════════════════════════
+    private JLabel makeLabel(String text, int size, int style, Color color) {
+        JLabel l = new JLabel(text);
+        l.setFont(new Font("Segoe UI", style, size));
+        l.setForeground(color);
+        return l;
+    }
+
+    private JButton makeCloseBtn() {
+        JButton btn = new JButton("") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) {
+                    g2.setColor(new Color(243, 244, 246));
+                    g2.fillOval(0, 0, getWidth(), getHeight());
+                }
+                g2.setColor(TEXT_MUTED);
+                g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.drawLine(10, 10, 20, 20);
+                g2.drawLine(20, 10, 10, 20);
+                g2.dispose();
+            }
+        };
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setPreferredSize(new Dimension(30, 30));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(e -> disposeDialog());
+        return btn;
+    }
+
+    private JButton makeBackBtn(Runnable action) {
+        JButton btn = new JButton("") {
+            { setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("/images/icon/left.svg", 20, 20)); }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? BORDER_LIGHT : new Color(0xF3F4F6));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setForeground(TEXT_MAIN);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setPreferredSize(new Dimension(40, 32));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(e -> action.run());
+        return btn;
+    }
+
+    private JButton makePurpleBtn(String text, Runnable action) {
+        JButton btn = new JButton(text) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? new Color(0x7C3AED) : new Color(0x8B5CF6));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setForeground(Color.WHITE);
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setPreferredSize(new Dimension(110, 40));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(e -> action.run());
+        return btn;
+    }
+
+    private JButton makeShareBtn(String text, Runnable action) {
+        JButton btn = new JButton(text) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? new Color(0x7C3AED) : new Color(0x8B5CF6));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        btn.setForeground(Color.WHITE);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setPreferredSize(new Dimension(130, 40));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        
+        setIconFromUrlAsync(btn, "/images/icon/chiase.png", 22, 22);
+        btn.setIconTextGap(8);
+        
+        btn.addActionListener(e -> action.run());
+        return btn;
+    }
+
+    private JLabel makeCtrlBtn(String iconUrl) {
+        JLabel l = new JLabel(""); setIconFromUrlAsync(l, iconUrl, 20, 20);
+        l.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        l.setForeground(WHITE);
+        l.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return l;
+    }
+
+    private JLabel makeCtrlLabel(String text) {
+        JLabel l = makeLabel(text, 11, Font.PLAIN, WHITE);
+        return l;
+    }
+
+    /** Renders a toggle switch (pill shape) */
+    private JToggleButton makeToggleSwitch(boolean initialOn) {
+        JToggleButton toggle = new JToggleButton() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color trackColor = isSelected() ? PURPLE_MAIN : new Color(0xD1D5DB);
+                g2.setColor(trackColor);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+                int thumbX = isSelected() ? getWidth() - getHeight() + 2 : 2;
+                g2.setColor(WHITE);
+                g2.fillOval(thumbX, 2, getHeight() - 4, getHeight() - 4);
+                g2.dispose();
+            }
+        };
+        toggle.setSelected(initialOn);
+        toggle.setPreferredSize(new Dimension(44, 24));
+        toggle.setContentAreaFilled(false);
+        toggle.setBorderPainted(false);
+        toggle.setFocusPainted(false);
+        toggle.setOpaque(false);
+        toggle.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return toggle;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // File selection & validation
+    // ══════════════════════════════════════════════════════════════════════════
+    private void openFileChooser() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Video files (MP4, MOV, WEBM)", "mp4", "mov", "webm", "avi"));
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            handleFileSelected(chooser.getSelectedFile());
+        }
+    }
+
+    private void handleFileSelected(File f) {
+        String name = f.getName().toLowerCase();
+        if (!name.endsWith(".mp4") && !name.endsWith(".mov") && !name.endsWith(".webm") && !name.endsWith(".avi")) {
+            showFileError("Định dạng không hợp lệ. Vui lòng chọn file MP4, MOV hoặc WEBM.");
+            return;
+        }
+        if (f.length() > 1024L * 1024 * 1024) {
+            showFileError("File quá lớn. Kích thước tối đa là 1GB.");
+            return;
+        }
+        selectedFile = f;
+        if (lblFileError != null) lblFileError.setVisible(false);
+        lblDropInstruction.setText("✅  " + f.getName());
+        lblDropSub.setText("Video sẵn sàng để tải lên");
+        
+        if (jfxPanel != null && selectedFile != null) {
+            Platform.runLater(() -> {
+                try {
+                    String uri = selectedFile.toURI().toString();
+                    Media media = new Media(uri);
+                    if (mediaPlayer != null) {
+                        mediaPlayer.stop();
+                        mediaPlayer.dispose();
+                    }
+                    mediaPlayer = new MediaPlayer(media);
+                    mediaPlayer.setAutoPlay(true);
+                    mediaDurationSeconds = -1;
+                    
+                    // Error handler for debugging
+                    mediaPlayer.setOnError(() -> {
+                        System.err.println("[UploadReelDialog] MediaPlayer error: " + mediaPlayer.getError());
+                    });
+                    media.setOnError(() -> {
+                        System.err.println("[UploadReelDialog] Media error: " + media.getError());
+                    });
+                    
+                    // Extract thumbnails using JCodec - run immediately in background thread
+                    new Thread(() -> {
+                        try {
+                            timelineThumbs.clear();
+                            org.jcodec.api.FrameGrab grab = org.jcodec.api.FrameGrab.createFrameGrab(
+                                org.jcodec.common.io.NIOUtils.readableChannel(f));
+                            
+                            // Get duration from JCodec demuxer
+                            double jcodecDur = -1;
+                            try {
+                                org.jcodec.common.DemuxerTrackMeta meta = grab.getVideoTrack().getMeta();
+                                if (meta != null && meta.getTotalDuration() > 0) {
+                                    jcodecDur = meta.getTotalDuration();
+                                    System.out.println("[UploadReelDialog] JCodec duration: " + jcodecDur + "s");
+                                }
+                            } catch (Exception ex) {
+                                System.err.println("[UploadReelDialog] JCodec meta error: " + ex.getMessage());
+                            }
+                            if (jcodecDur > 0 && mediaDurationSeconds <= 0) {
+                                mediaDurationSeconds = jcodecDur;
+                            }
+                            
+                            // Extract first frame for dimensions + thumbnail
+                            org.jcodec.common.model.Picture firstPic = null;
+                            try {
+                                firstPic = grab.getNativeFrame();
+                            } catch (Exception ex) {
+                                System.err.println("[UploadReelDialog] JCodec first frame error: " + ex.getMessage());
+                            }
+                            
+                            // Use first frame dimensions as fallback for layout
+                            final org.jcodec.common.model.Picture fPic = firstPic;
+                            if (fPic != null) {
+                                final int picW = fPic.getWidth();
+                                final int picH = fPic.getHeight();
+                                System.out.println("[UploadReelDialog] JCodec frame size: " + picW + "x" + picH);
+                                SwingUtilities.invokeLater(() -> {
+                                    if (picW > 0 && picH > 0) {
+                                        double aspect = (double) picW / picH;
+                                        int targetH = 400;
+                                        int targetW = (int) (targetH * aspect);
+                                        if (targetW > 640) { targetW = 640; targetH = (int) (640 / aspect); }
+                                        if (targetW < 280) { targetW = 280; targetH = (int) (280 / aspect); }
+                                        
+                                        jfxPanel.setPreferredSize(new Dimension(targetW, targetH));
+                                        jfxPanel.setMinimumSize(new Dimension(targetW, targetH));
+                                        jfxPanel.setMaximumSize(new Dimension(targetW, targetH));
+                                        
+                                        if (shadow != null) {
+                                            // Increase layout room to prevent clipping the video frame
+                                            shadow.setPreferredSize(new Dimension(targetW + 420, Math.max(targetH + 260, 600)));
+                                            shadow.revalidate();
+                                            shadow.repaint();
+                                            // Force root dialog repaint to ensure buttons and layers render correctly
+                                            SwingUtilities.invokeLater(() -> UploadReelDialog.this.repaint());
+                                        }
+                                        if (step2VideoContainer != null) {
+                                            step2VideoContainer.revalidate();
+                                            step2VideoContainer.repaint();
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            // Extract thumbnails
+                            double dur = mediaDurationSeconds;
+                            if (dur > 0 && !Double.isNaN(dur)) {
+                                // Add first frame as thumbnail 0
+                                if (fPic != null) {
+                                    timelineThumbs.add(org.jcodec.scale.AWTUtil.toBufferedImage(fPic));
+                                }
+                                // Create a new FrameGrab for seeking (reset position)
+                                org.jcodec.api.FrameGrab grab2 = org.jcodec.api.FrameGrab.createFrameGrab(
+                                    org.jcodec.common.io.NIOUtils.readableChannel(f));
+                                for (int i = (fPic != null ? 1 : 0); i < 6; i++) {
+                                    try {
+                                        double seekTime = i * (dur / 6.0);
+                                        grab2.seekToSecondSloppy(seekTime);
+                                        org.jcodec.common.model.Picture pic = grab2.getNativeFrame();
+                                        if (pic != null) {
+                                            timelineThumbs.add(org.jcodec.scale.AWTUtil.toBufferedImage(pic));
+                                        }
+                                    } catch (Exception ex) {
+                                        System.err.println("[UploadReelDialog] Thumb " + i + " error: " + ex.getMessage());
+                                    }
+                                }
+                                System.out.println("[UploadReelDialog] Extracted " + timelineThumbs.size() + " thumbnails");
+                                SwingUtilities.invokeLater(() -> {
+                                    if (coverTimeline != null) coverTimeline.repaint();
+                                    if (step2VideoContainer != null) {
+                                        step2VideoContainer.repaint();
+                                        Window win = SwingUtilities.getWindowAncestor(step2VideoContainer);
+                                        if (win != null) win.repaint();
+                                    }
+                                });
+                            } else {
+                                System.err.println("[UploadReelDialog] No valid duration, skipping thumbnails");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("[UploadReelDialog] extractThumbs fatal error: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }).start();
+                    
+                    // JavaFX onReady - update layout with accurate dimensions from media
+                    mediaPlayer.setOnReady(() -> {
+                        System.out.println("[UploadReelDialog] onReady fired. Media size: " + media.getWidth() + "x" + media.getHeight());
+                        System.out.println("[UploadReelDialog] onReady duration: " + media.getDuration());
+                        
+                        double w = media.getWidth();
+                        double h = media.getHeight();
+                        if (w > 0 && h > 0) {
+                            SwingUtilities.invokeLater(() -> {
+                                double aspect = w / h;
+                                int targetH = 400;
+                                int targetW = (int) (targetH * aspect);
+                                if (targetW > 640) { targetW = 640; targetH = (int) (640 / aspect); }
+                                if (targetW < 280) { targetW = 280; targetH = (int) (280 / aspect); }
+                                
+                                jfxPanel.setPreferredSize(new Dimension(targetW, targetH));
+                                jfxPanel.setMinimumSize(new Dimension(targetW, targetH));
+                                jfxPanel.setMaximumSize(new Dimension(targetW, targetH));
+                                
+                                if (shadow != null) {
+                                    // Increase layout room to prevent clipping the video frame
+                                    shadow.setPreferredSize(new Dimension(targetW + 420, Math.max(targetH + 260, 600)));
+                                    shadow.revalidate();
+                                    shadow.repaint();
+                                    // Force root dialog repaint to ensure buttons and layers render correctly
+                                    SwingUtilities.invokeLater(() -> UploadReelDialog.this.repaint());
+                                }
+                                if (step2VideoContainer != null) {
+                                    step2VideoContainer.revalidate();
+                                    step2VideoContainer.repaint();
+                                }
+                            });
+                        }
+                        
+                        double dur = media.getDuration().toSeconds();
+                        if (dur > 0 && !Double.isNaN(dur)) {
+                            mediaDurationSeconds = dur;
+                        }
+                    });
+                    
+                    // Also listen for duration property changes
+                    media.durationProperty().addListener((obs, oldV, newV) -> {
+                        double newDur = newV.toSeconds();
+                        System.out.println("[UploadReelDialog] durationProperty changed: " + newDur + "s");
+                        if (newDur > 0 && !Double.isNaN(newDur)) {
+                            if (mediaDurationSeconds <= 0) {
+                                mediaDurationSeconds = newDur;
+                            }
+                        }
+                    });
+                    
+                    mediaPlayer.setOnError(() -> {
+                        System.out.println("Media error: " + mediaPlayer.getError());
+                    });
+                    
+                    mediaView = new MediaView(mediaPlayer);
+                    mediaView.setPreserveRatio(true);
+                    
+                    coverFxView = new javafx.scene.image.ImageView();
+                    coverFxView.setPreserveRatio(true);
+                    coverFxView.setVisible(false);
+                    
+                    // Use BorderPane overlay for bottom bar only - no center play button
+
+                    // Bottom Bar - mimic ReelsTabPanel approach
+                    javafx.scene.layout.HBox bottomOverlay = new javafx.scene.layout.HBox(12);
+                    bottomOverlay.setStyle("-fx-padding: 8px 14px 12px 14px; -fx-background-color: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);");
+                    bottomOverlay.setAlignment(javafx.geometry.Pos.CENTER);
+
+                    // Play/Pause button
+                    fxBtnPlay = new javafx.scene.control.Label("⏸");
+                    fxBtnPlay.setTextFill(javafx.scene.paint.Color.WHITE);
+                    fxBtnPlay.setFont(javafx.scene.text.Font.font("Segoe UI", 18));
+                    fxBtnPlay.setCursor(javafx.scene.Cursor.HAND);
+                    fxBtnPlay.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+                    // No volume button as per ReelsTabPanel
+                    
+                    // Time label
+                    fxLblTime = new javafx.scene.control.Label("0:00 / 0:00");
+                    fxLblTime.setTextFill(javafx.scene.paint.Color.WHITE);
+                    fxLblTime.setFont(javafx.scene.text.Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 12));
+                    fxLblTime.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+
+                    // Progress bar wrapper (same as ReelsTabPanel)
+                    StackPane pbWrapper = new StackPane();
+                    pbWrapper.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                    javafx.scene.layout.HBox.setHgrow(pbWrapper, javafx.scene.layout.Priority.ALWAYS);
+                    pbWrapper.setMaxWidth(Double.MAX_VALUE);
+                    pbWrapper.setCursor(javafx.scene.Cursor.HAND);
+
+                    javafx.scene.control.ProgressBar pb = new javafx.scene.control.ProgressBar(0);
+                    pb.setMaxWidth(Double.MAX_VALUE);
+                    pb.setPrefHeight(4);
+                    pb.setStyle("-fx-accent: #8B5CF6; -fx-control-inner-background: rgba(255,255,255,0.35); -fx-background-color: rgba(255,255,255,0.35); -fx-background-radius: 4px; -fx-padding: 0;");
+                    pb.setMouseTransparent(true);
+
+                    javafx.scene.canvas.Canvas pbCanvas = new javafx.scene.canvas.Canvas();
+                    pbCanvas.setMouseTransparent(true);
+                    pbCanvas.widthProperty().bind(pbWrapper.widthProperty());
+                    pbCanvas.heightProperty().set(5);
+                    pb.progressProperty().addListener((obs, ov, nv) -> {
+                        double w = pbCanvas.getWidth();
+                        double h = pbCanvas.getHeight();
+                        double prog = nv.doubleValue();
+                        javafx.scene.canvas.GraphicsContext gc = pbCanvas.getGraphicsContext2D();
+                        gc.clearRect(0, 0, w, h);
+                        gc.setFill(javafx.scene.paint.Color.rgb(255, 255, 255, 0.30));
+                        gc.fillRoundRect(0, 1, w, 4, 4, 4);
+                        gc.setFill(javafx.scene.paint.Color.rgb(139, 92, 246, 1.0));
+                        gc.fillRoundRect(0, 1, w * Math.max(0, Math.min(1, prog)), 4, 4, 4);
+                    });
+                    pb.setVisible(false);
+
+                    javafx.scene.shape.Circle pbThumb = new javafx.scene.shape.Circle(6, javafx.scene.paint.Color.WHITE);
+                    pbThumb.setMouseTransparent(true);
+                    pbThumb.setVisible(false);
+                    pbThumb.translateXProperty().bind(pb.progressProperty().multiply(pbWrapper.widthProperty().subtract(12)));
+
+                    pbWrapper.getChildren().addAll(pb, pbCanvas, pbThumb);
+
+                    pbWrapper.setOnMouseEntered(e -> { pbCanvas.heightProperty().set(7); pbThumb.setVisible(true); });
+                    pbWrapper.setOnMouseExited(e -> { pbCanvas.heightProperty().set(5); pbThumb.setVisible(false); });
+                    pbWrapper.setOnMousePressed(e -> {
+                        if (mediaPlayer != null) {
+                            double pct = Math.max(0, Math.min(1, e.getX() / pbWrapper.getWidth()));
+                            pb.setProgress(pct);
+                            if (mediaDurationSeconds > 0) mediaPlayer.seek(javafx.util.Duration.seconds(mediaDurationSeconds * pct));
+                        }
+                    });
+                    pbWrapper.setOnMouseDragged(e -> {
+                        if (mediaPlayer != null) {
+                            double pct = Math.max(0, Math.min(1, e.getX() / pbWrapper.getWidth()));
+                            pb.setProgress(pct);
+                            if (mediaDurationSeconds > 0) mediaPlayer.seek(javafx.util.Duration.seconds(mediaDurationSeconds * pct));
+                        }
+                    });
+
+                    bottomOverlay.getChildren().addAll(fxBtnPlay, fxLblTime, pbWrapper);
+                    
+                    
+                    Runnable togglePlay = () -> {
+                        if (mediaPlayer != null) {
+                            if (mediaPlayer.getStatus() == MediaPlayer.Status.PLAYING) {
+                                mediaPlayer.pause();
+                                fxBtnPlay.setText("▶");
+                                if (isCustomCover && customCoverImg != null && coverFxView != null) {
+                                    coverFxView.setVisible(true);
+                                } else if (!isCustomCover && mediaDurationSeconds > 0) {
+                                    mediaPlayer.seek(javafx.util.Duration.seconds(mediaDurationSeconds * coverPct));
+                                }
+                            } else {
+                                mediaPlayer.play();
+                                fxBtnPlay.setText("⏸");
+                                if (coverFxView != null) coverFxView.setVisible(false);
+                            }
+                        }
+                    };
+                    fxBtnPlay.setOnMouseClicked(e -> togglePlay.run());
+                    mediaView.setOnMouseClicked(e -> togglePlay.run());
+                    if (coverFxView != null) coverFxView.setOnMouseClicked(e -> togglePlay.run());
+                    // Mute logic removed
+                    
+                    mediaPlayer.currentTimeProperty().addListener((obs, oldV, newV) -> {
+                        double total = mediaDurationSeconds;
+                        if (total > 0 && Double.isFinite(total)) {
+                            double cur = newV.toSeconds();
+                            pb.setProgress(cur / total);
+                            String curStr = String.format("%d:%02d", (int)(cur/60), (int)(cur%60));
+                            String totStr = String.format("%d:%02d", (int)(total/60), (int)(total%60));
+                            fxLblTime.setText(curStr + " / " + totStr);
+                        }
+                    });
+                    mediaPlayer.totalDurationProperty().addListener((obs, oldV, newV) -> {
+                        double total = newV.toSeconds();
+                        if (total > 0 && Double.isFinite(total)) {
+                            mediaDurationSeconds = total;
+                            double cur = mediaPlayer.getCurrentTime().toSeconds();
+                            String curStr = String.format("%d:%02d", (int)(cur/60), (int)(cur%60));
+                            String totStr = String.format("%d:%02d", (int)(total/60), (int)(total%60));
+                            fxLblTime.setText(curStr + " / " + totStr);
+                            SwingUtilities.invokeLater(() -> {
+                                if (step2VideoContainer != null) {
+                                    step2VideoContainer.repaint();
+                                    Window w = SwingUtilities.getWindowAncestor(step2VideoContainer);
+                                    if (w != null) w.repaint();
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Use BorderPane overlay: bottom bar auto-fills full width
+                    javafx.scene.layout.BorderPane overlay = new javafx.scene.layout.BorderPane();
+                    overlay.setStyle("-fx-background-color: transparent;");
+                    overlay.setPickOnBounds(false); // Let clicks pass through empty areas
+                    overlay.setBottom(bottomOverlay);
+                    // Click on video to toggle play
+                    mediaView.setOnMouseClicked(e -> togglePlay.run());
+                    coverFxView.setOnMouseClicked(e -> togglePlay.run());
+                    
+                    StackPane root = new StackPane();
+                    root.setStyle("-fx-background-color: #1C1C1E;");
+                    javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+                    clip.widthProperty().bind(root.widthProperty());
+                    clip.heightProperty().bind(root.heightProperty());
+                    clip.setArcWidth(32);
+                    clip.setArcHeight(32);
+                    root.setClip(clip);
+                    root.getChildren().addAll(mediaView, coverFxView, overlay);
+                    root.setOnMouseClicked(e -> togglePlay.run());
+
+                    Scene scene = new Scene(root);
+                    mediaView.fitWidthProperty().bind(scene.widthProperty());
+                    mediaView.fitHeightProperty().bind(scene.heightProperty());
+                    coverFxView.fitWidthProperty().bind(scene.widthProperty());
+                    coverFxView.fitHeightProperty().bind(scene.heightProperty());
+                    jfxPanel.setScene(scene);
+                    
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            });
+        }
+        
+        Timer t = new Timer(400, e -> goTo("step2"));
+        t.setRepeats(false);
+        t.start();
+    }
+private void showFileError(String msg) {
+        lblFileError.setText(msg);
+        lblFileError.setVisible(true);
+    }
+
+    private void updateCharCount() {
+        int len = getCaptionText().length();
+        lblCharCount.setText(len + "/2.200");
+    }
+
+    public String getCaptionText() {
+        if (txtCaption == null) return "";
+        StringBuilder sb = new StringBuilder();
+        javax.swing.text.StyledDocument doc = txtCaption.getStyledDocument();
+        for (int i = 0; i < doc.getLength(); i++) {
+            javax.swing.text.Element el = doc.getCharacterElement(i);
+            javax.swing.Icon icon = javax.swing.text.StyleConstants.getIcon(el.getAttributes());
+            if (icon instanceof EmojiIcon) {
+                sb.append(((EmojiIcon)icon).getTag());
+            } else {
+                try { sb.append(doc.getText(i, 1)); } catch (Exception e) {}
+            }
+        }
+        String text = sb.toString();
+        if ("Viết chú thích cho thước phim...".equals(text)) return "";
+        return text;
+    }
+
+    private void goTo(String step) {
+        try {
+            if ("step3".equals(step)) {
+                if (step3VideoContainer != null && jfxPanel != null) {
+                    // Remove jfxPanel from its current parent first
+                    java.awt.Container oldParent = jfxPanel.getParent();
+                    if (oldParent != null) {
+                        oldParent.remove(jfxPanel);
+                        oldParent.revalidate();
+                        oldParent.repaint();
+                    }
+                    // Add to step3 container (OverlayLayout - use simple add, not indexed)
+                    step3VideoContainer.add(jfxPanel);
+                    step3VideoContainer.revalidate();
+                    step3VideoContainer.repaint();
+                    Platform.runLater(() -> {
+                        try {
+                            if (mediaPlayer != null) {
+                                if (mediaDurationSeconds > 0) {
+                                    mediaPlayer.setStartTime(javafx.util.Duration.seconds(mediaDurationSeconds * trimStartPct));
+                                    mediaPlayer.setStopTime(javafx.util.Duration.seconds(mediaDurationSeconds * trimEndPct));
+                                    mediaPlayer.seek(javafx.util.Duration.seconds(mediaDurationSeconds * trimStartPct));
+                                }
+                                mediaPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+                                mediaPlayer.play();
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    });
+                }
+            } else if ("step2".equals(step)) {
+                if (step2VideoContainer != null && jfxPanel != null) {
+                    java.awt.Container oldParent = jfxPanel.getParent();
+                    if (oldParent != null) {
+                        oldParent.remove(jfxPanel);
+                        oldParent.revalidate();
+                        oldParent.repaint();
+                    }
+                    step2VideoContainer.add(jfxPanel, BorderLayout.CENTER);
+                    step2VideoContainer.revalidate();
+                    step2VideoContainer.repaint();
+                    Platform.runLater(() -> {
+                        if (mediaPlayer != null) {
+                            mediaPlayer.setStartTime(javafx.util.Duration.ZERO);
+                            if (mediaPlayer.getMedia() != null) {
+                                mediaPlayer.setStopTime(mediaPlayer.getMedia().getDuration());
+                            }
+                            mediaPlayer.setCycleCount(1);
+                        }
+                    });
+                }
+            }
+            SwingUtilities.invokeLater(() -> cardLayout.show(cardPanel, step));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            // Ensure card still switches even if video operations fail
+            SwingUtilities.invokeLater(() -> cardLayout.show(cardPanel, step));
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Public API for ReelsTabPanel
+    // ══════════════════════════════════════════════════════════════════════════
+    public boolean isApproved()    { return isApproved; }
+    public File   getSelectedFile(){ return selectedFile; }
+    public String getCaption()     { return caption; }
+    public String getHashtags()    { return hashtags; }
+
+    class EmojiIcon extends ImageIcon {
+        private String tag;
+        public EmojiIcon(URL url, String tag) {
+            super(new ImageIcon(url).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH));
+            this.tag = tag;
+        }
+        public String getTag() { return tag; }
+    }
+
+    class EmojiCategory {
+        String title;
+        String prefix;
+        String navIconUrl;
+        public EmojiCategory(String title, String prefix, String navIconUrl) { 
+            this.title = title; this.prefix = prefix; this.navIconUrl = navIconUrl;
+        }
+    }
+
+    private void showEmojiPicker(Component invoker) {
+        JPopupMenu emojiPopup = new JPopupMenu();
+        emojiPopup.setBackground(Color.WHITE);
+        emojiPopup.setBorder(BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1));
+        
+        EmojiCategory[] categories = {
+            new EmojiCategory("Cảm xúc", "mat", "https://img.icons8.com/fluency-systems-regular/48/64748B/happy.png"),
+            new EmojiCategory("Cử chỉ", "cuchi", "https://img.icons8.com/fluency-systems-regular/48/64748B/hand.png"),
+            new EmojiCategory("Con người", "connguoi", "https://img.icons8.com/fluency-systems-regular/48/64748B/user.png"),
+            new EmojiCategory("Tự nhiên", "tunhien", "https://img.icons8.com/fluency-systems-regular/48/64748B/deciduous-tree.png"),
+            new EmojiCategory("Con vật", "convat", "https://img.icons8.com/fluency-systems-regular/48/64748B/cat-profile.png"),
+            new EmojiCategory("Trang trí", "trangtri", "https://img.icons8.com/fluency-systems-regular/48/64748B/party-baloon.png"),
+            new EmojiCategory("Ăn uống", "anuong", "https://img.icons8.com/fluency-systems-regular/48/64748B/hamburger.png"), 
+            new EmojiCategory("Trò chơi", "trochoi", "https://img.icons8.com/fluency-systems-regular/48/64748B/football2.png"),
+            new EmojiCategory("Công cụ", "congcu", "https://img.icons8.com/fluency-systems-regular/48/64748B/light.png"),
+            new EmojiCategory("Cờ", "co", "https://img.icons8.com/fluency-systems-regular/48/64748B/flag.png")
+        };
+
+        JPanel mainScrollContent = new JPanel();
+        mainScrollContent.setLayout(new BoxLayout(mainScrollContent, BoxLayout.Y_AXIS));
+        mainScrollContent.setBackground(Color.WHITE);
+        mainScrollContent.setBorder(new EmptyBorder(5, 10, 10, 10));
+
+        if (!recentEmojis.isEmpty()) {
+            mainScrollContent.add(createEmojiSectionTitle("Gần đây"));
+            JPanel recentGrid = new JPanel(new GridLayout(0, 8, 2, 6)); 
+            recentGrid.setBackground(Color.WHITE);
+            for (String tag : recentEmojis) {
+                recentGrid.add(createSingleEmojiButton(tag, emojiPopup));
+            }
+            int fill = 8 - (recentEmojis.size() % 8);
+            if (fill < 8) for(int i=0; i<fill; i++) { JPanel p = new JPanel(); p.setOpaque(false); recentGrid.add(p); }
+            
+            JPanel wrap = new JPanel(new BorderLayout()); wrap.setOpaque(false); wrap.add(recentGrid, BorderLayout.WEST);
+            mainScrollContent.add(wrap);
+            mainScrollContent.add(Box.createVerticalStrut(10));
+        }
+
+        java.util.Map<String, JPanel> categoryPanels = new java.util.HashMap<>();
+
+        for (EmojiCategory cat : categories) {
+            JPanel titlePanel = createEmojiSectionTitle(cat.title);
+            categoryPanels.put(cat.prefix, titlePanel); 
+            mainScrollContent.add(titlePanel);
+            
+            JPanel gridPanel = new JPanel(new GridLayout(0, 8, 2, 6)); 
+            gridPanel.setBackground(Color.WHITE);
+            
+            int missingCount = 0;
+            for (int i = 1; i <= 200; i++) {
+                String path = "/images/emoji/" + cat.prefix + "/" + cat.prefix + " (" + i + ").png";
+                URL url = getClass().getResource(path);
+                
+                if (url == null) {
+                    missingCount++;
+                    if (missingCount > 15) break;
+                    continue; 
+                }
+                missingCount = 0; 
+                
+                String tag = "[e:" + cat.prefix + ":" + i + "]";
+                gridPanel.add(createSingleEmojiButton(tag, emojiPopup));
+            }
+            
+            JPanel alignLeftWrap = new JPanel(new BorderLayout()); 
+            alignLeftWrap.setOpaque(false); 
+            alignLeftWrap.add(gridPanel, BorderLayout.WEST);
+            
+            mainScrollContent.add(alignLeftWrap);
+            mainScrollContent.add(Box.createVerticalStrut(15));
+        }
+
+        JScrollPane scrollPane = new JScrollPane(mainScrollContent);
+        scrollPane.setBorder(null);
+        scrollPane.setPreferredSize(new Dimension(320, 260)); 
+        scrollPane.getVerticalScrollBar().setUnitIncrement(25);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+        JPanel bottomNav = new JPanel();
+        bottomNav.setLayout(new BoxLayout(bottomNav, BoxLayout.X_AXIS)); 
+        bottomNav.setBackground(Color.WHITE);
+        bottomNav.setBorder(new EmptyBorder(4, 4, 4, 4));
+        
+        bottomNav.add(createNavIconButton("https://img.icons8.com/fluency-systems-regular/48/2563EB/time.png", () -> {
+            scrollPane.getViewport().setViewPosition(new Point(0, 0));
+        }));
+        bottomNav.add(Box.createHorizontalStrut(6));
+
+        for (EmojiCategory cat : categories) {
+            bottomNav.add(createNavIconButton(cat.navIconUrl, () -> {
+                JPanel target = categoryPanels.get(cat.prefix);
+                if (target != null) {
+                    SwingUtilities.invokeLater(() -> scrollPane.getViewport().setViewPosition(new Point(0, target.getY())));
+                }
+            }));
+            bottomNav.add(Box.createHorizontalStrut(6));
+        }
+        
+        JScrollPane bottomScroll = new JScrollPane(bottomNav);
+        bottomScroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.decode("#E5E7EB")));
+        bottomScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        bottomScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        bottomScroll.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 6));
+        bottomScroll.setPreferredSize(new Dimension(320, 46));
+
+        bottomScroll.addMouseWheelListener(e -> {
+            if (e.getScrollType() == java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL) {
+                JScrollBar hBar = bottomScroll.getHorizontalScrollBar();
+                hBar.setValue(hBar.getValue() + e.getUnitsToScroll() * 20); 
+            }
+        });
+
+        JPanel container = new JPanel(new BorderLayout());
+        container.setBackground(Color.WHITE);
+        container.add(scrollPane, BorderLayout.CENTER);
+        container.add(bottomScroll, BorderLayout.SOUTH);
+
+        emojiPopup.add(container);
+        emojiPopup.show(invoker, -280, 20); 
+    }
+
+    private JPanel createEmojiSectionTitle(String text) {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        p.setBackground(Color.WHITE);
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lbl.setForeground(Color.decode("#374151"));
+        p.add(lbl);
+        return p;
+    }
+
+    private JLabel createSingleEmojiButton(String tag, JPopupMenu popup) {
+        JLabel lbl = new JLabel("", SwingConstants.CENTER);
+        lbl.setPreferredSize(new Dimension(34, 34));
+        lbl.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        try {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[e:([a-zA-Z0-9_]+):(\\d+)\\]").matcher(tag);
+            if (m.find()) {
+                String prefix = m.group(1);
+                String num = m.group(2);
+                URL url = getClass().getResource("/images/emoji/" + prefix + "/" + prefix + " (" + num + ").png");
+                if (url != null) lbl.setIcon(new ImageIcon(new ImageIcon(url).getImage().getScaledInstance(26, 26, Image.SCALE_SMOOTH)));
+            }
+        } catch (Exception e) {}
+
+        lbl.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { lbl.setOpaque(true); lbl.setBackground(Color.decode("#F1F5F9")); lbl.repaint(); }
+            @Override public void mouseExited(MouseEvent e) { lbl.setOpaque(false); lbl.repaint(); }
+            @Override public void mouseClicked(MouseEvent e) {
+                EmojiIcon emojiIcon = null;
+                try {
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[e:([a-zA-Z0-9_]+):(\\d+)\\]").matcher(tag);
+                    if (m.find()) {
+                        String prefix = m.group(1);
+                        String num = m.group(2);
+                        URL url = getClass().getResource("/images/emoji/" + prefix + "/" + prefix + " (" + num + ").png");
+                        if (url != null) emojiIcon = new EmojiIcon(url, tag);
+                    }
+                } catch (Exception ex) {}
+                
+                if (emojiIcon != null) {
+                    txtCaption.insertIcon(emojiIcon);
+                } else {
+                    txtCaption.replaceSelection(tag);
+                }
+                txtCaption.requestFocus();
+                
+                recentEmojis.remove(tag); 
+                recentEmojis.add(0, tag); 
+                if (recentEmojis.size() > 16) recentEmojis.remove(16); 
+                
+                popup.setVisible(false);
+            }
+        });
+        return lbl;
+    }
+
+    private JPanel createNavIconButton(String iconUrl, Runnable onClick) {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(Color.WHITE);
+        p.setPreferredSize(new Dimension(32, 32));
+        p.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        JLabel lbl = new JLabel("", SwingConstants.CENTER);
+        setIconFromUrlAsync(lbl, iconUrl, 18, 18);
+        p.add(lbl, BorderLayout.CENTER);
+        
+        p.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { p.setBackground(Color.decode("#F1F5F9")); }
+            @Override public void mouseExited(MouseEvent e) { p.setBackground(Color.WHITE); }
+            @Override public void mouseClicked(MouseEvent e) { onClick.run(); }
+        });
+        return p;
+    }
+}

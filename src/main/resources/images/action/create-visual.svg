@@ -1,0 +1,27 @@
+<svg width="140" height="88" viewBox="0 0 140 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="screen" x1="28" y1="18" x2="114" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#DCE7FF" stop-opacity="0.82"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="10" y1="38" x2="66" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8BA6FF" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#A48BFF" stop-opacity="0.58"/>
+    </linearGradient>
+  </defs>
+  <circle cx="108" cy="20" r="34" fill="#FFFFFF" fill-opacity="0.13"/>
+  <rect x="42" y="17" width="78" height="54" rx="13" fill="url(#screen)"/>
+  <rect x="42.5" y="17.5" width="77" height="53" rx="12.5" stroke="#FFFFFF" stroke-opacity="0.42"/>
+  <circle cx="55" cy="29" r="3" fill="#9BAED8" fill-opacity="0.56"/>
+  <circle cx="65" cy="29" r="3" fill="#9BAED8" fill-opacity="0.46"/>
+  <circle cx="75" cy="29" r="3" fill="#9BAED8" fill-opacity="0.36"/>
+  <rect x="56" y="40" width="43" height="7" rx="3.5" fill="#FFFFFF" fill-opacity="0.92"/>
+  <rect x="56" y="54" width="33" height="6" rx="3" fill="#FFFFFF" fill-opacity="0.72"/>
+  <rect x="18" y="45" width="56" height="34" rx="11" fill="url(#tile)"/>
+  <rect x="18.5" y="45.5" width="55" height="33" rx="10.5" stroke="#FFFFFF" stroke-opacity="0.22"/>
+  <rect x="29" y="55" width="16" height="15" rx="5" fill="#D9E5FF" fill-opacity="0.56"/>
+  <path d="M55 56V69" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M48.5 62.5H61.5" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+  <rect x="76" y="63" width="39" height="7" rx="3.5" fill="#C8D6FF" fill-opacity="0.72"/>
+  <rect x="6" y="76" width="108" height="8" rx="4" fill="#3D5FD8" fill-opacity="0.12"/>
+</svg>

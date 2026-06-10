@@ -1,0 +1,5 @@
+{
+  "version": "1.0.9",
+  "url": "https://hocba299-3-tutorhub-sync.hf.space/update.jar",
+  "notes": "Fix auth packet deserialization and show database/password-hash auth errors separately."
+}

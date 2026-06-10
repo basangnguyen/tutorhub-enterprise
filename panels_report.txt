@@ -1,0 +1,77 @@
+=== BEFORE toggleScreenShare ===
+    if (chatbox.style.display === 'none') {
+                chatbox.style.display = 'flex';
+                document.getElementById('chat-input').focus();
+            } else {
+                chatbox.style.display = 'none';
+            }
+        }
+
+        let isScreenSharing = false;
+        async function toggleScreenShare() {
+            if (!wi
+
+=== openPhetModal context ===
+function openPhetModal() {
+    document.getElementById('phet-search').value = '';
+    renderPhetGrid();
+    document.getElementById('phet-modal').style.display = 'flex';
+  }
+
+  function closePhetModal() {
+    document.getElementById('phet-modal').style.display = 'none';
+  }
+
+  // Khởi tạo LiveKit Client (sử dụng thư viện livekit-client tải từ CDN)
+        function toggleChatbox() {
+            con
+
+=== Found [judge] at 7667413 ===
+ooltip="Đấu trường (Chấm điểm)" onclick="toggleJudgePanel()">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Arena</span>
+        </button>
+        <button id="cowatch-btn" class="zoom-bottom-btn" data-tooltip="Cùng xem Video" onclick="toggleCoWatchModal()">
+            <i class="fa-solid fa-tv"></i>
+            <span>YouTube</spa
+
+=== Found [arena] at 7667281 ===
+span>Thí nghiệm</span>
+    </div>
+    <!-- Add Arena button -->
+        <button id="arena-toggle-btn" class="zoom-bottom-btn" data-tooltip="Đấu trường (Chấm điểm)" onclick="toggleJudgePanel()">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Arena</span>
+        </button>
+        <button id="cowatch-btn" class="zoom-bottom-btn" dat
+
+=== Found [code-modal] at 7690392 ===
+loseCodeModal() {
+    document.getElementById('code-modal').style.display = 'none';
+  }
+
+  function insertCodeShape() {
+    const codeStr = document.getElementById('code-input').value;
+    if (!codeStr.trim()) return;
+
+    if (window.addCodeNode) {
+      window.addCodeNode(codeStr);
+    }
+    closeCodeModal();
+  }
+
+  /* PhET Simulation Modal Logic 
+
+=== Found [judge-panel] at 7685178 ===
+ANEL (Ẩn mặc định, 300px) -->
+        <div id="judge-panel" style="display: none; width: 350px; background: #252526; border-left: 1px solid #333; flex-direction: column;">
+            <div style="padding: 10px; background: #2d2d30; color: #f59e0b; font-size: 13px; font-weight: bold; border-bottom: 1px solid #444; display: flex; justify-content: spa
+
+=== Found [judgePanel] at 7667413 ===
+ooltip="Đấu trường (Chấm điểm)" onclick="toggleJudgePanel()">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Arena</span>
+        </button>
+        <button id="cowatch-btn" class="zoom-bottom-btn" data-tooltip="Cùng xem Video" onclick="toggleCoWatchModal()">
+            <i class="fa-solid fa-tv"></i>
+            <span>YouTube</spa

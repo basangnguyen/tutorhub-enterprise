@@ -1,0 +1,10 @@
+function toggleReactionMenu(event) {
+        const menu = document.getElementById('reaction-menu');
+        menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        if (event) event.stopPropagation();
+    }
+    
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('reaction-menu');
+        const btn = document.getElementById('react-btn');
+        if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && (!btn || !btn.con

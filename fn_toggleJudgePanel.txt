@@ -1,0 +1,11 @@
+function toggleJudgePanel() {
+            const panel = document.getElementById('judge-panel');
+            if (!panel) {
+                showToast && showToast('Panel Đấu Trường chưa sẵn sàng', 2000);
+                return;
+            }
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'flex';
+            const btn = document.getElementById('arena-toggle-btn');
+            if (btn) btn.classList.toggle('active', !isOpen);
+          

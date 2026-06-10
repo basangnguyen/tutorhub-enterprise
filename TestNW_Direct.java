@@ -1,0 +1,1 @@
+import com.mycompany.tutorhub_enterprise.client.NetworkManager; public class TestNW_Direct { public static void main(String[] args) { try { NetworkManager.getInstance().connect("localhost", 8888); System.out.println("Connected!"); } catch(Exception e) { e.printStackTrace(); } } }

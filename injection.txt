@@ -1,0 +1,85 @@
+    private void handleAuthRequest(Packet packet) {
+        if (!(packet.data instanceof com.mycompany.tutorhub_enterprise.models.auth.AuthRequest)) {
+            System.err.println("Lỗi: AUTH action nhưng payload không phải là AuthRequest.");
+            return;
+        }
+        com.mycompany.tutorhub_enterprise.models.auth.AuthRequest request = (com.mycompany.tutorhub_enterprise.models.auth.AuthRequest) packet.data;
+        String requestId = request.getRequestId();
+        
+        switch (packet.action) {
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.LOGIN: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.LoginSession session = com.mycompany.tutorhub_enterprise.server.AuthService.authenticateWithPassword(request.getEmail(), request.getPassword());
+                handleAuthLoginSession(session, requestId);
+                break;
+            }
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.REQUEST_REGISTRATION_OTP: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.AuthResult result = com.mycompany.tutorhub_enterprise.server.AuthService.requestRegistrationOtp(request.getEmail());
+                handleAuthResult(result, requestId);
+                break;
+            }
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.VERIFY_AND_REGISTER: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.AuthResult result = com.mycompany.tutorhub_enterprise.server.AuthService.verifyAndRegister(request.getEmail(), request.getOtp(), request.getPassword(), request.getFullName());
+                handleAuthResult(result, requestId);
+                break;
+            }
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.REQUEST_PASSWORD_RESET_OTP: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.AuthResult result = com.mycompany.tutorhub_enterprise.server.AuthService.requestPasswordResetOtp(request.getEmail());
+                handleAuthResult(result, requestId);
+                break;
+            }
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.VERIFY_AND_RESET_PASSWORD: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.AuthResult result = com.mycompany.tutorhub_enterprise.server.AuthService.verifyAndResetPassword(request.getEmail(), request.getOtp(), request.getPassword());
+                handleAuthResult(result, requestId);
+                break;
+            }
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.REQUEST_SMS_LOGIN_OTP: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.AuthResult result = com.mycompany.tutorhub_enterprise.server.AuthService.requestSmsLoginOtp(request.getPhone());
+                handleAuthResult(result, requestId);
+                break;
+            }
+            case com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.VERIFY_SMS_LOGIN: {
+                com.mycompany.tutorhub_enterprise.server.AuthService.LoginSession session = com.mycompany.tutorhub_enterprise.server.AuthService.verifySmsLogin(request.getPhone(), request.getOtp());
+                handleAuthLoginSession(session, requestId);
+                break;
+            }
+            default: {
+                System.err.println("Unsupported AUTH action: " + packet.action);
+                break;
+            }
+        }
+    }
+
+    private void handleAuthLoginSession(com.mycompany.tutorhub_enterprise.server.AuthService.LoginSession session, String requestId) {
+        if (session.isSuccess()) {
+            onlineClients.remove(this.clientId);
+            this.clientId = session.getIdentity();
+            this.userId = session.getUserId();
+            onlineClients.put(this.clientId, this);
+            
+            String dashboardPayload = "DASHBOARD_GO|" + this.userId + "|" + session.getRole() + "|" + session.getAvatarBase64();
+            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.login(requestId, "Đăng nhập thành công!", dashboardPayload);
+            sendPacket(new Packet(com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.RESPONSE, response));
+            
+            for (ClientHandler client : onlineClients.values()) {
+                if (!client.clientId.equals(this.clientId)) {
+                    client.sendPacket(new Packet("USER_ONLINE", String.valueOf(this.userId)));
+                }
+            }
+        } else {
+            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, session.getMessage());
+            sendPacket(new Packet(com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.RESPONSE, response));
+        }
+    }
+
+    private void handleAuthResult(com.mycompany.tutorhub_enterprise.server.AuthService.AuthResult result, String requestId) {
+        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response;
+        if (result.isSuccess()) {
+            response = com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.ok(requestId, result.getMessage());
+        } else {
+            response = com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, result.getMessage());
+        }
+        sendPacket(new Packet(com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.RESPONSE, response));
+    }
+}

@@ -1,0 +1,8 @@
+/* Tùy chỉnh giao diện Tldraw v2 để không đè lên Zoom Bottom Bar */
+.tlui-layout__bottom {
+    bottom: 80px !important; /* Dịch thanh công cụ lên trên bottom bar */
+}
+
+.tlui-layout__top {
+    top: 10px !important;
+}

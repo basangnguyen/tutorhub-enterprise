@@ -1,0 +1,13 @@
+{
+  "name": "tutorhub-code-server",
+  "version": "1.0.0",
+  "description": "Proxy cho VS Code Server",
+  "main": "server.js",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6",
+    "ws": "^8.21.0"
+  }
+}

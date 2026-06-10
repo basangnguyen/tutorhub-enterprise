@@ -1,0 +1,1 @@
+{"answer":"Lỗi Vision: [WinError 32] The process cannot access the file because it is being used by another process: 'temp/2a3a92bc-9b30-4fb3-9e6e-d8f7091ff059_test_img.jpg'"}

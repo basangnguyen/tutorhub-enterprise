@@ -1,0 +1,14 @@
+function openPhetModal() {
+    document.getElementById('phet-search').value = '';
+    renderPhetGrid();
+    document.getElementById('phet-modal').style.display = 'flex';
+  }
+
+  function closePhetModal() {
+    document.getElementById('phet-modal').style.display = 'none';
+  }
+
+  // Khởi tạo LiveKit Client (sử dụng thư viện livekit-client tải từ CDN)
+        function toggleChatbox() {
+            const chatbox = document.getElementById('chatbox');
+            if (chatbox.style.display === 'none') {
