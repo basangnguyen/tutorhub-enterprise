@@ -108,3 +108,6 @@ jcef-bundle/
 src/main/resources/images/reel/
 lavie_desktop/models/
 static/audio/
+
+src/main/resources/application.properties
+src/main/resources/application.local.properties
