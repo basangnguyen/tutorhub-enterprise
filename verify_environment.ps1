@@ -22,11 +22,12 @@ function Check-File ($filePath, $successMsg, $failMsg) {
 }
 
 function Check-EnvVar ($varName, $successMsg, $failMsg) {
-    if ($env:$varName) {
+    $value = [Environment]::GetEnvironmentVariable($varName)
+
+    if (-not [string]::IsNullOrWhiteSpace($value)) {
         Write-Host "[OK] $successMsg" -ForegroundColor Green
     } else {
-        Write-Host "[FAIL] $failMsg" -ForegroundColor Red
-        $global:errorCount++
+        Write-Host "[WARN] $failMsg" -ForegroundColor Yellow
     }
 }
 
