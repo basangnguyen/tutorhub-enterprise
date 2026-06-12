@@ -30,6 +30,10 @@ public class DatabaseManager {
 
     // TỰ ĐỘNG VÁ LỖI CẤU TRÚC BẢNG NẾU NHƯ DATABASE CỦA BẠN BỊ THIẾU CỘT (CHỐNG SẬP UI)
     static {
+        System.out.println("[DB CONFIG] DB URL configured: " + (!"jdbc:postgresql://HOST:PORT/DB_NAME".equals(DB_URL)));
+        System.out.println("[DB CONFIG] DB USER configured: " + (!"neondb_owner".equals(DB_USER) && !DB_USER.isEmpty()));
+        System.out.println("[DB CONFIG] DB PASSWORD configured: " + (!"your_db_password".equals(DB_PASS) && !DB_PASS.isEmpty()));
+        
         try (Connection conn = getConnection(); java.sql.Statement st = conn.createStatement()) {
             st.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_url TEXT");
             st.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ekyc_front_url TEXT");

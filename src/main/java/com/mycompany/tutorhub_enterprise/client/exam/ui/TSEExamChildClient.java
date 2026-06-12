@@ -89,51 +89,41 @@ public class TSEExamChildClient {
                         return;
                     }
 
-                    // Confirm dialog — default button is "Quay lại"
-                    Object[] options = {"Nộp bài", "Quay lại"};
-                    int confirm = JOptionPane.showOptionDialog(frame,
-                            "Bạn có chắc chắn muốn nộp bài không?",
-                            "Xác nhận nộp bài",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE,
-                            null,
-                            options,
-                            options[1]); // Default: Quay lại
-
-                    if (confirm != JOptionPane.YES_OPTION) {
-                        // User chose "Quay lại" — do nothing, stay in exam
-                        System.out.println("[TSE_CHILD] User chose 'Quay lại'. Returning to exam.");
-                        return;
+                    System.out.println("[TSE_CHILD] Showing custom submit confirmation overlay.");
+                    
+                    TSEBrowserPanel browserPanel = (TSEBrowserPanel) frame.getRootPane().getClientProperty("browserPanel");
+                    if (browserPanel != null) {
+                        String jsOverlay = 
+                            "var existing = document.getElementById('tse-submit-confirm-overlay'); " +
+                            "if (existing) existing.remove(); " +
+                            "var overlay = document.createElement('div'); " +
+                            "overlay.id = 'tse-submit-confirm-overlay'; " +
+                            "overlay.style.position = 'fixed'; " +
+                            "overlay.style.inset = '0'; " +
+                            "overlay.style.zIndex = '2147483647'; " +
+                            "overlay.style.background = 'rgba(0,0,0,0.55)'; " +
+                            "overlay.style.display = 'flex'; " +
+                            "overlay.style.alignItems = 'center'; " +
+                            "overlay.style.justifyContent = 'center'; " +
+                            "overlay.style.fontFamily = 'sans-serif'; " +
+                            "overlay.innerHTML = '<div id=\"tse-submit-confirm-card-content\" style=\"background: white; padding: 30px; border-radius: 8px; max-width: 400px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);\">' + " +
+                            "'<h2 style=\"margin-top: 0; color: #1e293b; font-size: 20px;\">Xác nhận nộp bài</h2>' + " +
+                            "'<p style=\"color: #475569; margin-bottom: 24px; line-height: 1.5;\">Bạn có chắc chắn muốn nộp bài? Sau khi nộp, bạn không thể chỉnh sửa câu trả lời.</p>' + " +
+                            "'<div style=\"display: flex; justify-content: center; gap: 16px;\">' + " +
+                            "'<button id=\"tse-cancel-submit\" style=\"padding: 10px 20px; border: none; border-radius: 4px; background: #e2e8f0; color: #0f172a; font-weight: bold; cursor: pointer;\">Hủy</button>' + " +
+                            "'<button id=\"tse-confirm-submit\" style=\"padding: 10px 20px; border: none; border-radius: 4px; background: #dc2626; color: white; font-weight: bold; cursor: pointer;\">Nộp bài</button>' + " +
+                            "'</div></div>'; " +
+                            "document.body.appendChild(overlay); " +
+                            "document.getElementById('tse-cancel-submit').onclick = function() { " +
+                            "  if(overlay.parentNode) overlay.parentNode.removeChild(overlay); " +
+                            "  window.cefQuery && window.cefQuery({request: 'SUBMIT_PAYLOAD:CANCEL_FINAL_SUBMIT'}); " +
+                            "}; " +
+                            "document.getElementById('tse-confirm-submit').onclick = function() { " +
+                            "  document.getElementById('tse-submit-confirm-card-content').innerHTML = '<h2 style=\"margin-top:0; color:#1e293b; font-size:20px;\">Đang nộp bài...</h2><p style=\"color:#475569;\">Vui lòng chờ trong giây lát...</p>'; " +
+                            "  window.cefQuery && window.cefQuery({request: 'SUBMIT_PAYLOAD:CONFIRM_FINAL_SUBMIT'}); " +
+                            "}; ";
+                        browserPanel.executeJavaScript(jsOverlay);
                     }
-
-                    System.out.println("[TSE_CHILD] Confirmation accepted.");
-
-                    // 1. Lock submit state immediately (before any async work)
-                    finalSubmitInProgress = true;
-
-                    // 2. Stop autosave timer — no more autosave after this point
-                    if (autoSaveTimer != null) {
-                        autoSaveTimer.stop();
-                        System.out.println("[TSE_CHILD] AutoSave timer stopped.");
-                    }
-
-                    // 3. Show blocking submit overlay
-                    System.out.println("[TSE_CHILD] Showing submit overlay.");
-                    JPanel overlay = new JPanel(new GridBagLayout());
-                    overlay.setOpaque(true);
-                    overlay.setBackground(new Color(245, 245, 245));
-                    JLabel lbl = new JLabel("Đang nộp bài, vui lòng chờ...");
-                    lbl.setFont(new Font("Segoe UI", Font.BOLD, 32));
-                    overlay.add(lbl);
-                    // Block all mouse and key events through the overlay
-                    overlay.addMouseListener(new java.awt.event.MouseAdapter() {});
-                    overlay.addKeyListener(new java.awt.event.KeyAdapter() {});
-                    frame.setGlassPane(overlay);
-                    overlay.setVisible(true);
-
-                    // 4. Trigger JS to collect answers for FINAL submit
-                    System.out.println("[TSE_CHILD] Collecting answers...");
-                    collectAnswersForFinalSubmit(frame);
                 });
                 mainContainer.add(headerBar, BorderLayout.NORTH);
 
@@ -142,6 +132,10 @@ public class TSEExamChildClient {
                 JPanel browserContainer = new JPanel(new BorderLayout());
                 browserContainer.add(browserPanel, BorderLayout.CENTER);
                 mainContainer.add(browserContainer, BorderLayout.CENTER);
+
+                // --- Footer panel ---
+                ExamFooterStatusBar footerBar = new ExamFooterStatusBar(null); // null disables power button exit
+                mainContainer.add(footerBar, BorderLayout.SOUTH);
 
                 frame.revalidate();
                 frame.repaint();
@@ -159,6 +153,26 @@ public class TSEExamChildClient {
 
                 // JCEF submit callback — routes to FINAL or AUTOSAVE based on state flag
                 TSEJcefLifecycleManager.setSubmitCallback(payload -> {
+                    if ("CANCEL_FINAL_SUBMIT".equals(payload)) {
+                        System.out.println("[TSE_CHILD] Final submit cancelled by user.");
+                        return;
+                    }
+                    if ("CONFIRM_FINAL_SUBMIT".equals(payload)) {
+                        finalSubmitInProgress = true;
+                        allowProgrammaticExit = true;
+                        System.out.println("[TSE_CHILD] Final submit mode enabled.");
+
+                        if (autoSaveTimer != null) {
+                            autoSaveTimer.stop();
+                            System.out.println("[TSE_CHILD] Auto-save timer stopped for final submit.");
+                        }
+
+                        System.out.println("[TSE_CHILD] Showing submit overlay.");
+                        System.out.println("[TSE_CHILD] Calling collectTSEAnswers() for FINAL...");
+                        collectAnswersForFinalSubmit(frame);
+                        return;
+                    }
+
                     System.out.println("[TSE_CHILD] Received payload from JS. finalSubmitInProgress=" + finalSubmitInProgress);
                     if (finalSubmitInProgress) {
                         writeFinalPayloadAndExit(finalOutputPath, sessionId, examId, payload, frame, finalKeyB64);
@@ -209,7 +223,7 @@ public class TSEExamChildClient {
     private static void collectAnswersForFinalSubmit(JFrame frame) {
         TSEBrowserPanel browserPanel = (TSEBrowserPanel) frame.getRootPane().getClientProperty("browserPanel");
         if (browserPanel != null) {
-            System.out.println("[TSE_CHILD] Calling collectTSEAnswers() for FINAL submit...");
+            System.out.println("[TSE_CHILD] Calling collectTSEAnswers() for FINAL...");
             browserPanel.executeJavaScript(
                     "if (typeof collectTSEAnswers === 'function') { collectTSEAnswers(); } " +
                     "else { window.cefQuery && window.cefQuery(" +
@@ -280,7 +294,7 @@ public class TSEExamChildClient {
                     Thread.sleep(2500); // allow JCEF subprocesses to terminate
                 } catch (InterruptedException ignored) {
                 }
-                System.out.println("[TSE_CHILD] Exiting JVM now.");
+                System.out.println("[TSE_CHILD] Final submit complete. Exiting child process.");
                 Runtime.getRuntime().halt(0);
             }, "tse-child-fast-exit").start();
 

@@ -1,21 +1,50 @@
 package com.mycompany.tutorhub_enterprise.server;
 
+import java.io.InputStream;
+import java.util.Properties;
+
 public final class ServerConfig {
+
+    private static final Properties PROPS = new Properties();
+
+    static {
+        try (InputStream in = Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream("application.properties")) {
+            if (in != null) {
+                PROPS.load(in);
+                System.out.println("[CONFIG] Loaded application.properties from classpath.");
+            } else {
+                System.out.println("[CONFIG] application.properties not found on classpath. Using env/defaults.");
+            }
+        } catch (Exception ex) {
+            System.err.println("[CONFIG] Failed to load application.properties: " + ex.getMessage());
+        }
+    }
 
     private ServerConfig() {
     }
 
     public static String get(String envName, String propertyName, String defaultValue) {
-        String propertyValue = System.getProperty(propertyName);
-        if (!isBlank(propertyValue)) {
-            return propertyValue.trim();
-        }
-
+        // Priority 1: Environment variable
         String envValue = System.getenv(envName);
         if (!isBlank(envValue)) {
             return envValue.trim();
         }
 
+        // Priority 2: System property
+        String systemProp = System.getProperty(propertyName);
+        if (!isBlank(systemProp)) {
+            return systemProp.trim();
+        }
+
+        // Priority 3: application.properties
+        String fileProp = PROPS.getProperty(propertyName);
+        if (!isBlank(fileProp)) {
+            return fileProp.trim();
+        }
+
+        // Fallback
         return defaultValue;
     }
 
