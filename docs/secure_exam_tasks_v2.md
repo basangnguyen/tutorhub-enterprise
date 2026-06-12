@@ -472,3 +472,10 @@
 - [x] Log [TSE_PARENT] Found submit_payload.enc. Using FINAL submit payload.
 - [x] Log [TSE_PARENT] WARNING: submit_payload.enc not found. Falling back to autosave_payload.enc.
 - [x] mvn clean install - BUILD SUCCESS (0 error, 38.5s)
+
+### Step 2I.9.6 TSE Control Buttons SEB Audit
+- [x] Doc lai prompt control buttons va cac tai lieu TSE/SEB bat buoc.
+- [x] Doi chieu Antigravity notes voi source SEB that trong seb-reference.
+- [x] Audit cac file TSE lien quan: ExamHeaderBar, ExamFooterStatusBar, TSEExamChildClient, TSEBrowserPanel, TSEJcefLifecycleManager, TSEProductionParentSubmitLabLauncher.
+- [x] Tao docs/tse_codex_control_review.md gom ket luan dung/sai, rui ro, file can sua va thu tu trien khai 4 nhom control.
+- [ ] Implement Group 1: About + Language + Exit theo audit, khong dung JOptionPane/JDialog/GlassPane trong active exam.
