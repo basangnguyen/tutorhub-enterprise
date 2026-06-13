@@ -20,6 +20,19 @@ public class TSEExamChildClient {
     private static volatile boolean allowProgrammaticExit = false;
     private static Timer autoSaveTimer = null; // Exposed at class level so submit handler can stop() it
 
+    private static String loadClasspathTextResource(String resourcePath) {
+        try (java.io.InputStream in = TSEExamChildClient.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (in == null) {
+                System.out.println("[TSE_TRAY_DOM] Resource not found on classpath: " + resourcePath);
+                return "";
+            }
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            System.out.println("[TSE_TRAY_DOM] Failed to load classpath resource " + resourcePath + ": " + e.getMessage());
+            return "";
+        }
+    }
+
     public static void main(String[] args) {
         String contextPath = null;
         String outputPath = null;
@@ -129,14 +142,12 @@ public class TSEExamChildClient {
 
                 // --- Footer panel ---
                 final ExamFooterStatusBar[] footerRef = new ExamFooterStatusBar[1];
-                ExamFooterStatusBar footerBar = new ExamFooterStatusBar(inputModeManager.getFooterLabel(), () -> {
-                    System.out.println("[TSE_INPUT] Input mode toggle clicked.");
-                    String mode = inputModeManager.toggleMode();
-                    System.out.println("[TSE_INPUT] Input mode changed: " + mode);
-                    if (footerRef[0] != null) {
-                        footerRef[0].applyInputMode(inputModeManager, languageManager);
-                    }
-                    inputModeManager.applyMode(getBrowserPanel(frame));
+                ExamFooterStatusBar footerBar = new ExamFooterStatusBar(inputModeManager.getFooterLabel(), languageAnchor -> {
+                    System.out.println("[TSE_INPUT] Language flyout requested.");
+                    TSELanguageSwitcherManager.showLanguageSwitcherDOM(languageAnchor, getBrowserPanel(frame), inputModeManager.getMode());
+                }, quickSettingsAnchor -> {
+                    System.out.println("[TSE_QUICK_SETTINGS] Flyout requested.");
+                    TSEQuickSettingsManager.showQuickSettingsDOM(quickSettingsAnchor, getBrowserPanel(frame));
                 }, () -> {
                     System.out.println("[TSE_CONTROL] Exit clicked.");
                     System.out.println("[TSE_CONTROL] Exit requested: blocked");
@@ -158,6 +169,18 @@ public class TSEExamChildClient {
                             "  JSON.stringify({ answers: [{questionId: 1, answerIds: [2]}] })});" +
                             "}</script></body>");
                 }
+                
+                try {
+                    String trayScript = loadClasspathTextResource("tse/tse-tray-flyout.js");
+                    if (!trayScript.isEmpty()) {
+                        System.out.println("[TSE_TRAY_DOM] Loaded tse-tray-flyout.js from classpath, length=" + trayScript.length());
+                        wrappedHtml = wrappedHtml.replace("</body>", "<script>\n" + trayScript + "\n</script>\n</body>");
+                        System.out.println("[TSE_TRAY_DOM] Injected tray flyout JS into exam HTML.");
+                    }
+                } catch (Exception e) {
+                    System.err.println("[TSE_TRAY_DOM] Failed to load tse-tray-flyout.js: " + e.getMessage());
+                }
+
                 if (inputTestEnabled) {
                     System.out.println("[TSE_INPUT_TEST] Injecting input test panel into exam HTML");
                 }
@@ -184,6 +207,21 @@ public class TSEExamChildClient {
                         System.out.println("[TSE_CHILD] Showing submit overlay.");
                         System.out.println("[TSE_CHILD] Calling collectTSEAnswers() for FINAL...");
                         collectAnswersForFinalSubmit(frame);
+                        return;
+                    }
+                    
+                    if (payload != null && payload.startsWith("TSE_LANG_SELECT:")) {
+                        String modeId = payload.substring("TSE_LANG_SELECT:".length());
+                        inputModeManager.setMode(modeId);
+                        inputModeManager.applyMode(getBrowserPanel(frame));
+                        if (footerRef[0] != null) {
+                            footerRef[0].applyInputMode(inputModeManager, languageManager);
+                        }
+                        System.out.println("[TSE_INPUT] Language changed to: " + modeId);
+                        return;
+                    }
+                    if (payload != null && payload.equals("TSE_WIFI_REFRESH")) {
+                        TSEQuickSettingsManager.refreshWifi(getBrowserPanel(frame)); 
                         return;
                     }
 

@@ -126,7 +126,7 @@ public class BatteryStatusIcon extends JComponent {
         // ── draw lightning bolt when charging ────────────────────
         if (isCharging) {
             drawBolt(g2, (int)(bx + bw * 0.5f), (int)(by + bh * 0.5f),
-                         (int)(bw * 0.38f), (int)(bh * 0.72f));
+                         (int)(bw * 0.55f), (int)(bh * 0.90f));
         }
 
         g2.dispose();
@@ -150,13 +150,13 @@ public class BatteryStatusIcon extends JComponent {
         bolt.lineTo(cx - hw * 0.15, cy - hh * 0.1);     // mid lower-left
         bolt.closePath();
 
-        // filled gold bolt
-        g2.setColor(COL_BOLT);
+        // filled white bolt
+        g2.setColor(Color.WHITE);
         g2.fill(bolt);
 
         // thin dark outline for legibility on light fill
-        g2.setColor(new Color(180, 110, 0, 120));
-        g2.setStroke(new BasicStroke(0.6f));
+        g2.setColor(new Color(0, 0, 0, 180));
+        g2.setStroke(new BasicStroke(0.8f));
         g2.draw(bolt);
     }
 }
