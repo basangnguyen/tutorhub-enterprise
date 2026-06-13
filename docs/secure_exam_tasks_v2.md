@@ -478,4 +478,53 @@
 - [x] Doi chieu Antigravity notes voi source SEB that trong seb-reference.
 - [x] Audit cac file TSE lien quan: ExamHeaderBar, ExamFooterStatusBar, TSEExamChildClient, TSEBrowserPanel, TSEJcefLifecycleManager, TSEProductionParentSubmitLabLauncher.
 - [x] Tao docs/tse_codex_control_review.md gom ket luan dung/sai, rui ro, file can sua va thu tu trien khai 4 nhom control.
-- [ ] Implement Group 1: About + Language + Exit theo audit, khong dung JOptionPane/JDialog/GlassPane trong active exam.
+- [x] Implement Group 1: About + Language + Exit theo audit, khong dung JOptionPane/JDialog/GlassPane trong active exam.
+- [x] Group 1 build verification: mvn clean install PASS, 21 tests, 0 failures.
+- [x] Group 1 portable verification: build_portable.ps1 PASS.
+- [ ] Group 1 VM/E2E manual test: dist/TutorHubSecureExam/run.bat --exam-id 3, verify Final Submit SUCCESS and no autosave fallback.
+
+### Step 2I.9.7 Internal Vietnamese Input Mode
+- [x] Group 1 Language control was repurposed to Input Mode Toggle.
+- [x] VIE = internal Vietnamese Telex typing mode inside JCEF.
+- [x] ENG = English/raw typing mode.
+- [x] This does not translate TSE UI and does not depend on OpenKey/UniKey/EVKey.
+- [x] Added JS resource `src/main/resources/tse/tse-vietnamese-input-engine.js` and Java manager `TSEInputModeManager`.
+- [x] Build verification: mvn clean install PASS, 21 tests, 0 failures.
+- [x] Portable verification: build_portable.ps1 PASS.
+- [ ] VM/E2E manual test: dist/TutorHubSecureExam/run.bat --exam-id 3, verify Telex input and Final Submit SUCCESS.
+
+### Step 2I.9.8 Debug-only Vietnamese Input Test Panel
+- [x] Added debug-only input textarea injection gated by -Dtutorhub.tse.inputTest=true.
+- [x] Production default remains clean: no property means no test panel is injected.
+- [x] build_portable.ps1 generates run_input_test.bat with -Dtutorhub.tse.inputTest=true.
+- [x] Production run.bat remains unchanged.
+- [x] Build verification: mvn clean install PASS, 21 tests, 0 failures.
+- [x] Portable verification: build_portable.ps1 PASS.
+- [ ] VM/E2E manual test: dist/TutorHubSecureExam/run_input_test.bat --exam-id 3, verify textarea Telex, About, blocked Power, and Final Submit SUCCESS.
+
+### Step 2I.9.9 Input Test Propagation via Encrypted Context
+- [x] Fixed run_input_test.bat mode not reaching the Java Child process.
+- [x] Parent reads -Dtutorhub.tse.inputTest=true and writes inputTestEnabled into exam_context.enc.
+- [x] Child reads inputTestEnabled after decrypting context and uses it to inject the test textarea.
+- [x] Added required Parent/Child logs for TSE_INPUT_TEST state and injection.
+- [x] No Rust change required.
+- [x] Build verification: mvn clean install PASS, 21 tests, 0 failures.
+- [x] Portable verification: build_portable.ps1 PASS.
+- [ ] VM/E2E manual test: dist/TutorHubSecureExam/run_input_test.bat --exam-id 3, verify textarea appears in Secure Desktop/JCEF and Final Submit SUCCESS.
+
+### Step 2I.9.10 Improve Vietnamese input engine tone placement using open-source research.
+- [x] Da nghien cuu ANVIM/AVIM/VNKeys-JS.
+- [x] Da sua tone placement cho cac cum nhu oe, oa, ie, uo.
+- [x] Khong copy nguyen code, chi hoc thuat toan.
+- [x] Khong phu thuoc bo go ngoai.
+
+### Step 2I.9.11 Professionalize Vietnamese Input Engine & Extend to Parent Launcher
+- [x] Created TSEVietnameseTelexEngine.java (pure Java port of JS engine, including non-adjacent w modifier).
+- [x] Created TSEInputSwingAdapter.java for opt-in Telex on Swing JTextComponent via putClientProperty.
+- [x] Created tse-vietnamese-input-test-cases.json with 22 rigorous test cases (including khuyur, gioiws, tuyeens).
+- [x] Created TSEVietnameseTelexEngineTest.java (JUnit 5) to verify Java port against JSON cases (22/22 passed).
+- [x] Updated TSEInputModeManager to Singleton and propagated inputMode via exam_context.enc to Exam Child.
+- [x] Added clickable VIE/ENG toggle button in TSELoginPanel and TSEConfigListPanel.
+- [x] Default mode is ENG for Parent Launcher.
+- [x] Build verification: mvn clean install PASS, test cases passed.
+- [x] Portable verification: build_portable.ps1 PASS.

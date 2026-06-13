@@ -60,6 +60,17 @@ public class TSEExamChildClient {
             final int    examId      = contextObj.has("examId")      ? contextObj.get("examId").getAsInt()        : 0;
             final String htmlContent = contextObj.has("htmlContent") ? contextObj.get("htmlContent").getAsString() : "";
             final String examTitle   = contextObj.has("examTitle")   ? contextObj.get("examTitle").getAsString()  : "Exam";
+            final String userId      = contextObj.has("userId")      ? contextObj.get("userId").getAsString()     : "";
+            final String serverStatus = contextObj.has("serverStatus") ? contextObj.get("serverStatus").getAsString() : "";
+            final boolean inputTestEnabled = readBoolean(contextObj, "inputTestEnabled", false);
+            final String inputModeFromParent = contextObj.has("inputMode") ? contextObj.get("inputMode").getAsString() : "en";
+            final String buildVersion = resolveBuildVersion();
+            System.out.println("[TSE_INPUT_TEST] Child input test enabled=" + inputTestEnabled);
+            if (inputTestEnabled) {
+                System.out.println("[TSE_INPUT_TEST] Enabled from exam context.");
+            } else {
+                System.out.println("[TSE_INPUT_TEST] Disabled.");
+            }
 
             SwingUtilities.invokeLater(() -> {
                 try { FlatLightLaf.setup(); } catch (Exception ignored) {}
@@ -78,6 +89,9 @@ public class TSEExamChildClient {
                 }
 
                 JPanel mainContainer = new JPanel(new BorderLayout());
+                TSELanguageManager languageManager = new TSELanguageManager();
+                TSEInputModeManager inputModeManager = TSEInputModeManager.getInstance();
+                inputModeManager.setMode(inputModeFromParent);
 
                 // --- Submit button handler (runs on EDT) ---
                 ExamHeaderBar headerBar = new ExamHeaderBar(examTitle, () -> {
@@ -92,39 +106,19 @@ public class TSEExamChildClient {
                     System.out.println("[TSE_CHILD] Showing custom submit confirmation overlay.");
                     
                     TSEBrowserPanel browserPanel = (TSEBrowserPanel) frame.getRootPane().getClientProperty("browserPanel");
-                    if (browserPanel != null) {
-                        String jsOverlay = 
-                            "var existing = document.getElementById('tse-submit-confirm-overlay'); " +
-                            "if (existing) existing.remove(); " +
-                            "var overlay = document.createElement('div'); " +
-                            "overlay.id = 'tse-submit-confirm-overlay'; " +
-                            "overlay.style.position = 'fixed'; " +
-                            "overlay.style.inset = '0'; " +
-                            "overlay.style.zIndex = '2147483647'; " +
-                            "overlay.style.background = 'rgba(0,0,0,0.55)'; " +
-                            "overlay.style.display = 'flex'; " +
-                            "overlay.style.alignItems = 'center'; " +
-                            "overlay.style.justifyContent = 'center'; " +
-                            "overlay.style.fontFamily = 'sans-serif'; " +
-                            "overlay.innerHTML = '<div id=\"tse-submit-confirm-card-content\" style=\"background: white; padding: 30px; border-radius: 8px; max-width: 400px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);\">' + " +
-                            "'<h2 style=\"margin-top: 0; color: #1e293b; font-size: 20px;\">Xác nhận nộp bài</h2>' + " +
-                            "'<p style=\"color: #475569; margin-bottom: 24px; line-height: 1.5;\">Bạn có chắc chắn muốn nộp bài? Sau khi nộp, bạn không thể chỉnh sửa câu trả lời.</p>' + " +
-                            "'<div style=\"display: flex; justify-content: center; gap: 16px;\">' + " +
-                            "'<button id=\"tse-cancel-submit\" style=\"padding: 10px 20px; border: none; border-radius: 4px; background: #e2e8f0; color: #0f172a; font-weight: bold; cursor: pointer;\">Hủy</button>' + " +
-                            "'<button id=\"tse-confirm-submit\" style=\"padding: 10px 20px; border: none; border-radius: 4px; background: #dc2626; color: white; font-weight: bold; cursor: pointer;\">Nộp bài</button>' + " +
-                            "'</div></div>'; " +
-                            "document.body.appendChild(overlay); " +
-                            "document.getElementById('tse-cancel-submit').onclick = function() { " +
-                            "  if(overlay.parentNode) overlay.parentNode.removeChild(overlay); " +
-                            "  window.cefQuery && window.cefQuery({request: 'SUBMIT_PAYLOAD:CANCEL_FINAL_SUBMIT'}); " +
-                            "}; " +
-                            "document.getElementById('tse-confirm-submit').onclick = function() { " +
-                            "  document.getElementById('tse-submit-confirm-card-content').innerHTML = '<h2 style=\"margin-top:0; color:#1e293b; font-size:20px;\">Đang nộp bài...</h2><p style=\"color:#475569;\">Vui lòng chờ trong giây lát...</p>'; " +
-                            "  window.cefQuery && window.cefQuery({request: 'SUBMIT_PAYLOAD:CONFIRM_FINAL_SUBMIT'}); " +
-                            "}; ";
-                        browserPanel.executeJavaScript(jsOverlay);
-                    }
+                    TSEControlPanelOverlay.showSubmitConfirm(browserPanel, languageManager);
+                }, () -> {
+                    System.out.println("[TSE_CONTROL] About clicked.");
+                    TSEControlPanelOverlay.showAbout(
+                            getBrowserPanel(frame),
+                            languageManager,
+                            buildVersion,
+                            String.valueOf(examId),
+                            sessionId,
+                            userId,
+                            serverStatus);
                 });
+                headerBar.applyLanguage(languageManager);
                 mainContainer.add(headerBar, BorderLayout.NORTH);
 
                 // --- Browser panel ---
@@ -134,7 +128,22 @@ public class TSEExamChildClient {
                 mainContainer.add(browserContainer, BorderLayout.CENTER);
 
                 // --- Footer panel ---
-                ExamFooterStatusBar footerBar = new ExamFooterStatusBar(null); // null disables power button exit
+                final ExamFooterStatusBar[] footerRef = new ExamFooterStatusBar[1];
+                ExamFooterStatusBar footerBar = new ExamFooterStatusBar(inputModeManager.getFooterLabel(), () -> {
+                    System.out.println("[TSE_INPUT] Input mode toggle clicked.");
+                    String mode = inputModeManager.toggleMode();
+                    System.out.println("[TSE_INPUT] Input mode changed: " + mode);
+                    if (footerRef[0] != null) {
+                        footerRef[0].applyInputMode(inputModeManager, languageManager);
+                    }
+                    inputModeManager.applyMode(getBrowserPanel(frame));
+                }, () -> {
+                    System.out.println("[TSE_CONTROL] Exit clicked.");
+                    System.out.println("[TSE_CONTROL] Exit requested: blocked");
+                    TSEControlPanelOverlay.showExitBlocked(getBrowserPanel(frame), languageManager);
+                });
+                footerRef[0] = footerBar;
+                footerBar.applyInputMode(inputModeManager, languageManager);
                 mainContainer.add(footerBar, BorderLayout.SOUTH);
 
                 frame.revalidate();
@@ -149,6 +158,11 @@ public class TSEExamChildClient {
                             "  JSON.stringify({ answers: [{questionId: 1, answerIds: [2]}] })});" +
                             "}</script></body>");
                 }
+                if (inputTestEnabled) {
+                    System.out.println("[TSE_INPUT_TEST] Injecting input test panel into exam HTML");
+                }
+                wrappedHtml = inputModeManager.injectInputTestPanelIfEnabled(wrappedHtml, inputTestEnabled);
+                wrappedHtml = inputModeManager.injectEngineIntoHtml(wrappedHtml);
                 browserPanel.loadHtml(wrappedHtml);
 
                 // JCEF submit callback — routes to FINAL or AUTOSAVE based on state flag
@@ -175,7 +189,7 @@ public class TSEExamChildClient {
 
                     System.out.println("[TSE_CHILD] Received payload from JS. finalSubmitInProgress=" + finalSubmitInProgress);
                     if (finalSubmitInProgress) {
-                        writeFinalPayloadAndExit(finalOutputPath, sessionId, examId, payload, frame, finalKeyB64);
+                        writeFinalPayloadAndExit(finalOutputPath, sessionId, examId, payload, frame, finalKeyB64, languageManager);
                     } else {
                         writeAutosavePayload(finalOutputPath, sessionId, examId, payload, finalKeyB64);
                     }
@@ -249,19 +263,19 @@ public class TSEExamChildClient {
      * background thread. Does NOT call System.exit() to avoid JCEF shutdown hook blocking EDT.
      */
     private static void writeFinalPayloadAndExit(String outputPath, String sessionId, int examId,
-                                                  String payloadJson, JFrame frame, String keyB64) {
+                                                  String payloadJson, JFrame frame, String keyB64,
+                                                  TSELanguageManager languageManager) {
         try {
             if (payloadJson == null || payloadJson.trim().isEmpty() || payloadJson.contains("\"error\"")) {
                 System.err.println("[TSE_CHILD] FINAL submit: invalid payload from JS: " + payloadJson);
-                JOptionPane.showMessageDialog(frame,
-                        "Không thể thu thập bài làm (Lỗi kịch bản web).",
-                        "Lỗi nộp bài", JOptionPane.ERROR_MESSAGE);
+                TSEControlPanelOverlay.showError(
+                        getBrowserPanel(frame),
+                        languageManager.text("error.submit.title"),
+                        languageManager.text("error.submit.script"),
+                        languageManager.text("close"));
                 // Allow retry: reset state and re-start timer
                 finalSubmitInProgress = false;
                 if (autoSaveTimer != null) autoSaveTimer.start();
-                SwingUtilities.invokeLater(() -> {
-                    if (frame.getGlassPane() != null) frame.getGlassPane().setVisible(false);
-                });
                 return;
             }
 
@@ -306,14 +320,13 @@ public class TSEExamChildClient {
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("[TSE_CHILD] FINAL submit exception: " + e.getMessage());
-            JOptionPane.showMessageDialog(frame,
-                    "Lỗi khi lưu file nộp bài: " + e.getMessage(),
-                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+            TSEControlPanelOverlay.showError(
+                    getBrowserPanel(frame),
+                    languageManager.text("error.submit.title"),
+                    languageManager.text("error.submit.save") + ": " + e.getMessage(),
+                    languageManager.text("close"));
             // Allow retry
             finalSubmitInProgress = false;
-            SwingUtilities.invokeLater(() -> {
-                if (frame.getGlassPane() != null) frame.getGlassPane().setVisible(false);
-            });
         }
     }
 
@@ -369,5 +382,32 @@ public class TSEExamChildClient {
             result.addProperty("rawPayload", payloadJson);
         }
         return result;
+    }
+
+    private static TSEBrowserPanel getBrowserPanel(JFrame frame) {
+        if (frame == null || frame.getRootPane() == null) {
+            return null;
+        }
+        Object value = frame.getRootPane().getClientProperty("browserPanel");
+        return value instanceof TSEBrowserPanel ? (TSEBrowserPanel) value : null;
+    }
+
+    private static String resolveBuildVersion() {
+        String version = TSEExamChildClient.class.getPackage().getImplementationVersion();
+        if (version == null || version.trim().isEmpty()) {
+            version = System.getProperty("tutorhub.build.version", "dev-local");
+        }
+        return version;
+    }
+
+    private static boolean readBoolean(JsonObject obj, String key, boolean defaultValue) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        try {
+            return obj.get(key).getAsBoolean();
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
     }
 }

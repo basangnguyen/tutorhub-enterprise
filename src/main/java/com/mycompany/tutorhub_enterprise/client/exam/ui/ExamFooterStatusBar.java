@@ -23,7 +23,14 @@ public class ExamFooterStatusBar extends JPanel {
     private static final Color ICON_COLOR = Color.decode("#1E3A5F");
     private static final Color POWER_RED  = Color.decode("#C62828");
 
+    private final JButton btnLanguage;
+    private final JButton btnPower;
+
     public ExamFooterStatusBar(Runnable onExit) {
+        this("VIE", null, onExit);
+    }
+
+    public ExamFooterStatusBar(String languageLabel, Runnable onLanguageToggle, Runnable onExitRequest) {
         setLayout(new MigLayout("insets 4 16, fillx, aligny center", "push[right]", "[24!]"));
         setBackground(BAR_BG);
         setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_TOP));
@@ -32,7 +39,13 @@ public class ExamFooterStatusBar extends JPanel {
         icons.setOpaque(false);
 
         // Language label
-        icons.add(dimLabel("VIE"));
+        btnLanguage = dimTextButton(languageLabel);
+        btnLanguage.addActionListener(e -> {
+            if (onLanguageToggle != null) {
+                onLanguageToggle.run();
+            }
+        });
+        icons.add(btnLanguage);
 
         // Wifi icon
         icons.add(dimSvgLabel("images/exam/icons/wifi.svg"));
@@ -48,28 +61,50 @@ public class ExamFooterStatusBar extends JPanel {
         icons.add(battery, "w 28!, h 14!, aligny center");
 
         // Power button
-        JButton btnPower = new JButton(ExamLoginMockPanel.loadSVG("images/exam/icons/power.svg", 16, POWER_RED));
+        btnPower = new JButton(ExamLoginMockPanel.loadSVG("images/exam/icons/power.svg", 16, POWER_RED));
         btnPower.setContentAreaFilled(false);
         btnPower.setBorderPainted(false);
         btnPower.setFocusPainted(false);
         btnPower.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnPower.addActionListener(e -> {
-            if (onExit != null) {
-                JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
-                ExitConfirmDialog dlg = new ExitConfirmDialog(parent, onExit);
-                dlg.setVisible(true);
+            if (onExitRequest == null) {
+                return;
             }
+            onExitRequest.run();
         });
         icons.add(btnPower);
 
         add(icons, "cell 0 0");
     }
 
-    private JLabel dimLabel(String text) {
-        JLabel lbl = new JLabel(text);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lbl.setForeground(ICON_COLOR);
-        return lbl;
+    public void applyLanguage(TSELanguageManager languageManager) {
+        setLanguageLabel(languageManager.getFooterLabel());
+        btnLanguage.setToolTipText(languageManager.text("language.tooltip"));
+        btnPower.setToolTipText(languageManager.text("power.tooltip"));
+    }
+
+    public void applyInputMode(TSEInputModeManager inputModeManager, TSELanguageManager languageManager) {
+        setLanguageLabel(inputModeManager.getFooterLabel());
+        btnLanguage.setToolTipText(languageManager.text("language.tooltip"));
+        btnPower.setToolTipText(languageManager.text("power.tooltip"));
+    }
+
+    public void setLanguageLabel(String text) {
+        btnLanguage.setText(text);
+        btnLanguage.revalidate();
+        btnLanguage.repaint();
+    }
+
+    private JButton dimTextButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setForeground(ICON_COLOR);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setMargin(new Insets(0, 0, 0, 0));
+        return button;
     }
 
     private JLabel dimSvgLabel(String svgPath) {

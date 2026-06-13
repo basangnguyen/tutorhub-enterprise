@@ -413,6 +413,8 @@ public class TSEProductionParentSubmitLabLauncher {
                         currentExamId = examCfg.examId;
                         setStatus(statusLabel, "Exam session created");
                         log(logArea, "Exam started. Session ID: " + currentSessionId);
+                        boolean inputTestEnabled = Boolean.getBoolean("tutorhub.tse.inputTest");
+                        log(logArea, "[TSE_INPUT_TEST] Parent input test enabled=" + inputTestEnabled);
                         
                         // 6. Create temp folder
                         String tempDirStr = System.getProperty("java.io.tmpdir");
@@ -437,6 +439,10 @@ public class TSEProductionParentSubmitLabLauncher {
                         contextObj.addProperty("examTitle", examCfg.examTitle);
                         contextObj.addProperty("durationMinutes", examCfg.durationMinutes);
                         contextObj.addProperty("htmlContent", startRes.htmlContent);
+                        contextObj.addProperty("inputTestEnabled", inputTestEnabled);
+                        String currentMode = TSEInputModeManager.getInstance().getMode();
+                        contextObj.addProperty("inputMode", currentMode);
+                        log(logArea, "[TSE_INPUT_TEST] Added inputTestEnabled=" + inputTestEnabled + " to exam context, mode=" + currentMode);
                         
                         String plainContext = new Gson().toJson(contextObj);
                         String encContext = CryptoUtils.encryptWrapper(plainContext, currentKeyB64);

@@ -52,6 +52,9 @@ public class TSELoginPanel extends KioskBgPanel {
 
         // Footer / taskbar – light, translucent
         add(buildTaskbar(), BorderLayout.SOUTH);
+
+        // Attach Swing Adapter for Vietnamese input (Opt-in)
+        SwingUtilities.invokeLater(() -> TSEInputSwingAdapter.installForOptIn(this));
     }
 
     // ── top bar ───────────────────────────────────────────────────
@@ -405,10 +408,25 @@ public class TSELoginPanel extends KioskBgPanel {
         JPanel right = new JPanel(new MigLayout("insets 0, gap 14, aligny center"));
         right.setOpaque(false);
 
-        JLabel lblVie = new JLabel("VIE");
-        lblVie.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblVie.setForeground(ICON_NAVY);
-        right.add(lblVie);
+        TSEInputModeManager inputManager = TSEInputModeManager.getInstance();
+        JButton btnVie = new JButton(inputManager.getFooterLabel());
+        btnVie.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnVie.setForeground(ICON_NAVY);
+        btnVie.setContentAreaFilled(false);
+        btnVie.setBorderPainted(false);
+        btnVie.setFocusPainted(false);
+        btnVie.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnVie.setMargin(new Insets(0, 0, 0, 0));
+        
+        btnVie.addActionListener(e -> {
+            inputManager.toggleMode();
+        });
+        
+        inputManager.addModeChangeListener(() -> {
+            btnVie.setText(inputManager.getFooterLabel());
+        });
+
+        right.add(btnVie);
         right.add(taskbarLabel(null, "images/exam/icons/wifi.svg"));
         right.add(taskbarLabel(null, "images/exam/icons/volume-2.svg"));
 

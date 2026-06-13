@@ -32,6 +32,9 @@ public class TSEConfigListPanel extends KioskBgPanel {
         add(buildTopBar(), BorderLayout.NORTH);
         add(buildCenterCard(service, context, onSelect), BorderLayout.CENTER);
         add(TSELoginPanel.buildTaskbarStatic(onExit), BorderLayout.SOUTH);
+
+        // Attach Swing Adapter for Vietnamese input (Opt-in)
+        SwingUtilities.invokeLater(() -> TSEInputSwingAdapter.installForOptIn(this));
     }
 
     // ── top bar ────────────────────────────────────────────────

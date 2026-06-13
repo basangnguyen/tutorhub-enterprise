@@ -168,4 +168,44 @@ if ($RunBatContent -match "\^") {
 
 Set-Content -Path $RunBatPath -Value $RunBatContent -Encoding ASCII
 
+# 6c. Create run_input_test.bat (debug-only Vietnamese input test panel)
+$RunInputTestBatPath = Join-Path $PortableDir "run_input_test.bat"
+$RunInputTestBatContent = @"
+@echo off
+set "APP_HOME=%~dp0"
+if "%APP_HOME:~-1%"=="\" set "APP_HOME=%APP_HOME:~0,-1%"
+pushd "%APP_HOME%"
+
+set "JAVA_EXE=%APP_HOME%\runtime\bin\java.exe"
+set "JAR_FILE=%APP_HOME%\app\TutorHub_Maven-1.0-SNAPSHOT-jar-with-dependencies.jar"
+set "CONFIG_FILE=%APP_HOME%\app\application.properties"
+set "MAIN_CLASS=com.mycompany.tutorhub_enterprise.client.exam.ui.TSEProductionParentSubmitLabLauncher"
+
+echo Debug Info:
+echo APP_HOME: %APP_HOME%
+echo JAVA_EXE: %JAVA_EXE%
+echo JAR_FILE: %JAR_FILE%
+echo CONFIG_FILE: %CONFIG_FILE%
+echo MAIN_CLASS: %MAIN_CLASS%
+echo TSE input test panel: enabled
+
+if not exist "%JAVA_EXE%" (
+    echo ERROR: JAVA_EXE not found!
+    pause
+    exit /b 1
+)
+if not exist "%JAR_FILE%" (
+    echo ERROR: JAR_FILE not found!
+    pause
+    exit /b 1
+)
+
+echo Starting TutorHub Secure Exam Production Launcher with input test panel...
+"%JAVA_EXE%" -Dtutorhub.tse.inputTest=true -Dtutorhub.app.root="%APP_HOME%" -Dtutorhub.app.jar="%JAR_FILE%" -Dtutorhub.config="%CONFIG_FILE%" -cp "%JAR_FILE%" %MAIN_CLASS% %*
+
+popd
+pause
+"@
+Set-Content -Path $RunInputTestBatPath -Value $RunInputTestBatContent -Encoding ASCII
+
 Write-Host "Build Portable Folder completed successfully: $PortableDir"
