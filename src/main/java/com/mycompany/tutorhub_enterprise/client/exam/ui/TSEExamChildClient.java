@@ -130,6 +130,17 @@ public class TSEExamChildClient {
                             sessionId,
                             userId,
                             serverStatus);
+                }, () -> {
+                    System.out.println("[TSE_CONTROL] Refresh clicked.");
+                    if (finalSubmitInProgress) {
+                        System.out.println("[TSE_REFRESH] Refresh blocked: final submit in progress.");
+                        return;
+                    }
+                    TSEBrowserPanel browserPanel = getBrowserPanel(frame);
+                    if (browserPanel != null) {
+                        System.out.println("[TSE_REFRESH] Timer is managed by Java/Server. Not affected by JCEF reload.");
+                        browserPanel.executeJavaScript("if (window.TSESafeRefresh) { window.TSESafeRefresh.triggerSnapshotAndReload(); } else { console.error('[TSE_REFRESH] TSESafeRefresh not found!'); }");
+                    }
                 });
                 headerBar.applyLanguage(languageManager);
                 mainContainer.add(headerBar, BorderLayout.NORTH);
@@ -179,6 +190,17 @@ public class TSEExamChildClient {
                     }
                 } catch (Exception e) {
                     System.err.println("[TSE_TRAY_DOM] Failed to load tse-tray-flyout.js: " + e.getMessage());
+                }
+
+                try {
+                    String refreshScript = loadClasspathTextResource("tse/tse-safe-refresh.js");
+                    if (!refreshScript.isEmpty()) {
+                        System.out.println("[TSE_REFRESH] Loaded tse-safe-refresh.js from classpath, length=" + refreshScript.length());
+                        wrappedHtml = wrappedHtml.replace("</body>", "<script>\n" + refreshScript + "\n</script>\n</body>");
+                        System.out.println("[TSE_REFRESH] Injected safe refresh JS into exam HTML.");
+                    }
+                } catch (Exception e) {
+                    System.err.println("[TSE_REFRESH] Failed to load tse-safe-refresh.js: " + e.getMessage());
                 }
 
                 if (inputTestEnabled) {

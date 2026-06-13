@@ -30,10 +30,10 @@ public class ExamHeaderBar extends JPanel {
     private String remainingTime = "45:00";
 
     public ExamHeaderBar(String examName, Runnable onSubmit) {
-        this(examName, onSubmit, null);
+        this(examName, onSubmit, null, null);
     }
 
-    public ExamHeaderBar(String examName, Runnable onSubmit, Runnable onAbout) {
+    public ExamHeaderBar(String examName, Runnable onSubmit, Runnable onAbout, Runnable onRefresh) {
         setLayout(new MigLayout(
             "insets 8 16, fillx, aligny center",
             "[left][center, grow][right]",
@@ -50,6 +50,9 @@ public class ExamHeaderBar extends JPanel {
         left.setOpaque(false);
 
         btnRefresh = iconButton("images/exam/icons/refresh-cw.svg", 20, ACCENT_BLUE);
+        btnRefresh.addActionListener(e -> {
+            if (onRefresh != null) onRefresh.run();
+        });
 
         JLabel lblName = new JLabel(examName);
         lblName.setFont(new Font("Segoe UI", Font.PLAIN, 14));
