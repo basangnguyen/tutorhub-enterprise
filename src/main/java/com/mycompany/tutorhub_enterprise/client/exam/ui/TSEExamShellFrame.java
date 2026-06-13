@@ -80,7 +80,7 @@ public class TSEExamShellFrame extends JFrame {
         SubmitConfirmDialog dlg = new SubmitConfirmDialog(this, () -> {
             if (pnlExam != null) {
                 // Đặt callback chờ dữ liệu JS
-                TSEJcefLifecycleManager.setSubmitCallback(payload -> {
+                TSEJcefLifecycleManager.setSubmitCallback((payload, cb) -> {
                     if (currentExamSession != null) {
                         examService.submitExam(currentExamSession.sessionId, 0, payload).thenAccept(res -> {
                             SwingUtilities.invokeLater(() -> {
@@ -93,6 +93,7 @@ public class TSEExamShellFrame extends JFrame {
                             });
                         });
                     }
+                    cb.success("OK");
                 });
                 
                 // Kích hoạt thu thập trả lời từ trang web

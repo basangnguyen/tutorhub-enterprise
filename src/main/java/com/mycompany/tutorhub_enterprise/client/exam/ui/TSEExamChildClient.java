@@ -211,9 +211,10 @@ public class TSEExamChildClient {
                 browserPanel.loadHtml(wrappedHtml);
 
                 // JCEF submit callback — routes to FINAL or AUTOSAVE based on state flag
-                TSEJcefLifecycleManager.setSubmitCallback(payload -> {
+                TSEJcefLifecycleManager.setSubmitCallback((payload, cb) -> {
                     if ("CANCEL_FINAL_SUBMIT".equals(payload)) {
                         System.out.println("[TSE_CHILD] Final submit cancelled by user.");
+                        cb.success("OK");
                         return;
                     }
                     if ("CONFIRM_FINAL_SUBMIT".equals(payload)) {
@@ -229,21 +230,27 @@ public class TSEExamChildClient {
                         System.out.println("[TSE_CHILD] Showing submit overlay.");
                         System.out.println("[TSE_CHILD] Calling collectTSEAnswers() for FINAL...");
                         collectAnswersForFinalSubmit(frame);
+                        cb.success("OK");
                         return;
                     }
                     
                     if (payload != null && payload.startsWith("TSE_LANG_SELECT:")) {
                         String modeId = payload.substring("TSE_LANG_SELECT:".length());
                         inputModeManager.setMode(modeId);
+                        System.out.println("[TSE_INPUT] Language changed to: " + modeId);
+                        System.out.println("[TSE_INPUT] Java mode updated: " + inputModeManager.getMode());
+                        
                         inputModeManager.applyMode(getBrowserPanel(frame));
                         if (footerRef[0] != null) {
                             footerRef[0].applyInputMode(inputModeManager, languageManager);
                         }
-                        System.out.println("[TSE_INPUT] Language changed to: " + modeId);
+                        System.out.println("[TSE_INPUT] Footer label updated: " + inputModeManager.getFooterLabel());
+                        cb.success("OK");
                         return;
                     }
                     if (payload != null && payload.equals("TSE_WIFI_REFRESH")) {
                         TSEQuickSettingsManager.refreshWifi(getBrowserPanel(frame)); 
+                        cb.success("OK");
                         return;
                     }
 
@@ -253,6 +260,7 @@ public class TSEExamChildClient {
                     } else {
                         writeAutosavePayload(finalOutputPath, sessionId, examId, payload, finalKeyB64);
                     }
+                    cb.success("OK");
                 });
 
                 // WindowClosing: block user close; only allow if programmatic exit
@@ -360,16 +368,34 @@ public class TSEExamChildClient {
             new Thread(() -> {
                 try {
                     Thread.sleep(500); // brief pause so EDT can dispose frame
+                    System.out.println("[TSE_EXIT] Final payload written. Preparing child exit.");
+                    
+                    Thread.getAllStackTraces().keySet().stream()
+                        .filter(t -> t.isAlive() && !t.isDaemon())
+                        .forEach(t -> System.out.println("[TSE_EXIT] Non-daemon thread alive: " + t.getName() + " state=" + t.getState()));
+                    
                     try {
-                        TSEJcefLifecycleManager.cleanup();
+                        System.out.println("[TSE_EXIT] Calling quickSettingsManager.shutdownNowNoBlock().");
+                        TSEQuickSettingsManager.shutdownNowNoBlock();
+                        System.out.println("[TSE_EXIT] quickSettingsManager.shutdownNowNoBlock() returned.");
                     } catch (Exception ex) {
-                        System.out.println("[TSE_CHILD] JCEF cleanup failed/ignored: " + ex.getMessage());
+                        System.out.println("[TSE_EXIT] QuickSettings shutdown failed/ignored: " + ex.getMessage());
                     }
-                    Thread.sleep(2500); // allow JCEF subprocesses to terminate
+                    try {
+                        System.out.println("[TSE_EXIT] Calling JCEF shutdown.");
+                        Thread jcefThread = new Thread(() -> TSEJcefLifecycleManager.cleanup());
+                        jcefThread.start();
+                        jcefThread.join(1000); // Wait max 1s
+                        System.out.println("[TSE_EXIT] JCEF shutdown returned/timeout.");
+                    } catch (Exception ex) {
+                        System.out.println("[TSE_EXIT] JCEF cleanup failed/ignored: " + ex.getMessage());
+                    }
                 } catch (InterruptedException ignored) {
+                } finally {
+                    System.out.println("[TSE_EXIT] Calling Runtime.halt(0) NOW.");
+                    System.out.println("Child process exited naturally with code 0.");
+                    Runtime.getRuntime().halt(0);
                 }
-                System.out.println("[TSE_CHILD] Final submit complete. Exiting child process.");
-                Runtime.getRuntime().halt(0);
             }, "tse-child-fast-exit").start();
 
             // EDT: dispose frame only — no JCEF work, no System.exit here

@@ -17,9 +17,9 @@ public class TSEJcefLifecycleManager {
     private static CefClient cefClient = null;
 
     private static CefMessageRouter msgRouter = null;
-    private static java.util.function.Consumer<String> submitCallback = null;
+    private static java.util.function.BiConsumer<String, org.cef.callback.CefQueryCallback> submitCallback = null;
 
-    public static synchronized void setSubmitCallback(java.util.function.Consumer<String> callback) {
+    public static synchronized void setSubmitCallback(java.util.function.BiConsumer<String, org.cef.callback.CefQueryCallback> callback) {
         submitCallback = callback;
     }
 
@@ -44,12 +44,29 @@ public class TSEJcefLifecycleManager {
                 msgRouter.addHandler(new org.cef.handler.CefMessageRouterHandlerAdapter() {
                     @Override
                     public boolean onQuery(org.cef.browser.CefBrowser browser, org.cef.browser.CefFrame frame, long queryId, String request, boolean persistent, org.cef.callback.CefQueryCallback callback) {
+                        if (request != null && request.startsWith("TSE_BRIGHTNESS_SET:")) {
+                            try {
+                                int percent = Integer.parseInt(request.substring("TSE_BRIGHTNESS_SET:".length()));
+                                TSEQuickSettingsManager.setBrightness(percent, result -> {
+                                    if ("SUCCESS".equals(result)) {
+                                        callback.success("SUCCESS");
+                                    } else {
+                                        callback.failure(500, "ERROR");
+                                    }
+                                });
+                            } catch (Exception e) {
+                                callback.failure(400, "INVALID_VALUE");
+                            }
+                            return true;
+                        }
+                        
                         if (request != null && request.startsWith("SUBMIT_PAYLOAD:")) {
                             String payload = request.substring("SUBMIT_PAYLOAD:".length());
                             if (submitCallback != null) {
-                                submitCallback.accept(payload);
+                                submitCallback.accept(payload, callback);
+                            } else {
+                                callback.success("OK");
                             }
-                            callback.success("OK");
                             return true;
                         }
                         return false;

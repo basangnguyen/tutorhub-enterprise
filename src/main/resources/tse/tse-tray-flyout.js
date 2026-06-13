@@ -1,6 +1,7 @@
 window.TSETrayFlyout = {
     container: null,
     caret: null,
+    lastBrightnessRequest: -1,
 
     init: function() {
         if (!this.container) {
@@ -103,7 +104,8 @@ window.TSETrayFlyout = {
             
             <!-- Middle section: Sliders -->
             <div style="margin-bottom: 16px; padding: 0 4px;">
-                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <!-- Brightness Slider -->
+                <div style="display: flex; align-items: center; margin-bottom: 12px; position: relative;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" style="margin-right: 12px;">
                         <circle cx="12" cy="12" r="5"></circle>
                         <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -115,11 +117,16 @@ window.TSETrayFlyout = {
                         <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
-                    <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; position: relative;">
-                        <div style="position: absolute; left: 0; top: 0; height: 100%; width: 70%; background: #60CDFF; border-radius: 2px;"></div>
-                        <div style="position: absolute; left: 70%; top: -4px; width: 12px; height: 12px; background: #60CDFF; border-radius: 50%; transform: translateX(-50%);"></div>
+                    <div style="flex: 1; position: relative; height: 20px; display: flex; align-items: center;">
+                        <input type="range" id="tse-brightness-slider" min="0" max="100" value="${payload.brightnessSupported ? payload.brightnessPercent : 0}" ${!payload.brightnessSupported ? 'disabled' : ''} style="width: 100%; -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;" oninput="window.TSETrayFlyout.onBrightnessInput(this.value)" onchange="window.TSETrayFlyout.onBrightnessChange(this.value)">
+                        <div style="position: absolute; pointer-events: none; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; z-index: -1;">
+                            <div id="tse-brightness-track" style="height: 100%; width: ${payload.brightnessSupported ? payload.brightnessPercent : 0}%; background: ${payload.brightnessSupported ? '#60CDFF' : '#555'}; border-radius: 2px;"></div>
+                        </div>
                     </div>
                 </div>
+                ${!payload.brightnessSupported ? '<div style="font-size: 11px; color: #aaa; text-align: right; margin-top: -8px; margin-bottom: 8px;">Không hỗ trợ điều chỉnh độ sáng</div>' : '<div id="tse-brightness-status" style="font-size: 11px; color: #aaa; text-align: right; margin-top: -8px; margin-bottom: 8px; display: none;">Đang chỉnh...</div>'}
+                
+                <!-- Volume Slider -->
                 <div style="display: flex; align-items: center;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" style="margin-right: 12px;">
                         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -181,6 +188,44 @@ window.TSETrayFlyout = {
     onWifiClick: function() {
         const msg = document.getElementById('tse-wifi-msg');
         if (msg) msg.style.display = 'block';
+    },
+
+    onBrightnessInput: function(value) {
+        // Update track visually immediately
+        const track = document.getElementById('tse-brightness-track');
+        if (track) {
+            track.style.width = value + '%';
+        }
+    },
+
+    onBrightnessChange: function(value) {
+        if (this.lastBrightnessRequest === value) return;
+        this.lastBrightnessRequest = value;
+
+        const status = document.getElementById('tse-brightness-status');
+        if (status) {
+            status.style.display = 'block';
+            status.innerText = 'Đang chỉnh...';
+        }
+
+        if (window.cefQuery) {
+            window.cefQuery({
+                request: 'TSE_BRIGHTNESS_SET:' + value,
+                onSuccess: function(response) {
+                    if (status) {
+                        if (response === 'SUCCESS') {
+                            status.innerText = 'Đã lưu';
+                            setTimeout(() => { status.style.display = 'none'; }, 2000);
+                        } else {
+                            status.innerText = 'Lỗi / Không hỗ trợ';
+                        }
+                    }
+                },
+                onFailure: function(errorCode, errorMessage) {
+                    if (status) status.innerText = 'Lỗi hệ thống';
+                }
+            });
+        }
     },
 
     onLanguageSelect: function(modeId) {

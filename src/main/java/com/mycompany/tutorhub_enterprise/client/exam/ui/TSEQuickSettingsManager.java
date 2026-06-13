@@ -26,7 +26,7 @@ public class TSEQuickSettingsManager {
 
         if (shouldScan && !isScanning) {
             isScanning = true;
-            new Thread(() -> {
+            Thread t = new Thread(() -> {
                 try {
                     List<TSENetworkStatusProvider.WifiNetwork> networks = TSENetworkStatusProvider.scanNetworks();
                     cachedNetworks = networks;
@@ -41,7 +41,9 @@ public class TSEQuickSettingsManager {
                     e.printStackTrace();
                     isScanning = false;
                 }
-            }).start();
+            }, "TSE-WifiScanner");
+            t.setDaemon(true);
+            t.start();
         }
     }
     
@@ -52,7 +54,7 @@ public class TSEQuickSettingsManager {
         String payload = buildPayload(lastAnchorX, lastAnchorY, null);
         sendPayloadToJS(browserPanel, payload);
         
-        new Thread(() -> {
+        Thread t = new Thread(() -> {
             try {
                 List<TSENetworkStatusProvider.WifiNetwork> networks = TSENetworkStatusProvider.scanNetworks();
                 cachedNetworks = networks;
@@ -67,12 +69,18 @@ public class TSEQuickSettingsManager {
                 e.printStackTrace();
                 isScanning = false;
             }
-        }).start();
+        }, "TSE-WifiRefresher");
+        t.setDaemon(true);
+        t.start();
     }
+
+    private static final TSEBrightnessController brightnessController = new TSEBrightnessController();
 
     private static String buildPayload(int anchorX, int anchorY, List<TSENetworkStatusProvider.WifiNetwork> networks) {
         TSEBatteryStatusProvider.BatteryStatus batStatus = TSEBatteryStatusProvider.getStatus();
         String statusText = batStatus.hasBattery ? (batStatus.isCharging ? "Đang sạc" : "Đang dùng pin") : "Không phát hiện pin";
+        
+        TSEBrightnessStatus brightStatus = brightnessController.getStatus();
         
         String currentSsid = "Không kết nối";
         StringBuilder nArr = new StringBuilder("[");
@@ -88,8 +96,8 @@ public class TSEQuickSettingsManager {
         }
         nArr.append("]");
 
-        return String.format("{anchorX: %d, anchorY: %d, hasBattery: %b, percent: %d, statusText: '%s', wifiLoading: %b, currentSsid: '%s', networks: %s}",
-            anchorX, anchorY, batStatus.hasBattery, batStatus.percent, escapeJsString(statusText), wifiLoading, escapeJsString(currentSsid), nArr.toString());
+        return String.format("{anchorX: %d, anchorY: %d, hasBattery: %b, percent: %d, statusText: '%s', wifiLoading: %b, currentSsid: '%s', networks: %s, brightnessSupported: %b, brightnessPercent: %d}",
+            anchorX, anchorY, batStatus.hasBattery, batStatus.percent, escapeJsString(statusText), wifiLoading, escapeJsString(currentSsid), nArr.toString(), brightStatus.supported, brightStatus.percent);
     }
 
     private static void sendPayloadToJS(TSEBrowserPanel browserPanel, String jsonPayload) {
@@ -101,6 +109,58 @@ public class TSEQuickSettingsManager {
         }
     }
     
+    private static boolean brightnessSetInProgress = false;
+    private static Integer pendingBrightnessValue = null;
+    private static java.util.function.Consumer<String> pendingCallback = null;
+
+    public static synchronized void setBrightness(int percent, java.util.function.Consumer<String> jsCallback) {
+        if (brightnessSetInProgress) {
+            System.out.println("[TSE_BRIGHTNESS] Set in progress, queued latest value: " + percent);
+            pendingBrightnessValue = percent;
+            pendingCallback = jsCallback;
+            return;
+        }
+
+        brightnessSetInProgress = true;
+        
+        Thread t = new Thread(() -> {
+            processBrightnessSet(percent, jsCallback);
+        }, "TSE-BrightnessSetter");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private static void processBrightnessSet(int percent, java.util.function.Consumer<String> jsCallback) {
+        TSEBrightnessStatus status = brightnessController.setBrightness(percent);
+        
+        if (status.supported && status.writable && !"ERROR".equals(status.method) && !"TIMEOUT".equals(status.method)) {
+            if (jsCallback != null) jsCallback.accept("SUCCESS");
+        } else {
+            if (jsCallback != null) jsCallback.accept("ERROR");
+        }
+
+        synchronized (TSEQuickSettingsManager.class) {
+            if (pendingBrightnessValue != null) {
+                int nextVal = pendingBrightnessValue;
+                java.util.function.Consumer<String> nextCb = pendingCallback;
+                pendingBrightnessValue = null;
+                pendingCallback = null;
+                System.out.println("[TSE_BRIGHTNESS] Processing queued brightness value: " + nextVal);
+                Thread t = new Thread(() -> {
+                    processBrightnessSet(nextVal, nextCb);
+                }, "TSE-BrightnessQueueProcessor");
+                t.setDaemon(true);
+                t.start();
+            } else {
+                brightnessSetInProgress = false;
+            }
+        }
+    }
+
+    public static void shutdownNowNoBlock() {
+        brightnessController.shutdownNowNoBlock();
+    }
+
     private static String escapeJsString(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'").replace("\n", "\\n").replace("\r", "");

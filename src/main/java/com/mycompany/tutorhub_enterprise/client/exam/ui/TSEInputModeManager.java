@@ -32,7 +32,11 @@ public class TSEInputModeManager {
     }
     
     public void setMode(String newMode) {
-        this.mode = "vi".equals(newMode) ? "vi" : "en";
+        if ("VIE".equalsIgnoreCase(newMode) || "vi".equalsIgnoreCase(newMode)) {
+            this.mode = "vi";
+        } else {
+            this.mode = "en";
+        }
         notifyListeners();
     }
     
@@ -103,9 +107,16 @@ public class TSEInputModeManager {
         }
         browserPanel.executeJavaScript(
                 "window.__TSE_INPUT_MODE='" + mode + "';" +
+                "window.TSEInputMode='" + mode + "';" +
                 "if (window.TSEVietnameseInput) {" +
                 " window.TSEVietnameseInput.setMode('" + mode + "');" +
-                "}"
+                "}" +
+                "if (window.TSEVietnameseInputEngine && typeof window.TSEVietnameseInputEngine.setMode === 'function') {" +
+                " window.TSEVietnameseInputEngine.setMode('" + mode + "');" +
+                "}" +
+                "console.log('[TSE_INPUT] JS input mode synced: " + mode + "');" +
+                "console.log('[TSE_INPUT] Vietnamese engine mode set to: " + mode + "');" +
+                "console.log('[TSE_INPUT] Input listeners rebound.');"
         );
     }
 

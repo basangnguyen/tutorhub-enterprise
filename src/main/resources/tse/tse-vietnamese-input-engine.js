@@ -271,6 +271,10 @@
     if (internalChange || composing || mode !== "vi") {
       return;
     }
+    var target = event.target;
+    if (target && target.id === 'tse-input-test-textarea') {
+      console.log('[TSE_INPUT_TEST] key/input captured in mode=vi');
+    }
     if (skipNextInput) {
       skipNextInput = false;
       return;
