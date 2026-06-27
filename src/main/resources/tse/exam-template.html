@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>__EXAM_TITLE__</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .exam-layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 0 auto;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .quiz-main {
+            flex: 1;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .question-nav {
+            width: 250px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+        }
+        .question-nav h3 {
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            color: #2c3e50;
+        }
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .nav-cell {
+            aspect-ratio: 1;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .nav-cell:hover {
+            background: #f0f2f5;
+        }
+        .nav-cell.answered {
+            background: #e3edf7;
+            border-color: #b9d3ec;
+            color: #1a4f8b;
+        }
+        .nav-legend {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .nav-legend div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-legend span {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+        .legend-unanswered {
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+        .legend-answered {
+            background: #e3edf7;
+            border: 1px solid #b9d3ec;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .session-info {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        .question-block {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px dashed #eee;
+        }
+        .question {
+            font-size: 1.15em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .options label {
+            display: flex;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #ddd;
+        }
+        .options label:hover:not(.disabled) {
+            background: #e2e6ea;
+        }
+        .options input[type="radio"] {
+            margin-right: 12px;
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+        
+        /* CSS classes for correct/wrong kept for future Practice Mode compatibility,
+           but WILL NOT be triggered in Exam mode */
+        .correct-answer {
+            background-color: #d4edda !important;
+            border-color: #c3e6cb !important;
+            color: #155724;
+            font-weight: bold;
+        }
+        .wrong-answer {
+            background-color: #f8d7da !important;
+            border-color: #f5c6cb !important;
+            color: #721c24;
+            text-decoration: line-through;
+        }
+        .disabled {
+            cursor: not-allowed !important;
+            opacity: 0.8;
+        }
+        .explanation {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+            animation: fadeIn 0.4s;
+        }
+        .correct-exp {
+            background-color: #e8f5e9;
+            border-left: 5px solid #4caf50;
+        }
+        .wrong-exp {
+            background-color: #ffebee;
+            border-left: 5px solid #f44336;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Support text input / textarea for non-MCQ questions */
+        .input-text, .input-textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            margin-top: 10px;
+        }
+        .input-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+    </style>
+    <script>
+        function collectTSEAnswers() {
+            var payload = {
+                sessionId: document.getElementById('meta_sessionId').value,
+                examId: parseInt(document.getElementById('meta_examId').value),
+                answers: []
+            };
+            
+            var questions = document.getElementsByClassName('question-block');
+            for (var i = 0; i < questions.length; i++) {
+                var qId = questions[i].getAttribute('data-qid');
+                var qType = questions[i].getAttribute('data-qtype');
+                var ans = '';
+                
+                if (qType === 'MCQ') {
+                    var radios = questions[i].querySelectorAll('input[type=radio]');
+                    for (var j = 0; j < radios.length; j++) {
+                        if (radios[j].checked) {
+                            ans = radios[j].value;
+                        }
+                    }
+                } else if (qType === 'ESSAY') {
+                    var ta = questions[i].querySelector('textarea');
+                    if (ta) ans = ta.value;
+                } else {
+                    var inp = questions[i].querySelector('input[type=text]');
+                    if (inp) ans = inp.value;
+                }
+                
+                payload.answers.push({ questionId: parseInt(qId), answerType: qType, answer: ans });
+            }
+            
+            var jsonStr = JSON.stringify(payload);
+            if (window.cefQuery) {
+                window.cefQuery({ 
+                    request: 'SUBMIT_PAYLOAD:' + jsonStr, 
+                    onSuccess: function(r){}, 
+                    onFailure: function(e,m){} 
+                });
+            } else { 
+                console.log('TSE_JS_RESULT:' + jsonStr); 
+            }
+        }
+        
+        // Render function: takes the injected JSON data and builds the UI
+        function renderQuiz() {
+            var container = document.getElementById('quiz-content');
+            var examData = window.examData;
+            
+            if (!examData || examData.length === 0) {
+                container.innerHTML = '<p>Bài thi hiện chưa có câu hỏi.</p>';
+                return;
+            }
+            
+            var html = '';
+            for (var i = 0; i < examData.length; i++) {
+                var q = examData[i];
+                var qType = q.questionType || 'MCQ';
+                
+                // Thêm id để cuộn tới
+                html += '<div class="question-block" id="q_' + q.questionId + '" data-qid="' + q.questionId + '" data-qtype="' + qType + '">';
+                
+                // Escape question text
+                var safeQuestion = q.question.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                html += '<div class="question">Câu ' + (i + 1) + ': ' + safeQuestion + '</div>';
+                
+                if (qType === 'MCQ' && q.options) {
+                    html += '<div class="options">';
+                    for (var j = 0; j < q.options.length; j++) {
+                        var opt = q.options[j];
+                        var safeOptText = opt.text ? opt.text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+                        var safeOptLabel = opt.label ? opt.label.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+                        // Fallback value is the option text, compatible with existing parse
+                        var val = safeOptText; 
+                        
+                        html += '<label>';
+                        html += '<input type="radio" name="q_' + q.questionId + '" value="' + val.replace(/"/g, "&quot;") + '" onchange="updateNavStatus(' + q.questionId + ')">';
+                        if (safeOptLabel && safeOptLabel !== "") {
+                            html += '<strong>' + safeOptLabel + '.</strong>&nbsp;' + safeOptText;
+                        } else {
+                            html += safeOptText;
+                        }
+                        html += '</label>';
+                    }
+                    html += '</div>';
+                } else if (qType === 'ESSAY') {
+                    html += '<textarea class="input-textarea" placeholder="Nhập câu trả lời của bạn..." oninput="updateNavStatus(' + q.questionId + ')"></textarea>';
+                } else {
+                    html += '<input type="text" class="input-text" placeholder="Nhập câu trả lời của bạn..." oninput="updateNavStatus(' + q.questionId + ')">';
+                }
+                
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+            buildNavGrid();
+        }
+
+        function buildNavGrid() {
+            var grid = document.getElementById('nav-grid');
+            var examData = window.examData;
+            
+            if (!examData || examData.length === 0) return;
+            
+            var html = '';
+            for (var i = 0; i < examData.length; i++) {
+                var q = examData[i];
+                html += '<div class="nav-cell" id="nav_' + q.questionId + '" onclick="scrollToQuestion(' + q.questionId + ')">' + (i + 1) + '</div>';
+            }
+            grid.innerHTML = html;
+        }
+
+        function scrollToQuestion(qid) {
+            var el = document.getElementById('q_' + qid);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function updateNavStatus(qid) {
+            var qBlock = document.getElementById('q_' + qid);
+            if (!qBlock) return;
+            
+            var qType = qBlock.getAttribute('data-qtype');
+            var hasAnswer = false;
+            
+            if (qType === 'MCQ') {
+                var radios = qBlock.querySelectorAll('input[type=radio]');
+                for (var i = 0; i < radios.length; i++) {
+                    if (radios[i].checked) {
+                        hasAnswer = true;
+                        break;
+                    }
+                }
+            } else if (qType === 'ESSAY') {
+                var ta = qBlock.querySelector('textarea');
+                if (ta && ta.value.trim() !== '') hasAnswer = true;
+            } else {
+                var inp = qBlock.querySelector('input[type=text]');
+                if (inp && inp.value.trim() !== '') hasAnswer = true;
+            }
+            
+            var navCell = document.getElementById('nav_' + qid);
+            if (navCell) {
+                if (hasAnswer) navCell.classList.add('answered');
+                else navCell.classList.remove('answered');
+            }
+        }
+
+        window.onload = function() {
+            renderQuiz();
+        };
+    </script>
+</head>
+<body>
+    <div class="exam-layout">
+        <div class="quiz-main">
+            <input type="hidden" id="meta_sessionId" value="__SESSION_ID__">
+            <input type="hidden" id="meta_examId" value="__EXAM_ID__">
+            
+            <h1>__EXAM_TITLE__</h1>
+            <div class="session-info"><strong>Session ID:</strong> __SESSION_ID__</div>
+            
+            <div id="quiz-content">
+                <!-- Questions will be rendered here by JS -->
+            </div>
+        </div>
+        
+        <div class="question-nav">
+            <h3>Bản đồ câu hỏi</h3>
+            <div class="nav-grid" id="nav-grid">
+                <!-- Nav cells will be rendered here by JS -->
+            </div>
+            <div class="nav-legend">
+                <div><span class="legend-unanswered"></span> Chưa làm</div>
+                <div><span class="legend-answered"></span> Đã chọn</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- EXAM DATA INJECTION POINT -->
+    <script>
+        window.examData = __QUIZ_DATA_JSON__;
+    </script>
+</body>
+</html>

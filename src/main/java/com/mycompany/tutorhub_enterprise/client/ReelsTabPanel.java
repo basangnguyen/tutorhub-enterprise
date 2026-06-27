@@ -160,8 +160,9 @@ public class ReelsTabPanel extends JPanel {
         });
         
         JLabel lblTitle = new JLabel("Reels");
+        lblTitle.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/editor-films-production-svgrepo-com.svg", 32, 32));
         lblTitle.setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 28));
-        lblTitle.setForeground(TEXT_MAIN);
+        lblTitle.setForeground(java.awt.Color.decode("#e11d48"));
         
         headerPanel.add(btnToggle);
         headerPanel.add(Box.createHorizontalStrut(16));
@@ -607,6 +608,10 @@ public class ReelsTabPanel extends JPanel {
         ));
         
         swingLblCommentCount = new JLabel("Bình luận (0)");
+        try {
+            swingLblCommentCount.setIcon(new FlatSVGIcon("images/icon/dislikes-down-gesture-svgrepo-com.svg", 26, 26));
+            swingLblCommentCount.setIconTextGap(10);
+        } catch(Exception e) {}
         swingLblCommentCount.setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 18));
         swingLblCommentCount.setForeground(TEXT_MAIN);
         

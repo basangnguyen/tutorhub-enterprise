@@ -28,9 +28,12 @@ public class TSELoginPanel extends KioskBgPanel {
     private final TSEExamService examService;
     private final java.util.function.Consumer<TSEExamContext> onLoginSuccess;
     private final Runnable onExit;
+    private final TSECaptchaService captchaService = new TSECaptchaService();
     private JButton btnLogin;
     private JButton btnRetryConnect;
     private JLabel lblConnStatus;
+    private JTextField txtCaptcha;
+    private JLabel lblCaptcha;
     private Runnable onRetryConnect;
 
     public TSELoginPanel(TSEExamService examService, java.util.function.Consumer<TSEExamContext> onLoginSuccess, Runnable onExit) {
@@ -51,7 +54,21 @@ public class TSELoginPanel extends KioskBgPanel {
         add(center, BorderLayout.CENTER);
 
         // Footer / taskbar – light, translucent
-        add(buildTaskbar(), BorderLayout.SOUTH);
+        ExamFooterStatusBar footer = new ExamFooterStatusBar("VIE",
+            btn -> TSEInputModeManager.getInstance().toggleMode(),
+            (source, comp) -> {
+                System.out.println("[TSE_PARENT_FOOTER] Quick Settings requested from LOGIN source=" + source);
+                TSEParentHtmlQuickSettingsPopup.showPopup(comp, "LOGIN");
+            },
+            onExit
+        );
+        System.out.println("[TSE_PARENT_FOOTER] Footer attached to LOGIN card.");
+        TSEInputModeManager.getInstance().addModeChangeListener(() -> {
+            footer.setLanguageLabel(TSEInputModeManager.getInstance().getFooterLabel());
+        });
+        add(footer, BorderLayout.SOUTH);
+
+        // (Preload removed, JCEF popup no longer used for Parent screens)
 
         // Attach Swing Adapter for Vietnamese input (Opt-in)
         SwingUtilities.invokeLater(() -> TSEInputSwingAdapter.installForOptIn(this));
@@ -66,10 +83,12 @@ public class TSELoginPanel extends KioskBgPanel {
         JButton btnRefresh = iconBtn("images/exam/icons/refresh-cw.svg", 22);
         bar.add(btnRefresh, "cell 0 0");
 
-        JPanel right = new JPanel(new MigLayout("insets 0, gap 10"));
+        JPanel right = new JPanel(new MigLayout("insets 0, gap 0"));
         right.setOpaque(false);
-        right.add(iconBtn("images/exam/icons/circle-help.svg", 20));
-        right.add(iconBtn("images/exam/icons/sun.svg", 20));
+        JButton btnHelp = iconBtn("images/exam/icons/circle-help.svg", 20);
+        btnHelp.setToolTipText("Thông tin ứng dụng");
+        btnHelp.addActionListener(e -> TSEAboutDialog.showDialog(this, "Đăng nhập hệ thống"));
+        right.add(btnHelp);
         bar.add(right, "cell 1 0");
         return bar;
     }
@@ -236,12 +255,26 @@ public class TSELoginPanel extends KioskBgPanel {
         btnLogin.addActionListener(e -> {
             String u = txtUsername.getText().trim();
             String p = new String(txtPassword.getPassword());
+
+            if (!captchaService.verify(txtCaptcha != null ? txtCaptcha.getText() : "")) {
+                lblConnStatus.setText("Mã bảo mật không đúng. Vui lòng nhập lại.");
+                lblConnStatus.setForeground(Color.decode("#DC2626"));
+                refreshCaptcha();
+                if (txtCaptcha != null) {
+                    txtCaptcha.requestFocusInWindow();
+                }
+                return;
+            }
+
             btnLogin.setEnabled(false);
             btnLogin.setText("  Đang đăng nhập...");
             
             examService.login(u, p).thenAccept(res -> {
                 SwingUtilities.invokeLater(() -> {
                     btnLogin.setEnabled(true);
+                    if (!(res.success && res.context != null)) {
+                        refreshCaptcha();
+                    }
                     btnLogin.setText("  Đăng nhập");
                     if (res.success && res.context != null) {
                         if (onLoginSuccess != null) onLoginSuccess.accept(res.context);
@@ -333,13 +366,23 @@ public class TSELoginPanel extends KioskBgPanel {
         field.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 2));
         field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         field.putClientProperty("JTextField.placeholderText", placeholder);
-        if (isPassword) ((JPasswordField) field).setEchoChar('●');
+        if ("images/exam/icons/shield.svg".equals(iconPath) && txtCaptcha == null) {
+            txtCaptcha = field;
+        }
+        if (isPassword) {
+            ((JPasswordField) field).setEchoChar('\u25CF');
+        }
         inner.add(field, "grow, growy");
 
         // Trailing icon (optional)
         if (trailingIconPath != null) {
-            JLabel trail = new JLabel(loadSVG(trailingIconPath, 16, FIELD_ICON_FG));
-            inner.add(trail, "w 20!, growy, gapleft 4");
+            if (field instanceof JPasswordField passwordField) {
+                JButton toggle = buildPasswordToggleButton(passwordField, trailingIconPath);
+                inner.add(toggle, "w 20!, h 28!, growy, gapleft 4");
+            } else {
+                JLabel trail = new JLabel(loadSVG(trailingIconPath, 16, FIELD_ICON_FG));
+                inner.add(trail, "w 20!, growy, gapleft 4");
+            }
         } else {
             inner.add(new JLabel(), "w 20!, growy");
         }
@@ -372,6 +415,8 @@ public class TSELoginPanel extends KioskBgPanel {
             }
             @Override public boolean isOpaque() { return false; }
         };
+        lblCaptcha = lblCap;
+        lblCaptcha.setText(captchaService.getDisplayText());
         lblCap.setFont(new Font("Courier New", Font.BOLD, 17));
         lblCap.setForeground(BRAND_BLUE2);
         row.add(lblCap, "h 44!");
@@ -393,70 +438,54 @@ public class TSELoginPanel extends KioskBgPanel {
         btnRef.setBorderPainted(false);
         btnRef.setFocusPainted(false);
         btnRef.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnRef.setToolTipText("Đổi mã bảo mật");
+        btnRef.addActionListener(e -> refreshCaptcha());
         row.add(btnRef, "h 44!, w 36!");
 
         return row;
     }
 
-    // ── taskbar (shared style) ────────────────────────────────────
-    static JPanel buildTaskbarStatic(Runnable onExit) {
-        JPanel bar = new JPanel(new MigLayout("insets 5 18, fillx, aligny center", "push[right]"));
-        bar.setBackground(new Color(228, 231, 235)); // 10% darker gray, fully opaque
-        bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0, 0, 0, 15)));
-        bar.setOpaque(true);
+    private JButton buildPasswordToggleButton(JPasswordField passwordField, String visibleIconPath) {
+        JButton button = new JButton(loadSVG(visibleIconPath, 16, FIELD_ICON_FG));
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setToolTipText("Hiện mật khẩu");
 
-        JPanel right = new JPanel(new MigLayout("insets 0, gap 14, aligny center"));
-        right.setOpaque(false);
-
-        TSEInputModeManager inputManager = TSEInputModeManager.getInstance();
-        JButton btnVie = new JButton(inputManager.getFooterLabel());
-        btnVie.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnVie.setForeground(ICON_NAVY);
-        btnVie.setContentAreaFilled(false);
-        btnVie.setBorderPainted(false);
-        btnVie.setFocusPainted(false);
-        btnVie.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnVie.setMargin(new Insets(0, 0, 0, 0));
-        
-        btnVie.addActionListener(e -> {
-            inputManager.toggleMode();
+        final char hiddenEcho = passwordField.getEchoChar();
+        final boolean[] showing = { false };
+        button.addActionListener(e -> {
+            showing[0] = !showing[0];
+            passwordField.setEchoChar(showing[0] ? (char) 0 : hiddenEcho);
+            button.setIcon(loadSVG(
+                    showing[0] ? "images/exam/icons/eye-off.svg" : visibleIconPath,
+                    16,
+                    FIELD_ICON_FG));
+            button.setToolTipText(showing[0] ? "Ẩn mật khẩu" : "Hiện mật khẩu");
+            passwordField.requestFocusInWindow();
         });
-        
-        inputManager.addModeChangeListener(() -> {
-            btnVie.setText(inputManager.getFooterLabel());
-        });
+        return button;
+    }
 
-        right.add(btnVie);
-        right.add(taskbarLabel(null, "images/exam/icons/wifi.svg"));
-        right.add(taskbarLabel(null, "images/exam/icons/volume-2.svg"));
-
-        // Battery: custom Graphics2D component (98%, charging)
-        BatteryStatusIcon battery = new BatteryStatusIcon();
-        battery.setBatteryPercent(98);
-        battery.setCharging(true);
-        battery.setToolTipText("98% – Đang sạc");
-        right.add(battery, "w 28!, h 14!, aligny center");
-
-        if (onExit != null) {
-            JButton btnPower = new JButton(loadSVG("images/exam/icons/power.svg", 18, Color.decode("#C62828"))); // Dark red
-            btnPower.setContentAreaFilled(false);
-            btnPower.setBorderPainted(false);
-            btnPower.setFocusPainted(false);
-            btnPower.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            btnPower.addActionListener(e -> {
-                JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(bar);
-                ExitConfirmDialog dlg = new ExitConfirmDialog(parent, onExit);
-                dlg.setVisible(true);
-            });
-            right.add(btnPower);
+    private void refreshCaptcha() {
+        captchaService.regenerate();
+        if (lblCaptcha != null) {
+            lblCaptcha.setText(captchaService.getDisplayText());
+            lblCaptcha.repaint();
         }
+        if (txtCaptcha != null) {
+            txtCaptcha.setText("");
+        }
+    }
 
-        bar.add(right, "cell 0 0");
-        return bar;
+    private void showQuickSettingsSwingPopup(JComponent anchor) {
+        // Obsolete, now using JCEF Popup
     }
 
     private JPanel buildTaskbar() {
-        return buildTaskbarStatic(onExit);
+        // Logic moved to constructor using ExamFooterStatusBar
+        return new JPanel();
     }
 
     // ── static helpers ────────────────────────────────────────────

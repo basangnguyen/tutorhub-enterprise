@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Home minus icon">
+  <path
+    d="M7 27.9
+       C7 27.05 7.37 26.25 8.02 25.7
+       L28.52 8.45
+       C30.53 6.76 33.47 6.76 35.48 8.45
+       L55.98 25.7
+       C56.63 26.25 57 27.05 57 27.9
+       V49.5
+       C57 53.65 53.65 57 49.5 57
+       H14.5
+       C10.35 57 7 53.65 7 49.5
+       V27.9Z"
+    stroke="#FF0000"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round" />
+  <path
+    d="M25.5 48H38.5"
+    stroke="#FF0000"
+    stroke-width="4"
+    stroke-linecap="round" />
+</svg>

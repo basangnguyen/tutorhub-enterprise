@@ -18,5 +18,11 @@ public class Question implements Serializable {
     public int sortOrder;
     public Timestamp createdAt;
 
+    // New fields for Phase 2: Question Bank integration
+    public int bankId;
+    public float defaultScore;
+    public int createdBy;
+    public Timestamp updatedAt;
+
     public Question() {}
 }

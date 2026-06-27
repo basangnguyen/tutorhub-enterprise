@@ -15,35 +15,47 @@ public class VideoReelSection extends JPanel {
 
     private JPanel cardsContainer;
     private java.util.List<String> currentReelsData;
+    private static boolean b2WarningLogged = false;
 
     // --- BẢNG MÀU SAAS PREMIUM ---
-    private final Color TEXT_TITLE = Color.decode("#0F172A");  
-    private final Color TEXT_MUTED = Color.decode("#94A3B8");  
-    private final Color PRIMARY = Color.decode("#3B82F6");     
-    private final Color BORDER = Color.decode("#E2E8F0");      
+    private final Color TEXT_TITLE = Color.decode("#0F172A");
+    private final Color TEXT_MUTED = Color.decode("#94A3B8");
+    private final Color PRIMARY = Color.decode("#3B82F6");
+    private final Color BORDER = Color.decode("#E2E8F0");
 
     public VideoReelSection() {
         setLayout(new BorderLayout(0, 16));
         setOpaque(false);
-        setBorder(new EmptyBorder(16, 24, 16, 24)); 
+        setBorder(new EmptyBorder(16, 24, 16, 24));
 
         // 1. HEADER
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        
+
+        JPanel titleContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        titleContainer.setOpaque(false);
+
+        JLabel icoCamera = new JLabel();
+        icoCamera.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon(
+                "images/icon/camera-photo-recording-svgrepo-com.svg", 22, 22));
+
         JLabel title = new JLabel("Locket Class");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 17)); 
+        title.setFont(new Font("Segoe UI", Font.BOLD, 17));
         title.setForeground(TEXT_TITLE);
-        
+
+        titleContainer.add(icoCamera);
+        titleContainer.add(title);
+
         JLabel seeAll = new JLabel("Xem tất cả");
         seeAll.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         seeAll.setForeground(PRIMARY);
         seeAll.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        header.add(title, BorderLayout.WEST);
+
+        header.add(titleContainer, BorderLayout.WEST);
         header.add(seeAll, BorderLayout.EAST);
 
-        // 2. DANH SÁCH VIDEO (ĐÃ SỬA: Dùng GridLayout 5 cột để thẳng hàng tuyệt đối với lớp học)
+        // 2. DANH SÁCH VIDEO (ĐÃ SỬA: Dùng GridLayout 5 cột để thẳng hàng tuyệt đối với
+        // lớp học)
         cardsContainer = new JPanel(new GridLayout(1, 5, 16, 0));
         cardsContainer.setOpaque(false);
 
@@ -54,14 +66,13 @@ public class VideoReelSection extends JPanel {
         add(cardsContainer, BorderLayout.CENTER);
     }
 
-
-
     public void loadReels(java.util.List<String> data) {
         this.currentReelsData = data;
         cardsContainer.removeAll();
         if (data == null || data.isEmpty()) {
             // Empty state card
-            VideoCard emptyCard = new VideoCard("Chia sẻ khoảnh khắc đầu tiên!", "@you", "/images/icon/icon_locket.png", 0);
+            VideoCard emptyCard = new VideoCard("Chia sẻ khoảnh khắc đầu tiên!", "@you", "/images/icon/icon_locket.png",
+                    0);
             cardsContainer.add(emptyCard);
         } else {
             int count = Math.min(5, data.size());
@@ -69,8 +80,9 @@ public class VideoReelSection extends JPanel {
                 String[] parts = data.get(i).split(";;");
                 if (parts.length >= 3) {
                     String title = parts[2];
-                    String author = "@tutor"; 
-                    if (parts.length >= 5 && parts[4] != null && !parts[4].isEmpty()) author = parts[4];
+                    String author = "@tutor";
+                    if (parts.length >= 5 && parts[4] != null && !parts[4].isEmpty())
+                        author = parts[4];
                     String imgPath = parts[1]; // Locket giờ chỉ tải ảnh, nên link chính là ảnh
                     addVideoCard(title, author, imgPath, i);
                 }
@@ -92,7 +104,7 @@ public class VideoReelSection extends JPanel {
         private Image thumbnail;
         private final int THUMB_HEIGHT = 120;
         private boolean isHover = false;
-        
+
         private JLabel lblTitle;
         private JLabel lblAuthor;
         private String rawTitle;
@@ -101,19 +113,30 @@ public class VideoReelSection extends JPanel {
         public VideoCard(String title, String author, String imgPath, int index) {
             this.rawTitle = title;
             this.reelIndex = index;
-            // Chiều rộng = 0 để GridLayout tự quyết định và co giãn, chiều cao chừa 12px cho shadow
-            setPreferredSize(new Dimension(0, 205 + 12)); 
+            // Chiều rộng = 0 để GridLayout tự quyết định và co giãn, chiều cao chừa 12px
+            // cho shadow
+            setPreferredSize(new Dimension(0, 205 + 12));
             setOpaque(false);
             setCursor(new Cursor(Cursor.HAND_CURSOR));
-            setLayout(null); 
+            setLayout(null);
 
             // Load ảnh GIF hoặc ảnh từ HTTP
             new Thread(() -> {
                 try {
-                    URL url;
+                    URL url = null;
                     if (imgPath.startsWith("http")) {
-                        String presigned = com.mycompany.tutorhub_enterprise.utils.B2Helper.getPresignedUrl(imgPath);
-                        url = new URL(presigned);
+                        if (!com.mycompany.tutorhub_enterprise.utils.B2Helper.isConfigured()) {
+                            if (!b2WarningLogged) {
+                                System.err.println(
+                                        "[WARNING] Video service not configured. Missing Backblaze B2 credentials.");
+                                b2WarningLogged = true;
+                            }
+                            url = null;
+                        } else {
+                            String presigned = com.mycompany.tutorhub_enterprise.utils.B2Helper
+                                    .getPresignedUrl(imgPath);
+                            url = new URL(presigned);
+                        }
                     } else {
                         url = getClass().getResource(imgPath);
                     }
@@ -138,7 +161,8 @@ public class VideoReelSection extends JPanel {
                             repaint();
                         }
                     }
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                }
             }).start();
 
             lblTitle = new JLabel();
@@ -150,23 +174,37 @@ public class VideoReelSection extends JPanel {
             add(lblAuthor);
 
             addMouseListener(new MouseAdapter() {
-                @Override public void mouseEntered(MouseEvent e) { isHover = true; repaint(); }
-                @Override public void mouseExited(MouseEvent e) { isHover = false; repaint(); }
-                @Override public void mouseClicked(MouseEvent e) {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    isHover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    isHover = false;
+                    repaint();
+                }
+
+                @Override
+                public void mouseClicked(MouseEvent e) {
                     openVideo(reelIndex);
                 }
             });
         }
-        
-        // ĐÃ CHỈNH SỬA: Lắng nghe sự kiện co giãn của thẻ để tự động bóp chữ và căn chỉnh
+
+        // ĐÃ CHỈNH SỬA: Lắng nghe sự kiện co giãn của thẻ để tự động bóp chữ và căn
+        // chỉnh
         @Override
         public void setBounds(int x, int y, int width, int height) {
             super.setBounds(x, y, width, height);
             lblTitle.setBounds(14, THUMB_HEIGHT + 12, width - 28, 40);
-            lblTitle.setText("<html><div style='width:" + (width - 28) + "px; font-family: Segoe UI; font-size: 13px; font-weight: normal; color: #1E293B; line-height: 1.4;'>" + rawTitle + "</div></html>");
+            lblTitle.setText("<html><div style='width:" + (width - 28)
+                    + "px; font-family: Segoe UI; font-size: 13px; font-weight: normal; color: #1E293B; line-height: 1.4;'>"
+                    + rawTitle + "</div></html>");
             lblAuthor.setBounds(14, THUMB_HEIGHT + 54, width - 28, 20);
         }
-        
+
         private void openVideo(int index) {
             try {
                 JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(VideoReelSection.this);
@@ -189,14 +227,14 @@ public class VideoReelSection extends JPanel {
 
             int w = getWidth();
             int h = getHeight() - 12; // Trừ khoảng trống cho bóng đổ
-            int arc = 20; 
-            int yOffset = isHover ? 2 : 6; 
+            int arc = 20;
+            int yOffset = isHover ? 2 : 6;
 
             if (isHover) {
-                g2.setColor(new Color(15, 23, 42, 14)); 
+                g2.setColor(new Color(15, 23, 42, 14));
                 g2.fillRoundRect(2, yOffset + 4, w - 4, h - 4, arc, arc);
             } else {
-                g2.setColor(new Color(15, 23, 42, 8)); 
+                g2.setColor(new Color(15, 23, 42, 8));
                 g2.fillRoundRect(2, yOffset + 2, w - 4, h - 2, arc, arc);
             }
 
@@ -209,18 +247,18 @@ public class VideoReelSection extends JPanel {
             Shape oldClip = g2.getClip();
             Area clipArea = new Area(new RoundRectangle2D.Float(0, yOffset, w, THUMB_HEIGHT + 10, arc, arc));
             Area bottomRect = new Area(new Rectangle(0, yOffset + THUMB_HEIGHT - 10, w, 20));
-            clipArea.add(bottomRect); 
-            
+            clipArea.add(bottomRect);
+
             g2.setClip(clipArea);
             if (thumbnail != null) {
                 g2.drawImage(thumbnail, 0, yOffset, w, THUMB_HEIGHT, this);
-                g2.setColor(new Color(15, 23, 42, isHover ? 30 : 15)); 
+                g2.setColor(new Color(15, 23, 42, isHover ? 30 : 15));
                 g2.fillRect(0, yOffset, w, THUMB_HEIGHT);
             } else {
-                g2.setColor(Color.decode("#F8FAFC")); 
+                g2.setColor(Color.decode("#F8FAFC"));
                 g2.fillRect(0, yOffset, w, THUMB_HEIGHT);
             }
-            g2.setClip(oldClip); 
+            g2.setClip(oldClip);
 
             g2.setColor(BORDER);
             g2.drawLine(0, yOffset + THUMB_HEIGHT, w, yOffset + THUMB_HEIGHT);

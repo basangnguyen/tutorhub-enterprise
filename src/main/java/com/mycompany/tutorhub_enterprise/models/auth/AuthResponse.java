@@ -9,6 +9,7 @@ public final class AuthResponse implements Serializable {
     private final boolean success;
     private final String message;
     private final String dashboardPayload;
+    private SessionInfo sessionInfo;
 
     public AuthResponse(String requestId, boolean success, String message, String dashboardPayload) {
         this.requestId = requestId == null ? "" : requestId.trim();
@@ -28,6 +29,12 @@ public final class AuthResponse implements Serializable {
     public static AuthResponse login(String requestId, String message, String dashboardPayload) {
         return new AuthResponse(requestId, true, message, dashboardPayload);
     }
+    
+    public static AuthResponse loginWithSession(String requestId, String message, String dashboardPayload, SessionInfo sessionInfo) {
+        AuthResponse response = new AuthResponse(requestId, true, message, dashboardPayload);
+        response.setSessionInfo(sessionInfo);
+        return response;
+    }
 
     public String getRequestId() {
         return requestId;
@@ -43,5 +50,13 @@ public final class AuthResponse implements Serializable {
 
     public String getDashboardPayload() {
         return dashboardPayload;
+    }
+
+    public SessionInfo getSessionInfo() {
+        return sessionInfo;
+    }
+
+    public void setSessionInfo(SessionInfo sessionInfo) {
+        this.sessionInfo = sessionInfo;
     }
 }

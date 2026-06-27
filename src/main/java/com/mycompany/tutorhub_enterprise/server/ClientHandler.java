@@ -26,6 +26,8 @@ public class ClientHandler {
 
     public static ConcurrentHashMap<String, ClientHandler> onlineClients = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, String> otpStorage = new ConcurrentHashMap<>();
+    private static final String LEGACY_PASSWORD_RESET_REJECT_MESSAGE =
+            "This password reset flow is no longer supported. Please update the app.";
 
     public ClientHandler(WebSocket socket) {
         this.socket = socket;
@@ -46,13 +48,17 @@ public class ClientHandler {
     public static boolean isUserOnline(String email) {
         return onlineClients.containsKey(email);
     }
-
     public void processClientRequest(Packet packet) {
         try {
-            System.out.println("[NHÃ¡ÂºÂ¬N LÃ¡Â»â€ NH TÃ¡Â»Âª " + clientId + "] " + packet.action);
+            System.out.println("[NHẬN LỆNH TỪ " + clientId + "] " + packet.action);
 
             if (packet.action != null && packet.action.startsWith("AUTH_")) {
                 handleAuthRequest(packet);
+                return;
+            }
+
+            if (packet.action != null && packet.action.startsWith("LOCKET_")) {
+                handleLocketRequest(packet);
                 return;
             }
 
@@ -479,6 +485,54 @@ public class ClientHandler {
                     break;
                 }
                 // ==========================================
+
+                case "CALENDAR_SEND_EVENT_INVITE":
+                case "CALENDAR_SEND_POLL_INVITE": {
+                    System.out.println("[SCHEDULE_EMAIL] Nhận yêu cầu gửi email: " + packet.action);
+                    try {
+                        String payload = packet.payload;
+                        if (payload != null && !payload.isEmpty()) {
+                            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+                            String title = json.has("title") ? json.get("title").getAsString() : "";
+                            String date = json.has("date") ? json.get("date").getAsString() : "";
+                            String time = json.has("time") ? json.get("time").getAsString() : "";
+                            String location = json.has("location") ? json.get("location").getAsString() : "";
+                            String description = json.has("description") ? json.get("description").getAsString() : "";
+                            String meetLink = json.has("meetLink") ? json.get("meetLink").getAsString() : "";
+                            
+                            boolean isPoll = "CALENDAR_SEND_POLL_INVITE".equals(packet.action);
+                            String subject = "TutorHub - Lịch học mới: " + title;
+                            String timeStr = date + " " + time;
+                            
+                            java.util.List<String> emails = new java.util.ArrayList<>();
+                            if (json.has("guestEmails")) {
+                                com.google.gson.JsonArray arr = json.getAsJsonArray("guestEmails");
+                                for (com.google.gson.JsonElement el : arr) {
+                                    String email = el.getAsString().trim();
+                                    if (!email.isEmpty() && !emails.contains(email)) {
+                                        emails.add(email);
+                                    }
+                                }
+                            }
+                            System.out.println("[SCHEDULE_EMAIL] invite count=" + emails.size());
+                            
+                            boolean success = false;
+                            for (String email : emails) {
+                                String maskedEmail = email.length() > 5 ? email.substring(0, 2) + "***" + email.substring(email.indexOf('@')) : "***";
+                                System.out.println("[SCHEDULE_EMAIL] Sending to: " + maskedEmail);
+                                if (isPoll) {
+                                    success = EmailService.sendPollInvite(email, subject, title, timeStr, location, meetLink, null, description, "");
+                                } else {
+                                    success = EmailService.sendCalendarInvite(email, subject, title, timeStr, location, meetLink, null, description);
+                                }
+                            }
+                            System.out.println("[SCHEDULE_EMAIL] send success=" + success);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[SCHEDULE_EMAIL] Error parsing payload: " + e.getClass().getSimpleName());
+                    }
+                    break;
+                }
 
                 case "GET_EXAMS":
                     if (this.userId > 0) {
@@ -1085,46 +1139,12 @@ public class ClientHandler {
                     break;
                 }
 
-                case "REQUEST_OTP_RESET": {
-                    String emailReset = packet.payload;
-                    if (!DatabaseManager.isEmailExists(emailReset)) {
-                        sendPacket(new Packet(false, "Email nÃƒÂ y chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã„Æ’ng kÃƒÂ½ trong hÃ¡Â»â€¡ thÃ¡Â»â€˜ng!"));
-                        break;
-                    }
-                    String otpReset = String.format("%06d", new java.util.Random().nextInt(999999));
-                    otpStorage.put(emailReset, otpReset);
-                    new Thread(() -> {
-                        boolean isSent = EmailService.sendOTP(emailReset, otpReset);
-                        if (isSent) sendPacket(new Packet(true, "MÃƒÂ£ OTP khÃƒÂ´i phÃ¡Â»Â¥c Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃ¡Â»Â­i Ã„â€˜Ã¡ÂºÂ¿n email!"));
-                        else {
-                            sendPacket(new Packet(false, "LÃ¡Â»â€”i Server: KhÃƒÂ´ng thÃ¡Â»Æ’ gÃ¡Â»Â­i Email lÃƒÂºc nÃƒÂ y."));
-                            otpStorage.remove(emailReset);
-                        }
-                    }).start();
+                case "REQUEST_OTP_RESET":
+                case "VERIFY_AND_RESET": {
+                    rejectLegacyPasswordResetAction(packet.action);
                     break;
                 }
 
-                case "VERIFY_AND_RESET": {
-                    String[] resetData = packet.payload.split(",");
-                    if (resetData.length == 3) {
-                        String reqEmail = resetData[0];
-                        String reqOtp = resetData[1];
-                        String newPass = resetData[2];
-
-                        String expectedOtp = otpStorage.get(reqEmail);
-                        if (expectedOtp != null && expectedOtp.equals(reqOtp)) {
-                            if (DatabaseManager.resetPassword(reqEmail, newPass)) {
-                                otpStorage.remove(reqEmail); 
-                                sendPacket(new Packet(true, "TuyÃ¡Â»â€¡t vÃ¡Â»Âi! MÃ¡ÂºÂ­t khÃ¡ÂºÂ©u cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t."));
-                            } else {
-                                sendPacket(new Packet(false, "LÃ¡Â»â€”i Server: KhÃƒÂ´ng thÃ¡Â»Æ’ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t mÃ¡ÂºÂ­t khÃ¡ÂºÂ©u!"));
-                            }
-                        } else {
-                            sendPacket(new Packet(false, "MÃƒÂ£ OTP khÃƒÂ´ng chÃƒÂ­nh xÃƒÂ¡c hoÃ¡ÂºÂ·c Ã„â€˜ÃƒÂ£ hÃ¡ÂºÂ¿t hÃ¡ÂºÂ¡n!"));
-                        }
-                    }
-                    break;  
-                }
 
                case "UPDATE_AVATAR": {
                     String base64Image = packet.payload;
@@ -1687,18 +1707,147 @@ public class ClientHandler {
             }
         } catch (Exception e) {}
     }
+
+    private com.mycompany.tutorhub_enterprise.models.auth.AuthRequest toAuthRequest(Object payload) {
+        if (payload == null) {
+            return null;
+        }
+        if (payload instanceof com.mycompany.tutorhub_enterprise.models.auth.AuthRequest) {
+            return (com.mycompany.tutorhub_enterprise.models.auth.AuthRequest) payload;
+        }
+        try {
+            com.google.gson.Gson gson = new com.google.gson.Gson();
+            com.google.gson.JsonElement json = gson.toJsonTree(payload);
+            return gson.fromJson(json, com.mycompany.tutorhub_enterprise.models.auth.AuthRequest.class);
+        } catch (Exception e) {
+            System.err.println("[AUTH] Cannot convert payload to AuthRequest: " + e.getMessage());
+            return null;
+        }
+    }
+
     private void handleAuthRequest(Packet packet) {
-        if (!(packet.data instanceof com.mycompany.tutorhub_enterprise.models.auth.AuthRequest)) {
-            System.err.println("LÃ¡Â»â€”i: AUTH action nhÃ†Â°ng payload khÃƒÂ´ng phÃ¡ÂºÂ£i lÃƒÂ  AuthRequest.");
+        System.out.println("[AUTH] Received action: " + packet.action);
+        System.out.println("[AUTH] Payload class = " + (packet.data != null ? packet.data.getClass().getName() : "null"));
+        
+        com.mycompany.tutorhub_enterprise.models.auth.AuthRequest request = toAuthRequest(packet.data);
+        if (request == null) {
+            System.err.println("[AUTH] Lỗi: Không thể convert payload sang AuthRequest.");
+            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail("unknown", "Payload gửi lên máy chủ không hợp lệ.");
+            sendPacket(new Packet(com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.RESPONSE, response));
             return;
         }
-        com.mycompany.tutorhub_enterprise.models.auth.AuthRequest request = (com.mycompany.tutorhub_enterprise.models.auth.AuthRequest) packet.data;
+        System.out.println("[AUTH] Converted payload to AuthRequest successfully");
+        
+        // Validation cho AUTH_SOCIAL_LOGIN
+        if (com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.AUTH_SOCIAL_LOGIN.equals(packet.action)) {
+            if (request.getProvider() == null || request.getProvider().isEmpty() ||
+                request.getAuthorizationCode() == null || request.getAuthorizationCode().isEmpty() ||
+                request.getCodeVerifier() == null || request.getCodeVerifier().isEmpty() ||
+                request.getRedirectUri() == null || request.getRedirectUri().isEmpty() ||
+                request.getNonce() == null || request.getNonce().isEmpty()) {
+                
+                System.err.println("[AUTH] Lỗi: Thiếu tham số cho AUTH_SOCIAL_LOGIN");
+                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                    com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(request.getRequestId(), "Thiếu tham số bắt buộc cho đăng nhập mạng xã hội.");
+                sendPacket(new Packet(com.mycompany.tutorhub_enterprise.models.auth.AuthProtocol.RESPONSE, response));
+                return;
+            }
+            System.out.println("[AUTH] Provider = " + request.getProvider());
+        }
         String requestId = request.getRequestId();
         
         switch (packet.action) {
             case AuthProtocol.LOGIN: {
                 com.mycompany.tutorhub_enterprise.server.AuthService.LoginSession session = com.mycompany.tutorhub_enterprise.server.AuthService.authenticateWithPassword(request.getEmail(), request.getPassword());
                 handleAuthLoginSession(session, requestId);
+                break;
+            }
+            case AuthProtocol.AUTH_SOCIAL_LOGIN: {
+                System.out.println("[AUTH] Received AUTH_SOCIAL_LOGIN from client for provider: " + request.getProvider());
+                com.mycompany.tutorhub_enterprise.server.AuthService.LoginSession session = com.mycompany.tutorhub_enterprise.server.AuthService.authenticateWithSocialProvider(
+                        request.getProvider(),
+                        request.getAuthorizationCode(),
+                        request.getCodeVerifier(),
+                        request.getRedirectUri(),
+                        request.getNonce()
+                );
+                handleAuthLoginSession(session, requestId);
+                break;
+            }
+            case AuthProtocol.AUTH_FACEBOOK_START: {
+                try {
+                    java.util.Map<String, Object> data = com.mycompany.tutorhub_enterprise.server.SocialAuthService.startFacebookLoginSession();
+                    com.google.gson.Gson gson = new com.google.gson.Gson();
+                    String dashboardPayload = gson.toJson(data);
+                    
+                    com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.login(requestId, "FACEBOOK_START_OK", dashboardPayload);
+                    sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                    System.out.println("[FACEBOOK] AUTH_RESPONSE sent for AUTH_FACEBOOK_START success");
+                } catch (Exception e) {
+                    com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, "Lỗi khi bắt đầu đăng nhập Facebook: " + e.getMessage());
+                    sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                    System.out.println("[FACEBOOK] AUTH_RESPONSE sent for AUTH_FACEBOOK_START failure");
+                }
+                break;
+            }
+            case AuthProtocol.AUTH_FACEBOOK_POLL: {
+                FacebookPendingSession pendingSession = com.mycompany.tutorhub_enterprise.server.SocialAuthService.pollFacebookLogin(request.getSessionId());
+                System.out.println("[FACEBOOK_POLL] session found = " + (pendingSession != null));
+                if (pendingSession == null) {
+                    System.out.println("[FACEBOOK_POLL] returning FAILED (Not found)");
+                    com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, "Phiên đăng nhập không tồn tại hoặc đã hết hạn.");
+                    sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                } else {
+                    System.out.println("[FACEBOOK_POLL] status = " + pendingSession.getStatus());
+                    if (pendingSession.getStatus() == FacebookPendingSession.Status.SUCCESS) {
+                        System.out.println("[FACEBOOK_POLL] hasAuthResponse = " + (pendingSession.getPayload() != null));
+                        System.out.println("[FACEBOOK_POLL] returning SUCCESS");
+                        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse res = pendingSession.getPayload();
+                        if (res != null) {
+                            String dbPayload = res.getDashboardPayload();
+                            // parse uid to register online
+                            if (dbPayload != null && dbPayload.contains("|")) {
+                                try {
+                                    String[] parts = dbPayload.split("\\|");
+                                    if (parts.length > 1) {
+                                        this.userId = Integer.parseInt(parts[1]);
+                                        this.clientId = "User_" + this.userId; // Mock email identity
+                                        onlineClients.put(this.clientId, this);
+                                        for (ClientHandler client : onlineClients.values()) {
+                                            if (!client.clientId.equals(this.clientId)) {
+                                                client.sendPacket(new Packet("USER_ONLINE", String.valueOf(this.userId)));
+                                            }
+                                        }
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse finalRes = 
+                                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.loginWithSession(
+                                    requestId, res.getMessage(), res.getDashboardPayload(), res.getSessionInfo());
+                            sendPacket(new Packet(AuthProtocol.RESPONSE, finalRes));
+                        } else {
+                            System.out.println("[FACEBOOK_POLL] missing AuthResponse payload despite SUCCESS");
+                            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, "Lỗi bất thường: Không có thông tin người dùng.");
+                            sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                        }
+                    } else if (pendingSession.getStatus() == FacebookPendingSession.Status.FAILED) {
+                        System.out.println("[FACEBOOK_POLL] returning FAILED");
+                        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, pendingSession.getErrorMessage());
+                        sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                    } else {
+                        System.out.println("[FACEBOOK_POLL] returning PENDING");
+                        // PENDING
+                        com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                            com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.ok(requestId, "PENDING");
+                        sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                    }
+                }
                 break;
             }
             case AuthProtocol.REQUEST_REGISTRATION_OTP: {
@@ -1731,6 +1880,23 @@ public class ClientHandler {
                 handleAuthLoginSession(session, requestId);
                 break;
             }
+            case AuthProtocol.AUTH_LOGOUT: {
+                System.out.println("[AUTH_LOGOUT] revoke requested");
+                try {
+                    boolean revoked = com.mycompany.tutorhub_enterprise.server.SessionService.revokeSession(request.getSessionId(), request.getAccessToken());
+                    if (revoked) {
+                        System.out.println("[AUTH_LOGOUT] session revoked successfully");
+                    } else {
+                        System.out.println("[AUTH_LOGOUT] session revoked or already inactive");
+                    }
+                } catch (Exception e) {
+                    System.out.println("[AUTH_LOGOUT] session revoked or already inactive");
+                }
+                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
+                    com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.ok(requestId, "Logout successful.");
+                sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+                break;
+            }
             default: {
                 System.err.println("Unsupported AUTH action: " + packet.action);
                 break;
@@ -1738,16 +1904,22 @@ public class ClientHandler {
         }
     }
 
+    private void rejectLegacyPasswordResetAction(String action) {
+        System.err.println("[AUTH_SECURITY] Legacy password reset action rejected: " + action);
+        sendPacket(new Packet(false, LEGACY_PASSWORD_RESET_REJECT_MESSAGE));
+    }
+
     private void handleAuthLoginSession(com.mycompany.tutorhub_enterprise.server.AuthService.LoginSession session, String requestId) {
         if (session.isSuccess()) {
+            System.out.println("[AUTH] AUTH_RESPONSE sent success for requestId: " + requestId);
             onlineClients.remove(this.clientId);
             this.clientId = session.getIdentity();
             this.userId = session.getUserId();
             onlineClients.put(this.clientId, this);
             
-            String dashboardPayload = "DASHBOARD_GO|" + this.userId + "|" + session.getRole() + "|" + session.getAvatarBase64();
+            String dashboardPayload = "DASHBOARD_GO|" + this.userId + "|" + session.getRole() + "|" + session.getAvatarBase64() + "|" + session.getIdentity();
             com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
-                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.login(requestId, "Ã„ÂÃ„Æ’ng nhÃ¡ÂºÂ­p thÃƒÂ nh cÃƒÂ´ng!", dashboardPayload);
+                com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.loginWithSession(requestId, "Ã„ÂÃ„Æ’ng nhÃ¡ÂºÂ­p thÃƒÂ nh cÃƒÂ´ng!", dashboardPayload, session.getSessionInfo());
             sendPacket(new Packet(AuthProtocol.RESPONSE, response));
             
             for (ClientHandler client : onlineClients.values()) {
@@ -1756,6 +1928,7 @@ public class ClientHandler {
                 }
             }
         } else {
+            System.out.println("[AUTH] AUTH_RESPONSE sent failure for requestId: " + requestId + ". Reason: " + session.getMessage());
             com.mycompany.tutorhub_enterprise.models.auth.AuthResponse response = 
                 com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, session.getMessage());
             sendPacket(new Packet(AuthProtocol.RESPONSE, response));
@@ -1770,5 +1943,106 @@ public class ClientHandler {
             response = com.mycompany.tutorhub_enterprise.models.auth.AuthResponse.fail(requestId, result.getMessage());
         }
         sendPacket(new Packet(AuthProtocol.RESPONSE, response));
+    }
+
+    private void handleLocketRequest(Packet packet) {
+        if (this.userId == -1) {
+            sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Unauthorized"));
+            return;
+        }
+
+        try {
+            com.google.gson.JsonObject payload = com.google.gson.JsonParser.parseString(packet.payload).getAsJsonObject();
+
+            switch (packet.action) {
+                case AuthProtocol.LOCKET_POST_LIST: {
+                    int limit = payload.has("limit") ? payload.get("limit").getAsInt() : 10;
+                    long cursor = payload.has("cursor") ? payload.get("cursor").getAsLong() : 0;
+                    
+                    java.util.List<com.mycompany.tutorhub_enterprise.models.locket.LocketPostViewDTO> posts = 
+                        com.mycompany.tutorhub_enterprise.server.services.LocketService.listPosts(this.userId, limit, cursor);
+                    
+                    sendPacket(new Packet(AuthProtocol.LOCKET_POST_LIST_SUCCESS, new com.google.gson.Gson().toJson(posts)));
+                    break;
+                }
+                case AuthProtocol.LOCKET_POST_CREATE: {
+                    String imageUrl = payload.get("imageUrl").getAsString();
+                    String thumbnailUrl = payload.has("thumbnailUrl") ? payload.get("thumbnailUrl").getAsString() : imageUrl;
+                    String caption = payload.has("caption") ? payload.get("caption").getAsString() : "";
+                    
+                    com.mycompany.tutorhub_enterprise.models.locket.LocketPostModel post = 
+                        com.mycompany.tutorhub_enterprise.server.services.LocketService.createPost(this.userId, imageUrl, thumbnailUrl, caption);
+                    
+                    if (post != null) {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_POST_CREATE_SUCCESS, new com.google.gson.Gson().toJson(post)));
+                    } else {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Failed to create post"));
+                    }
+                    break;
+                }
+                case AuthProtocol.LOCKET_POST_DELETE: {
+                    long postId = payload.get("postId").getAsLong();
+                    boolean success = com.mycompany.tutorhub_enterprise.server.services.LocketService.deletePost(postId, this.userId);
+                    if (success) {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_POST_DELETE_SUCCESS, String.valueOf(postId)));
+                    } else {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Failed to delete post"));
+                    }
+                    break;
+                }
+                case AuthProtocol.LOCKET_POST_REACT: {
+                    long postId = payload.get("postId").getAsLong();
+                    boolean reacted = com.mycompany.tutorhub_enterprise.server.services.LocketService.toggleReaction(postId, this.userId);
+                    
+                    com.google.gson.JsonObject resp = new com.google.gson.JsonObject();
+                    resp.addProperty("postId", postId);
+                    resp.addProperty("reacted", reacted);
+                    sendPacket(new Packet(AuthProtocol.LOCKET_POST_REACT_SUCCESS, resp.toString()));
+                    break;
+                }
+                case AuthProtocol.LOCKET_COMMENT_LIST: {
+                    long postId = payload.get("postId").getAsLong();
+                    int limit = payload.has("limit") ? payload.get("limit").getAsInt() : 10;
+                    long cursor = payload.has("cursor") ? payload.get("cursor").getAsLong() : 0;
+                    
+                    java.util.List<com.mycompany.tutorhub_enterprise.models.locket.LocketCommentViewDTO> comments = 
+                        com.mycompany.tutorhub_enterprise.server.services.LocketService.listComments(postId, this.userId, limit, cursor);
+                    
+                    sendPacket(new Packet(AuthProtocol.LOCKET_COMMENT_LIST_SUCCESS, new com.google.gson.Gson().toJson(comments)));
+                    break;
+                }
+                case AuthProtocol.LOCKET_COMMENT_CREATE: {
+                    long postId = payload.get("postId").getAsLong();
+                    String content = payload.get("content").getAsString();
+                    
+                    com.mycompany.tutorhub_enterprise.models.locket.LocketCommentModel comment = 
+                        com.mycompany.tutorhub_enterprise.server.services.LocketService.createComment(postId, this.userId, content);
+                    
+                    if (comment != null) {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_COMMENT_CREATE_SUCCESS, new com.google.gson.Gson().toJson(comment)));
+                    } else {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Failed to create comment"));
+                    }
+                    break;
+                }
+                case AuthProtocol.LOCKET_COMMENT_DELETE: {
+                    long commentId = payload.get("commentId").getAsLong();
+                    boolean success = com.mycompany.tutorhub_enterprise.server.services.LocketService.deleteComment(commentId, this.userId);
+                    if (success) {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_COMMENT_DELETE_SUCCESS, String.valueOf(commentId)));
+                    } else {
+                        sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Failed to delete comment"));
+                    }
+                    break;
+                }
+                default:
+                    System.err.println("Unsupported LOCKET action: " + packet.action);
+                    break;
+            }
+        } catch (Exception e) {
+            System.err.println("[LOCKET ERROR] Failed to handle request: " + e.getMessage());
+            e.printStackTrace();
+            sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Internal server error: " + e.getMessage()));
+        }
     }
 }

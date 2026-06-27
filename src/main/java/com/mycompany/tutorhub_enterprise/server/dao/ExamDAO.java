@@ -60,6 +60,7 @@ public class ExamDAO {
                 e.securityConfig = rs.getString("security_config");
                 e.status = rs.getString("status");
                 e.createdAt = rs.getTimestamp("created_at");
+                e.paperId = rs.getObject("paper_id") != null ? rs.getInt("paper_id") : null;
                 list.add(e);
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -84,6 +85,7 @@ public class ExamDAO {
                 e.securityConfig = rs.getString("security_config");
                 e.status = rs.getString("status");
                 e.createdAt = rs.getTimestamp("created_at");
+                e.paperId = rs.getObject("paper_id") != null ? rs.getInt("paper_id") : null;
                 list.add(e);
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -107,6 +109,7 @@ public class ExamDAO {
                 e.securityConfig = rs.getString("security_config");
                 e.status = rs.getString("status");
                 e.createdAt = rs.getTimestamp("created_at");
+                e.paperId = rs.getObject("paper_id") != null ? rs.getInt("paper_id") : null;
                 return e;
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -155,6 +158,50 @@ public class ExamDAO {
             }
         } catch (Exception e) { e.printStackTrace(); }
         return list;
+    }
+
+    public static List<Exam> getExamsForStudent() {
+        List<Exam> list = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.* " +
+                     "FROM exams e " +
+                     "JOIN exam_papers p ON p.id = e.paper_id " +
+                     "JOIN exam_paper_questions epq ON epq.paper_id = p.id " +
+                     "WHERE e.status = 'ACTIVE' " +
+                     "ORDER BY e.id DESC";
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                Exam e = new Exam();
+                e.id = rs.getInt("id");
+                e.creatorId = rs.getInt("creator_id");
+                e.title = rs.getString("title");
+                e.description = rs.getString("description");
+                e.durationMins = rs.getInt("duration_mins");
+                e.openAt = rs.getTimestamp("open_at");
+                e.closeAt = rs.getTimestamp("close_at");
+                e.securityConfig = rs.getString("security_config");
+                e.status = rs.getString("status");
+                e.paperId = rs.getInt("paper_id");
+                list.add(e);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return list;
+    }
+
+    public static String getUserRole(int userId) {
+        String sql = "SELECT role FROM users WHERE id = ?";
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.setInt(1, userId);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                return rs.getString("role");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return "";
     }
 
     public static int createSession(ExamSession session) {
@@ -207,6 +254,49 @@ public class ExamDAO {
             return pst.executeUpdate() > 0;
         } catch (Exception e) { e.printStackTrace(); }
         return false;
+    }
+
+    // --- Phase 4B: Paper-to-Exam Assignment ---
+    public static boolean assignPaperToExam(int examId, int paperId) {
+        String sql = "UPDATE exams SET paper_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.setInt(1, paperId);
+            pst.setInt(2, examId);
+            return pst.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static boolean unassignPaperFromExam(int examId) {
+        String sql = "UPDATE exams SET paper_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.setInt(1, examId);
+            return pst.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static Integer getAssignedPaperId(int examId) {
+        String sql = "SELECT paper_id FROM exams WHERE id = ?";
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.setInt(1, examId);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                Object pId = rs.getObject("paper_id");
+                return pId != null ? ((Number) pId).intValue() : null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static Exam getExamWithAssignedPaper(int examId) {
+        return getExamById(examId);
     }
 
     public static boolean saveAnswer(int sessionId, int questionId, String answerData) {

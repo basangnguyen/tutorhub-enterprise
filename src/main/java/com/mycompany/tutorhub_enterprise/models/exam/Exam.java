@@ -20,6 +20,8 @@ public class Exam implements Serializable {
     
     public Timestamp createdAt;
     public Timestamp updatedAt;
+    
+    public Integer paperId;
 
     public Exam() {}
 

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TutorHub Enterprise — Đăng nhập thành công</title>
+  <meta name="description" content="Bạn đã đăng nhập thành công vào TutorHub Enterprise." />
+  <link rel="stylesheet" href="auth-success.css" />
+</head>
+<body>
+
+  <!-- ═══ BACKGROUND DECORATIONS (purely visual, no logic) ═══ -->
+  <div class="bg-decor" aria-hidden="true">
+    <div class="bg-aurora"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-blob bg-blob--a"></div>
+    <div class="bg-blob bg-blob--b"></div>
+    <div class="bg-blob bg-blob--c"></div>
+    <div class="bg-blob bg-blob--d"></div>
+    <div class="bg-beam bg-beam--a"></div>
+    <div class="bg-beam bg-beam--b"></div>
+  </div>
+
+  <!-- ═══ CANVAS LAYERS ═══ -->
+  <!-- Ambient orbit + mouse-trail — id="petalCanvas" kept for compatibility -->
+  <canvas id="petalCanvas"></canvas>
+  <!-- Firework bursts — id="fxCanvas" kept for compatibility -->
+  <canvas id="fxCanvas"></canvas>
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="topbar">
+    <div class="brand">
+      <img src="../images/logomoi.png" alt="TutorHub Logo" />
+      <span>TutorHub</span>
+      <small>Enterprise</small>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-download" onclick="tryCloseTab()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>Mở ứng dụng</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="success-screen">
+    <div class="hero-stage">
+
+      <!-- ── LEFT COLUMN: content ── -->
+      <div class="hero-content">
+
+        <!-- Floating glass decorative cards (single-column only, purely decorative) -->
+        <div class="floating-card fc-1" aria-hidden="true">
+          <span class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l1.6 4.8L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.2L12 2z"></path>
+              <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"></path>
+            </svg>
+          </span>
+          AI-powered tutoring
+        </div>
+        <div class="floating-card fc-2" aria-hidden="true">
+          <span class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="13" rx="2"></rect>
+              <path d="M8 21h8M12 17v4"></path>
+            </svg>
+          </span>
+          Smart classroom
+        </div>
+        <div class="floating-card fc-3" aria-hidden="true">
+          <span class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l7 3v5c0 5-3 7.5-7 9-4-1.5-7-4-7-9V6l7-3z"></path>
+              <polyline points="9.5 12 11.5 14 14.5 10.5"></polyline>
+            </svg>
+          </span>
+          Secure exam
+        </div>
+        <div class="floating-card fc-4" aria-hidden="true">
+          <span class="fc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"></path>
+              <circle cx="12" cy="16.2" r="0.3" fill="currentColor"></circle>
+            </svg>
+          </span>
+          QuizHub
+        </div>
+
+        <!-- Logo mark -->
+        <div class="logo-mark">
+          <div class="logo-glow"></div>
+          <div class="logo-ring"></div>
+          <span class="sparkle sparkle-1"></span>
+          <span class="sparkle sparkle-2"></span>
+          <span class="sparkle sparkle-3"></span>
+          <span class="sparkle sparkle-4"></span>
+          <img src="../images/logomoi.png" alt="TutorHub Enterprise" />
+        </div>
+
+        <!-- Success check icon -->
+        <div class="success-check">
+          <svg viewBox="0 0 24 24"><polyline points="5 12 10 17 19 8"></polyline></svg>
+        </div>
+
+        <!-- ── Glass panel: all textual content ── -->
+        <div class="glass-panel">
+
+          <!-- Provider badge — id/logic kept exactly, styled only -->
+          <span class="provider-label" id="providerLabel" style="display:none;">
+            <img id="providerIcon" src="" alt="" />
+            <span id="providerText">Đăng nhập thành công</span>
+          </span>
+
+          <h1>TutorHub Enterprise</h1>
+          <h2>Bạn đã đăng nhập thành công.</h2>
+          <p class="sub-en">You have successfully authenticated.</p>
+          <p>Bạn có thể quay lại ứng dụng TutorHub để tiếp tục.</p>
+
+          <div class="cta-row">
+            <!-- id="ctaOpenApp" kept — JS hooks firework burst onto this -->
+            <button class="btn-primary" id="ctaOpenApp" onclick="tryCloseTab()">
+              Mở TutorHub
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </button>
+            <!-- id="ctaBackToLogin" kept -->
+            <button class="btn-secondary" id="ctaBackToLogin" onclick="goBackToLogin()">
+              Quay lại đăng nhập
+            </button>
+          </div>
+
+          <a class="link-secondary" href="javascript:void(0)" onclick="tryCloseTab()">
+            Nếu không tự chuyển, bấm vào đây
+          </a>
+
+          <!-- id="countdown" + id="countdownNum" kept — JS countdown hooks here -->
+          <div class="countdown" id="countdown">
+            Tự đóng sau <span id="countdownNum">5</span> giây...
+          </div>
+
+        </div><!-- /.glass-panel -->
+      </div><!-- /.hero-content -->
+
+      <!-- ── RIGHT COLUMN: CSS app mockup visual ── -->
+      <div class="mockup-wrap" aria-hidden="true">
+
+        <!-- Radial glow behind the mockup -->
+        <div class="mockup-glow"></div>
+
+        <!-- 3D tilt container — id="mockupTilt" used by JS -->
+        <div class="tilt-wrap" id="mockupTilt">
+
+          <!-- Browser window (all CSS, no external images) -->
+          <div class="mockup-browser">
+
+            <!-- Title bar -->
+            <div class="mockup-titlebar">
+              <div class="traffic-lights">
+                <span class="tl-r"></span>
+                <span class="tl-y"></span>
+                <span class="tl-g"></span>
+              </div>
+              <div class="addr-bar">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                app.tutorhub.vn
+              </div>
+              <div class="titlebar-dots"><span></span><span></span><span></span></div>
+            </div>
+
+            <!-- App body: sidebar + main dashboard -->
+            <div class="mockup-body">
+
+              <!-- Compact sidebar -->
+              <div class="mockup-sidebar">
+                <div class="ms-brand"><div class="ms-brand-icon"></div></div>
+                <div class="ms-nav">
+                  <div class="ms-item ms-active"><span class="ms-pip ms-pip--on"></span></div>
+                  <div class="ms-item"><span class="ms-pip"></span></div>
+                  <div class="ms-item"><span class="ms-pip"></span></div>
+                  <div class="ms-item"><span class="ms-pip"></span></div>
+                  <div class="ms-item"><span class="ms-pip"></span></div>
+                </div>
+                <div class="ms-avatar"></div>
+              </div>
+
+              <!-- Dashboard main content -->
+              <div class="mockup-main">
+
+                <!-- Greeting skeleton -->
+                <div class="mm-greeting">
+                  <div class="mm-bar mm-bar--w80 mm-bar--h8"></div>
+                  <div class="mm-bar mm-bar--w50 mm-bar--h5" style="margin-top:5px"></div>
+                </div>
+
+                <!-- Stat cards row -->
+                <div class="mm-stats-row">
+                  <div class="mm-stat mm-stat--purple">
+                    <div class="mm-stat-num">24</div>
+                    <div class="mm-stat-lbl">Lớp học</div>
+                    <div class="mm-stat-bar"><div class="mm-stat-fill" style="width:72%"></div></div>
+                  </div>
+                  <div class="mm-stat mm-stat--sky">
+                    <div class="mm-stat-num">147</div>
+                    <div class="mm-stat-lbl">Điểm TB</div>
+                    <div class="mm-stat-bar"><div class="mm-stat-fill" style="width:88%"></div></div>
+                  </div>
+                  <div class="mm-stat mm-stat--green">
+                    <div class="mm-stat-num">98%</div>
+                    <div class="mm-stat-lbl">Hài lòng</div>
+                    <div class="mm-stat-bar"><div class="mm-stat-fill" style="width:96%"></div></div>
+                  </div>
+                </div>
+
+                <!-- Section label -->
+                <div class="mm-label">LỚP HỌC NỔI BẬT</div>
+
+                <!-- Class list -->
+                <div class="mm-classes">
+                  <div class="mm-cls">
+                    <div class="mm-cls-av mm-av--purple"></div>
+                    <div class="mm-cls-info">
+                      <div class="mm-cls-name">Toán cao cấp A1</div>
+                      <div class="mm-cls-sub">32 học sinh · Đang hoạt động</div>
+                    </div>
+                    <span class="mm-badge mm-badge--hot">HOT</span>
+                  </div>
+                  <div class="mm-cls">
+                    <div class="mm-cls-av mm-av--sky"></div>
+                    <div class="mm-cls-info">
+                      <div class="mm-cls-name">Tiếng Anh giao tiếp</div>
+                      <div class="mm-cls-sub">28 học sinh · Còn lớp</div>
+                    </div>
+                    <span class="mm-badge mm-badge--new">MỚI</span>
+                  </div>
+                  <div class="mm-cls">
+                    <div class="mm-cls-av mm-av--green"></div>
+                    <div class="mm-cls-info">
+                      <div class="mm-cls-name">Vật lý lớp 12</div>
+                      <div class="mm-cls-sub">45 học sinh · VIP</div>
+                    </div>
+                    <span class="mm-badge mm-badge--vip">VIP</span>
+                  </div>
+                </div>
+
+                <!-- Promo banner -->
+                <div class="mm-banner">
+                  <div class="mm-banner-text">
+                    <div class="mm-banner-title">Back to School 🎒</div>
+                    <div class="mm-banner-sub">Ưu đãi đặc biệt tháng 9</div>
+                  </div>
+                  <div class="mm-banner-cta">Đăng ký →</div>
+                </div>
+
+              </div><!-- /.mockup-main -->
+            </div><!-- /.mockup-body -->
+          </div><!-- /.mockup-browser -->
+
+          <!-- Shine sweep overlay — id="mockShine" used by JS -->
+          <div class="mock-shine" id="mockShine"></div>
+
+        </div><!-- /.tilt-wrap -->
+
+        <!-- Mini floating stat cards around the mockup -->
+        <div class="mfc mfc-1">
+          <div class="mfc-icon">✨</div>
+          <div class="mfc-body">
+            <div class="mfc-val">2,847</div>
+            <div class="mfc-lab">Học sinh</div>
+          </div>
+        </div>
+        <div class="mfc mfc-2">
+          <div class="mfc-icon">⭐</div>
+          <div class="mfc-body">
+            <div class="mfc-val">4.9 / 5</div>
+            <div class="mfc-lab">Đánh giá</div>
+          </div>
+        </div>
+        <div class="mfc mfc-3">
+          <div class="mfc-icon">🎓</div>
+          <div class="mfc-body">
+            <div class="mfc-val">98%</div>
+            <div class="mfc-lab">Hài lòng</div>
+          </div>
+        </div>
+
+      </div><!-- /.mockup-wrap -->
+
+    </div><!-- /.hero-stage -->
+  </main>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="page-footer">
+    <span>© 2026 TutorHub Enterprise</span>
+    <span>·</span>
+    <a href="#">Điều khoản</a>
+    <span>·</span>
+    <a href="#">Quyền riêng tư</a>
+  </footer>
+
+  <!-- Core navigation helpers — UNCHANGED behavior, no backend/route/token logic -->
+  <script>
+    function tryCloseTab() {
+      try { window.close(); } catch (e) {}
+    }
+    // "Quay lại đăng nhập" — generic client-side back navigation only
+    function goBackToLogin() {
+      try {
+        if (window.history.length > 1) { window.history.back(); return; }
+      } catch (e) {}
+      tryCloseTab();
+    }
+  </script>
+  <script src="auth-success.js"></script>
+
+  <!-- Contact FABs — UNCHANGED -->
+  <div class="contact-fabs">
+    <a href="https://www.facebook.com/basangg2903" target="_blank" class="fab fab-fb" title="Facebook">
+      <img src="/images/icon/facebook.svg" alt="Facebook">
+    </a>
+    <a href="https://zalo.me/0355938032" target="_blank" class="fab fab-zl" title="Zalo">
+      <img src="/images/icon/zalo-2.png" alt="Zalo">
+    </a>
+    <a href="https://www.instagram.com/basangg2903/" target="_blank" class="fab fab-ig" title="Instagram">
+      <img src="/images/icon/instagram.svg" alt="Instagram">
+    </a>
+  </div>
+
+  <!-- Provider detection — UNCHANGED logic from original -->
+  <script>
+    if (typeof window.__AUTH_PROVIDER === 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const provider = urlParams.get('provider');
+      const el = document.getElementById('providerLabel');
+      const txt = document.getElementById('providerText');
+      const icon = document.getElementById('providerIcon');
+
+      if (provider) {
+        window.__AUTH_PROVIDER = provider;
+        if (el && txt) {
+          if (provider === 'google') {
+            txt.textContent = 'Đăng nhập bằng Google thành công';
+            if (icon) { icon.src = '/images/icon/google.svg'; icon.style.display = 'inline-block'; }
+            el.style.display = 'inline-flex';
+          } else if (provider === 'facebook') {
+            txt.textContent = 'Đăng nhập bằng Facebook thành công';
+            if (icon) { icon.src = '/images/icon/facebook.svg'; icon.style.display = 'inline-block'; }
+            el.style.display = 'inline-flex';
+          } else {
+            txt.textContent = 'Đăng nhập thành công';
+            if (icon) icon.style.display = 'none';
+            el.style.display = 'inline-flex';
+          }
+        }
+      } else {
+        if (el && txt) {
+          txt.textContent = 'Đăng nhập thành công';
+          if (icon) icon.style.display = 'none';
+          el.style.display = 'inline-flex';
+        }
+      }
+    }
+  </script>
+</body>
+</html>

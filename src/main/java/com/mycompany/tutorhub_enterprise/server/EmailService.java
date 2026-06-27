@@ -14,14 +14,34 @@ public class EmailService {
     // 1. Email gửi đi
     private static final String SENDER_EMAIL = ServerConfig.get("TUTORHUB_SMTP_USER", "tutorhub.smtp.user", "");
     
+    
     // 2. Mật khẩu ứng dụng 16 ký tự
     private static final String APP_PASSWORD = ServerConfig.get("TUTORHUB_SMTP_PASSWORD", "tutorhub.smtp.password", "");
     private static final String SMTP_HOST = ServerConfig.get("TUTORHUB_SMTP_HOST", "tutorhub.smtp.host", "smtp.gmail.com");
     private static final String SMTP_PORT = ServerConfig.get("TUTORHUB_SMTP_PORT", "tutorhub.smtp.port", "587");
     private static final String MAIL_FROM_NAME = ServerConfig.get("TUTORHUB_SMTP_FROM_NAME", "tutorhub.smtp.fromName", "TutorHub Enterprise");
     
+    // Delivery Mode Config
+    private static final String EMAIL_DELIVERY_MODE = ServerConfig.get("TUTORHUB_EMAIL_DELIVERY_MODE", "tutorhub.email.deliveryMode", "smtp");
+    private static final String APPS_SCRIPT_URL = ServerConfig.get("TUTORHUB_EMAIL_RELAY_URL", "tutorhub.email.relayUrl", "");
+    private static final String APPS_SCRIPT_SECRET = ServerConfig.get("TUTORHUB_EMAIL_RELAY_SHARED_SECRET", "tutorhub.email.relaySharedSecret", "");
+
+    private static final java.net.http.HttpClient HTTP_CLIENT = java.net.http.HttpClient.newBuilder()
+            .version(java.net.http.HttpClient.Version.HTTP_1_1)
+            .connectTimeout(java.time.Duration.ofSeconds(10))
+            .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
+            .build();
+    
     // 3. ĐƯỜNG LINK LOGO TRỰC TUYẾN
-    private static final String LOGO_URL = "https://i.postimg.cc/xjtYgsH9/Tutor-Hub-(40-x-40-px)-(512-x-512-px)-(1).png";
+    private static final String LOGO_URL = "https://wsrv.nl/?url=files.catbox.moe/k1ecwj.svg&output=png&w=144&h=144";
+
+    static {
+        System.out.println("[EMAIL] SMTP host configured = " + !ServerConfig.isBlank(SMTP_HOST));
+        System.out.println("[EMAIL] SMTP user configured = " + !ServerConfig.isBlank(SENDER_EMAIL));
+        System.out.println("[EMAIL] SMTP password configured = " + !ServerConfig.isBlank(APP_PASSWORD));
+        System.out.println("[EMAIL] SMTP configured = " + (!ServerConfig.isBlank(SENDER_EMAIL) && !ServerConfig.isBlank(APP_PASSWORD)));
+    }
+
 
     // ==============================================================
     // 📧 1. MẪU 2: EMAIL THƯ MỜI SỰ KIỆN LỊCH TRÌNH (EVENT)
@@ -177,6 +197,29 @@ public class EmailService {
             html.append("");
             html.append("</td></tr></table></body></html>");
             
+            // Xây dựng text body an toàn
+            StringBuilder textBody = new StringBuilder();
+            textBody.append("Xin chào,\n\n");
+            textBody.append("Bạn có một lịch học/sự kiện mới trên TutorHub.\n\n");
+            textBody.append("Tiêu đề: ").append(title).append("\n");
+            textBody.append("Thời gian: ").append(timeStr).append("\n");
+            if (location != null && !location.isEmpty()) {
+                textBody.append("Địa điểm: ").append(location).append("\n");
+            }
+            if (description != null && !description.isEmpty()) {
+                textBody.append("Ghi chú: ").append(description).append("\n");
+            }
+            textBody.append("\nVui lòng kiểm tra TutorHub để biết thêm chi tiết.\n\n");
+            textBody.append("TutorHub Enterprise");
+            
+            if (meetLink != null && !meetLink.isEmpty()) {
+                textBody.append("\nLink học trực tuyến: ").append(meetLink);
+            }
+
+            if ("apps_script".equalsIgnoreCase(EMAIL_DELIVERY_MODE)) {
+                return sendViaAppsScript(recipientEmail, message.getSubject(), textBody.toString(), html.toString());
+            }
+
             // Đóng gói nội dung và đính kèm (nếu có)
             Multipart multipart = new MimeMultipart();
             
@@ -197,19 +240,18 @@ public class EmailService {
 
             message.setContent(multipart);
             Transport.send(message); 
-            System.out.println("✅ Đã gửi Email thành công tới: " + recipientEmail);
+            System.out.println("[EMAIL] Successfully sent email via SMTP.");
             return true;
             
         } catch (Exception e) {
-            System.err.println("❌ Lỗi gửi email: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("[EMAIL] Failed to send email: " + e.getClass().getSimpleName());
             return false;
         }
     }
 
     static boolean sendOTP(String email, String otpCode) {
         if (ServerConfig.isAuthDevMode()) {
-            System.out.println("[AUTH DEV] Email OTP for " + email + ": " + otpCode);
+            System.out.println("[AUTH DEV] Email OTP generated (hidden for security)");
             return true;
         }
 
@@ -228,12 +270,68 @@ public class EmailService {
                 + "</td></tr>"
                 + "</table></td></tr></table></body></html>";
 
-        return sendSimpleHtmlEmail(email, "[TutorHub] Verification code", html);
+        String subject = "[TutorHub] Verification code";
+        String textBody = "Your TutorHub verification code is: " + otpCode;
+
+        if ("apps_script".equalsIgnoreCase(EMAIL_DELIVERY_MODE)) {
+            return sendViaAppsScript(email, subject, textBody, html);
+        } else {
+            return sendSimpleHtmlEmail(email, subject, html);
+        }
+    }
+
+    private static boolean sendViaAppsScript(String recipientEmail, String subject, String textBody, String htmlBody) {
+        System.out.println("[EMAIL] delivery mode = apps_script");
+        try {
+            if (ServerConfig.isBlank(APPS_SCRIPT_URL) || ServerConfig.isBlank(APPS_SCRIPT_SECRET)) {
+                System.err.println("[EMAIL] apps_script mode failed: Missing URL or Secret");
+                return false;
+            }
+
+            com.google.gson.JsonObject json = new com.google.gson.JsonObject();
+            json.addProperty("secret", APPS_SCRIPT_SECRET);
+            json.addProperty("to", recipientEmail);
+            json.addProperty("subject", subject);
+            json.addProperty("text", textBody);
+            json.addProperty("html", htmlBody);
+            json.addProperty("purpose", "password_reset");
+
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(APPS_SCRIPT_URL))
+                    .header("Content-Type", "application/json; charset=UTF-8")
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(json.toString()))
+                    .build();
+
+            java.net.http.HttpResponse<String> response = HTTP_CLIENT.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+            
+            response.previousResponse().ifPresent(prev -> {
+                System.out.println("[EMAIL] Apps Script relay redirect status = " + prev.statusCode());
+            });
+            
+            System.out.println("[EMAIL] Apps Script relay final status = " + response.statusCode());
+            
+            if (response.statusCode() == 200) {
+                com.google.gson.JsonObject resJson = com.google.gson.JsonParser.parseString(response.body()).getAsJsonObject();
+                boolean success = resJson.has("success") && resJson.get("success").getAsBoolean();
+                System.out.println("[EMAIL] Apps Script relay success = " + success);
+                
+                if (success) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } catch (Exception e) {
+            System.err.println("[EMAIL] Failed to send via Apps Script: " + e.getClass().getSimpleName());
+            return false;
+        }
     }
 
     private static Session createMailSession() {
         if (ServerConfig.isBlank(SENDER_EMAIL) || ServerConfig.isBlank(APP_PASSWORD)) {
-            System.err.println("[EMAIL] Missing SMTP credentials. Set TUTORHUB_SMTP_USER and TUTORHUB_SMTP_PASSWORD.");
+            System.err.println("[EMAIL] SMTP configured = false (Missing credentials)");
             return null;
         }
 
@@ -266,7 +364,7 @@ public class EmailService {
             Transport.send(message);
             return true;
         } catch (Exception e) {
-            System.err.println("[EMAIL] Failed to send OTP email: " + e.getMessage());
+            System.err.println("[EMAIL] Failed to send OTP email: " + e.getClass().getSimpleName());
             return false;
         }
     }

@@ -1,0 +1,75 @@
+warning: in the working copy of 'Dockerfile.core', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build_portable.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/AuthClient.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/HomeTab.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/MainDashboard.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/dao/LocalDatabaseManager.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/services/NetworkTSEExamService.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/BatteryStatusIcon.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/ExamFooterStatusBar.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/TSEBrightnessController.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/TSEConfigListPanel.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/TSEExamChildClient.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/TSEJcefLifecycleManager.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/TSELoginPanel.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/TSEQuickSettingsManager.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/client/managers/LockdownManager.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/models/auth/AuthProtocol.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/models/auth/AuthRequest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/models/auth/AuthResponse.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/models/exam/Exam.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/models/exam/Question.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/server/AuthService.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/server/EmailService.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/mycompany/tutorhub_enterprise/server/db/ExamDatabaseManager.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/resources/application.example.properties', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/resources/tse/tse-tray-flyout.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/com/mycompany/tutorhub_enterprise/AuthProtocolSmokeTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tutorhub_lockdown/src/main.rs', LF will be replaced by CRLF the next time Git touches it
+ .gitignore                                         |  Bin [31m1659[m -> [32m1759[m bytes
+ Dockerfile.core                                    |   31 [32m+[m[31m-[m
+ README.md                                          |   11 [32m+[m
+ build_portable.ps1                                 |   28 [32m+[m[31m-[m
+ docs/secure_exam_tasks_v2.md                       | 1648 [32m++++++++++++++[m[31m------[m
+ pom.xml                                            |    9 [32m+[m[31m-[m
+ .../tutorhub_enterprise/client/AuthClient.java     |   40 [32m+[m
+ .../tutorhub_enterprise/client/HeaderPanel.java    |   21 [32m+[m[31m-[m
+ .../tutorhub_enterprise/client/HomeTab.java        |  199 [32m++[m[31m-[m
+ .../tutorhub_enterprise/client/LoginFrame.java     |  328 [32m+[m[31m---[m
+ .../tutorhub_enterprise/client/MainDashboard.java  |   48 [32m+[m[31m-[m
+ .../tutorhub_enterprise/client/NetworkManager.java |   46 [32m+[m[31m-[m
+ .../tutorhub_enterprise/client/ScheduleTab.java    |   93 [32m+[m[31m-[m
+ .../client/VideoReelSection.java                   |   15 [32m+[m[31m-[m
+ .../client/dao/LocalDatabaseManager.java           |    3 [32m+[m[31m-[m
+ .../tutorhub_enterprise/client/exam/ExamTab.java   |   87 [32m+[m[31m-[m
+ .../exam/services/NetworkTSEExamService.java       |   12 [32m+[m[31m-[m
+ .../client/exam/ui/BatteryStatusIcon.java          |   46 [32m+[m[31m-[m
+ .../client/exam/ui/ExamFooterStatusBar.java        |  260 [32m+[m[31m--[m
+ .../client/exam/ui/TSEBrightnessController.java    |  162 [32m+[m[31m-[m
+ .../client/exam/ui/TSEConfigListPanel.java         |   27 [32m+[m[31m-[m
+ .../client/exam/ui/TSEExamChildClient.java         |  134 [32m+[m[31m-[m
+ .../client/exam/ui/TSEJcefLifecycleManager.java    |   68 [32m+[m[31m-[m
+ .../client/exam/ui/TSELoginPanel.java              |  147 [32m+[m[31m-[m
+ .../ui/TSEProductionParentSubmitLabLauncher.java   |   23 [32m+[m[31m-[m
+ .../client/exam/ui/TSEQuickSettingsManager.java    |  278 [32m++[m[31m--[m
+ .../client/managers/LockdownManager.java           |    5 [32m+[m[31m-[m
+ .../models/auth/AuthProtocol.java                  |   10 [32m+[m
+ .../models/auth/AuthRequest.java                   |   76 [32m+[m[31m-[m
+ .../models/auth/AuthResponse.java                  |   15 [32m+[m
+ .../tutorhub_enterprise/models/exam/Exam.java      |    2 [32m+[m
+ .../tutorhub_enterprise/models/exam/Question.java  |    6 [32m+[m
+ .../tutorhub_enterprise/server/AuthService.java    |  101 [32m+[m[31m-[m
+ .../tutorhub_enterprise/server/ClientHandler.java  |  254 [32m++[m[31m-[m
+ .../server/DatabaseManager.java                    |  162 [32m+[m[31m-[m
+ .../tutorhub_enterprise/server/EmailService.java   |  114 [32m+[m[31m-[m
+ .../tutorhub_enterprise/server/ServerConfig.java   |   50 [32m+[m[31m-[m
+ .../tutorhub_enterprise/server/TutorServer.java    |   41 [32m+[m[31m-[m
+ .../tutorhub_enterprise/server/dao/ExamDAO.java    |   90 [32m++[m
+ .../server/db/ExamDatabaseManager.java             |  121 [32m++[m
+ .../server/services/ExamService.java               |   12 [32m+[m[31m-[m
+ src/main/resources/application.example.properties  |   12 [32m+[m
+ src/main/resources/tse/tse-tray-flyout.js          |  416 [32m++++[m[31m-[m
+ .../tutorhub_enterprise/AuthProtocolSmokeTest.java |    2 [31m-[m
+ tutorhub_lockdown/src/main.rs                      |   16 [32m+[m[31m-[m
+ 45 files changed, 3864 insertions(+), 1405 deletions(-)

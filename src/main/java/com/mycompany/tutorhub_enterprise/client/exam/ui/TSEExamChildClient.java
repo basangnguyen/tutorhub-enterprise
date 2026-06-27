@@ -9,6 +9,7 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.io.File;
@@ -34,27 +35,28 @@ public class TSEExamChildClient {
     }
 
     public static void main(String[] args) {
-        String contextPath = null;
-        String outputPath = null;
-        String keyB64 = null;
-
-        for (int i = 0; i < args.length; i++) {
-            if ("--context".equals(args[i]) && i + 1 < args.length) {
-                contextPath = args[i + 1];
-            } else if ("--output".equals(args[i]) && i + 1 < args.length) {
-                outputPath = args[i + 1];
-            } else if ("--key".equals(args[i]) && i + 1 < args.length) {
-                keyB64 = args[i + 1];
-            }
-        }
-
-        if (contextPath == null || outputPath == null || keyB64 == null) {
-            System.err.println("Usage: --context <path> --output <path> --key <base64_key>");
+        System.setProperty("tse.process.type", "child");
+        
+        TSEChildLaunchArgs parsedArgs = TSEChildLaunchArgsParser.parse(args);
+        
+        if (parsedArgs.getMode() == TSEChildLaunchArgs.Mode.INVALID) {
+            System.err.println(parsedArgs.getErrorMessage());
             System.exit(1);
         }
+        
+        if (parsedArgs.getMode() == TSEChildLaunchArgs.Mode.V2_DEBUG) {
+            System.out.println("[TSE_CHILD] V2 Boot Recognized. Entering Debug Skeleton Mode.");
+            launchV2DebugSkeleton(parsedArgs);
+            return;
+        }
+
+        // --- LEGACY MODE ---
+        String contextPath = parsedArgs.getLegacyContextPath();
+        String outputPath = parsedArgs.getLegacyOutputPath();
+        String keyB64 = parsedArgs.getLegacyKeyBase64();
 
         System.out.println("[TSE_CHILD_BUILD] 2I.9.5D-SUBMIT-CLEANUP-FIX");
-        System.out.println("[TSE_CHILD] Starting Exam Child Client...");
+        System.out.println("[TSE_CHILD] Starting Exam Child Client (Legacy Mode)...");
         System.out.println("[TSE_CHILD] Context path (enc): " + contextPath);
         System.out.println("[TSE_CHILD] Output path (enc): " + outputPath);
 
@@ -156,9 +158,10 @@ public class TSEExamChildClient {
                 ExamFooterStatusBar footerBar = new ExamFooterStatusBar(inputModeManager.getFooterLabel(), languageAnchor -> {
                     System.out.println("[TSE_INPUT] Language flyout requested.");
                     TSELanguageSwitcherManager.showLanguageSwitcherDOM(languageAnchor, getBrowserPanel(frame), inputModeManager.getMode());
-                }, quickSettingsAnchor -> {
-                    System.out.println("[TSE_QUICK_SETTINGS] Flyout requested.");
-                    TSEQuickSettingsManager.showQuickSettingsDOM(quickSettingsAnchor, getBrowserPanel(frame));
+                }, (source, quickSettingsAnchor) -> {
+                    System.out.println("[TSE_FOOTER] QuickSettings click handler attached=true");
+                    System.out.println("[TSE_QUICK_SETTINGS] Flyout requested from " + source);
+                    TSEQuickSettingsManager.showQuickSettingsDOM(quickSettingsAnchor, getBrowserPanel(frame), inputTestEnabled);
                 }, () -> {
                     System.out.println("[TSE_CONTROL] Exit clicked.");
                     System.out.println("[TSE_CONTROL] Exit requested: blocked");
@@ -256,7 +259,7 @@ public class TSEExamChildClient {
 
                     System.out.println("[TSE_CHILD] Received payload from JS. finalSubmitInProgress=" + finalSubmitInProgress);
                     if (finalSubmitInProgress) {
-                        writeFinalPayloadAndExit(finalOutputPath, sessionId, examId, payload, frame, finalKeyB64, languageManager);
+                        writeFinalPayloadAndExit(finalOutputPath, sessionId, examId, payload, frame, finalKeyB64, languageManager, footerRef);
                     } else {
                         writeAutosavePayload(finalOutputPath, sessionId, examId, payload, finalKeyB64);
                     }
@@ -332,7 +335,8 @@ public class TSEExamChildClient {
      */
     private static void writeFinalPayloadAndExit(String outputPath, String sessionId, int examId,
                                                   String payloadJson, JFrame frame, String keyB64,
-                                                  TSELanguageManager languageManager) {
+                                                  TSELanguageManager languageManager,
+                                                  ExamFooterStatusBar[] footerRef) {
         try {
             if (payloadJson == null || payloadJson.trim().isEmpty() || payloadJson.contains("\"error\"")) {
                 System.err.println("[TSE_CHILD] FINAL submit: invalid payload from JS: " + payloadJson);
@@ -377,6 +381,9 @@ public class TSEExamChildClient {
                     try {
                         System.out.println("[TSE_EXIT] Calling quickSettingsManager.shutdownNowNoBlock().");
                         TSEQuickSettingsManager.shutdownNowNoBlock();
+                        if (footerRef[0] != null) {
+                            footerRef[0].stopStatusPolling();
+                        }
                         System.out.println("[TSE_EXIT] quickSettingsManager.shutdownNowNoBlock() returned.");
                     } catch (Exception ex) {
                         System.out.println("[TSE_EXIT] QuickSettings shutdown failed/ignored: " + ex.getMessage());
@@ -443,6 +450,89 @@ public class TSEExamChildClient {
 
         } catch (Exception e) {
             System.err.println("[TSE_CHILD] AUTOSAVE exception: " + e.getMessage());
+        }
+    }
+
+    private static void launchV2DebugSkeleton(TSEChildLaunchArgs args) {
+        SwingUtilities.invokeLater(() -> {
+            try { FlatLightLaf.setup(); } catch (Exception ignored) {}
+
+            JFrame frame = new JFrame("TutorHub Secure Exam Client - V2 DEBUG");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(800, 600);
+            frame.setLocationRelativeTo(null);
+
+            TSEV2ChildDebugLoadResult result = TSEV2ChildDebugLoader.load(args);
+            
+            if (result.isSuccess() && result.getRenderModel() != null) {
+                V2DebugDraftContext draftContext = createV2DebugDraftContext(result.getRenderModel());
+                JTabbedPane tabbedPane = new JTabbedPane();
+                tabbedPane.addTab("Safe Summary", new TSEV2ChildDebugSummaryPanel(result));
+                tabbedPane.addTab("Selection Prototype", new TSEV2ReadOnlyExamPanel(
+                        result.getRenderModel(),
+                        new TSEV2AnswerSelectionState(result.getRenderModel().getQuestionCount()),
+                        draftContext.autosaveHandler,
+                        draftContext.restoreHandler
+                ));
+                frame.add(tabbedPane);
+            } else {
+                frame.add(new TSEV2ChildDebugSummaryPanel(result));
+            }
+            
+            frame.setVisible(true);
+        });
+    }
+
+    private static V2DebugDraftContext createV2DebugDraftContext(
+            com.mycompany.tutorhub_enterprise.models.exam.readonly.TSEV2ReadOnlyExamRenderModel renderModel
+    ) {
+        try {
+            TSEV2AnswerDraftSnapshotService snapshotService = new TSEV2AnswerDraftSnapshotService();
+            TSEV2LocalEncryptedDraftAutosaveService autosaveService =
+                    new TSEV2LocalEncryptedDraftAutosaveService(snapshotService, new java.security.SecureRandom());
+            javax.crypto.SecretKey draftKey = TSEV2LocalEncryptedDraftAutosaveService.generateDraftKey();
+            Path autosaveDir = autosaveService.resolveDefaultAutosaveDir(renderModel);
+
+            TSEV2ReadOnlyExamPanel.DraftAutosaveHandler autosaveHandler = (model, state) -> {
+                TSEV2AnswerDraftSnapshot snapshot = snapshotService.createSnapshot(model, state);
+                autosaveService.saveEncryptedDraft(snapshot, draftKey, autosaveDir);
+            };
+
+            TSEV2ReadOnlyExamPanel.DraftRestoreHandler restoreHandler = (model, state) -> {
+                java.util.Optional<TSEV2AnswerDraftSnapshot> restored =
+                        autosaveService.tryLoadEncryptedDraft(
+                                autosaveDir.resolve(TSEV2LocalEncryptedDraftAutosaveService.ENC_FILE_NAME),
+                                autosaveDir.resolve(TSEV2LocalEncryptedDraftAutosaveService.META_FILE_NAME),
+                                draftKey
+                        );
+                if (restored.isEmpty()) {
+                    return TSEV2ReadOnlyExamPanel.DraftRestoreResult.notFound();
+                }
+                autosaveService.applySnapshotToSelectionState(restored.get(), model, state);
+                return TSEV2ReadOnlyExamPanel.DraftRestoreResult.restored();
+            };
+
+            return new V2DebugDraftContext(autosaveHandler, restoreHandler);
+        } catch (Exception ex) {
+            System.out.println("[TSE_V2_DRAFT] Debug encrypted draft disabled: " + ex.getClass().getSimpleName());
+            return V2DebugDraftContext.disabled();
+        }
+    }
+
+    private static final class V2DebugDraftContext {
+        private final TSEV2ReadOnlyExamPanel.DraftAutosaveHandler autosaveHandler;
+        private final TSEV2ReadOnlyExamPanel.DraftRestoreHandler restoreHandler;
+
+        private V2DebugDraftContext(
+                TSEV2ReadOnlyExamPanel.DraftAutosaveHandler autosaveHandler,
+                TSEV2ReadOnlyExamPanel.DraftRestoreHandler restoreHandler
+        ) {
+            this.autosaveHandler = autosaveHandler;
+            this.restoreHandler = restoreHandler;
+        }
+
+        private static V2DebugDraftContext disabled() {
+            return new V2DebugDraftContext(null, null);
         }
     }
 

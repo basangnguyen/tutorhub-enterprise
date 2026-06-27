@@ -1,0 +1,66 @@
+package com.mycompany.tutorhub_enterprise.server.services;
+
+import java.time.Instant;
+import java.util.List;
+
+public class V2DemoHandoffGateResult {
+    private boolean success;
+    private boolean ready;
+    private String decision;
+    private String errorCode;
+    private boolean mavenTestsPass;
+    private boolean portableBuildPass;
+    private boolean cargoTestsPass;
+    private boolean rustProbePass;
+    private boolean demoNotLockdownApproved;
+    private boolean trialManifestExists;
+    private boolean trialChecklistExists;
+    private boolean releaseNotesExists;
+    private boolean productionFlagsSafe;
+    private String desktopDemoStatus;
+    private String handoffStatus;
+    private List<String> warnings;
+    private List<String> blockingReasons;
+    private String checkedAt;
+
+    public V2DemoHandoffGateResult() {
+        this.checkedAt = Instant.now().toString();
+    }
+
+    public boolean isSuccess() { return success; }
+    public void setSuccess(boolean success) { this.success = success; }
+    public boolean isReady() { return ready; }
+    public void setReady(boolean ready) { this.ready = ready; }
+    public String getDecision() { return decision; }
+    public void setDecision(String decision) { this.decision = decision; }
+    public String getErrorCode() { return errorCode; }
+    public void setErrorCode(String errorCode) { this.errorCode = errorCode; }
+    public boolean isMavenTestsPass() { return mavenTestsPass; }
+    public void setMavenTestsPass(boolean mavenTestsPass) { this.mavenTestsPass = mavenTestsPass; }
+    public boolean isPortableBuildPass() { return portableBuildPass; }
+    public void setPortableBuildPass(boolean portableBuildPass) { this.portableBuildPass = portableBuildPass; }
+    public boolean isCargoTestsPass() { return cargoTestsPass; }
+    public void setCargoTestsPass(boolean cargoTestsPass) { this.cargoTestsPass = cargoTestsPass; }
+    public boolean isRustProbePass() { return rustProbePass; }
+    public void setRustProbePass(boolean rustProbePass) { this.rustProbePass = rustProbePass; }
+    public boolean isDemoNotLockdownApproved() { return demoNotLockdownApproved; }
+    public void setDemoNotLockdownApproved(boolean demoNotLockdownApproved) { this.demoNotLockdownApproved = demoNotLockdownApproved; }
+    public boolean isTrialManifestExists() { return trialManifestExists; }
+    public void setTrialManifestExists(boolean trialManifestExists) { this.trialManifestExists = trialManifestExists; }
+    public boolean isTrialChecklistExists() { return trialChecklistExists; }
+    public void setTrialChecklistExists(boolean trialChecklistExists) { this.trialChecklistExists = trialChecklistExists; }
+    public boolean isReleaseNotesExists() { return releaseNotesExists; }
+    public void setReleaseNotesExists(boolean releaseNotesExists) { this.releaseNotesExists = releaseNotesExists; }
+    public boolean isProductionFlagsSafe() { return productionFlagsSafe; }
+    public void setProductionFlagsSafe(boolean productionFlagsSafe) { this.productionFlagsSafe = productionFlagsSafe; }
+    public String getDesktopDemoStatus() { return desktopDemoStatus; }
+    public void setDesktopDemoStatus(String desktopDemoStatus) { this.desktopDemoStatus = desktopDemoStatus; }
+    public String getHandoffStatus() { return handoffStatus; }
+    public void setHandoffStatus(String handoffStatus) { this.handoffStatus = handoffStatus; }
+    public List<String> getWarnings() { return warnings; }
+    public void setWarnings(List<String> warnings) { this.warnings = warnings; }
+    public List<String> getBlockingReasons() { return blockingReasons; }
+    public void setBlockingReasons(List<String> blockingReasons) { this.blockingReasons = blockingReasons; }
+    public String getCheckedAt() { return checkedAt; }
+    public void setCheckedAt(String checkedAt) { this.checkedAt = checkedAt; }
+}

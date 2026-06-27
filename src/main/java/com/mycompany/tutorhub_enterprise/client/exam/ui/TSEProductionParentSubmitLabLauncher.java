@@ -36,6 +36,7 @@ public class TSEProductionParentSubmitLabLauncher {
     private static boolean autoStart = false;
     
     public static void main(String[] args) {
+        System.setProperty("tse.process.type", "parent");
         int requestedExamId = -1;
         for (int i = 0; i < args.length; i++) {
             if ("--exam-id".equals(args[i]) && i + 1 < args.length) {
@@ -98,13 +99,13 @@ public class TSEProductionParentSubmitLabLauncher {
             logPanel.add(btnPanel, BorderLayout.SOUTH);
             
             exitBtn.addActionListener(e -> {
-                frame.dispose(); // Don't use System.exit()
+                System.exit(0);
             });
             
             NetworkTSEExamService service = new NetworkTSEExamService();
             
             // --- UI Transitions ---
-            Runnable exitAction = () -> frame.dispose();
+            Runnable exitAction = () -> System.exit(0);
             
             Runnable submitLogic = () -> {
                 try {
@@ -132,7 +133,9 @@ public class TSEProductionParentSubmitLabLauncher {
                         }
                         
                         startInProgress = false;
-                        SwingUtilities.invokeLater(() -> startBtn.setEnabled(true));
+                        SwingUtilities.invokeLater(() -> {
+                            System.exit(0); // Đóng hẳn cửa sổ thi và kill JVM lập tức, không cần báo dialog
+                        });
                     } else {
                         setStatus(statusLabel, "Submit Failed");
                         log(logArea, "Submit FAILED: " + submitRes.message);
@@ -486,12 +489,21 @@ public class TSEProductionParentSubmitLabLauncher {
                         // 9. Spawn Rust
                         setStatus(statusLabel, "Secure Desktop running");
                         log(logArea, "[TSE_FLOW] Spawning Rust LockdownCore...");
+                        
+                        try {
+                            SwingUtilities.invokeAndWait(() -> {
+                                TSEParentHtmlQuickSettingsPopup.hidePopup();
+                            });
+                        } catch (Exception ex) {
+                            log(logArea, "Error shutting down JCEF popup: " + ex.getMessage());
+                        }
+
                         log(logArea, "[TSE_PORTAL] Passing context via args and key via --key");
                         LockdownManager lockdownManager = new LockdownManager();
                         Path rustExe = lockdownManager.extractRustExe();
                         log(logArea, "rustExePath: " + rustExe.toAbsolutePath());
                         
-                        String fullCmdStr = rustExe.toAbsolutePath() + " --spawn-child --java-exe \"" + javaExePath.toAbsolutePath() + "\" --jar \"" + jarPath.toAbsolutePath() + "\" --context \"" + currentContextFile.toAbsolutePath() + "\" --output \"" + currentPayloadFile.toAbsolutePath() + "\" --key \"[HIDDEN]\"";
+                        String fullCmdStr = rustExe.toAbsolutePath() + " --spawn-child --java-exe \"" + javaExePath.toAbsolutePath() + "\" --jar \"" + jarPath.toAbsolutePath() + "\" --context \"" + currentContextFile.toAbsolutePath() + "\" --output \"" + currentPayloadFile.toAbsolutePath() + "\" --key \"[HIDDEN]\" --app-root \"" + appRoot + "\"";
                         log(logArea, "FULL Command: " + fullCmdStr);
                         
                         SwingUtilities.invokeLater(() -> {
@@ -505,7 +517,8 @@ public class TSEProductionParentSubmitLabLauncher {
                             jarPath.toAbsolutePath().toString(),
                             currentContextFile.toAbsolutePath().toString(),
                             currentPayloadFile.toAbsolutePath().toString(),
-                            currentKeyB64
+                            currentKeyB64,
+                            appRoot
                         );
                         
                         // Drain the output stream continuously to avoid deadlock

@@ -4,6 +4,8 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 import net.miginfocom.swing.MigLayout;
 import javax.swing.*;
 import java.awt.*;
+import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * ExamFooterStatusBar – Thin bottom status bar for exam taking screen.
@@ -25,91 +27,111 @@ public class ExamFooterStatusBar extends JPanel {
 
     private final JButton btnLanguage;
     private final JButton btnPower;
-    private final JButton btnWifi;
-    private final BatteryStatusIcon battery;
+    private final TSEQuickSettingsTrayCluster cluster;
     private Timer statusTimer;
+
+    private QuickSettingsStateStore stateStore;
+    private ClockService clockService;
+    private BatteryService batteryService;
+    private NetworkService networkService;
+    private TSESecurityPolicy currentPolicy;
+    private JLabel lblClock;
 
     public ExamFooterStatusBar(Runnable onExit) {
         this("VIE", null, null, onExit);
     }
 
     public ExamFooterStatusBar(String languageLabel, 
-            java.util.function.Consumer<javax.swing.JButton> onLanguageClicked, 
-            java.util.function.Consumer<javax.swing.JComponent> onQuickSettingsClicked,
+            Consumer<JButton> onLanguageClicked, 
+            BiConsumer<String, JComponent> onQuickSettingsClicked,
             Runnable onExitRequest) {
-        setLayout(new MigLayout("insets 4 16, fillx, aligny center", "push[right]", "[24!]"));
+        setLayout(new MigLayout("insets 4 16, fillx, aligny center", "push[right]", "[30!]"));
         setBackground(BAR_BG);
         setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_TOP));
 
-        JPanel icons = new JPanel(new MigLayout("insets 0, gap 14, aligny center"));
+        JPanel icons = new JPanel(new MigLayout("insets 0, gap 4, aligny center"));
         icons.setOpaque(false);
 
-        // Language label
         btnLanguage = dimTextButton(languageLabel);
+        btnLanguage.setPreferredSize(new Dimension(46, 28));
+        btnLanguage.setMinimumSize(new Dimension(46, 28));
+        btnLanguage.setMaximumSize(new Dimension(46, 28));
+        btnLanguage.setHorizontalAlignment(SwingConstants.CENTER);
         btnLanguage.addActionListener(e -> {
             if (onLanguageClicked != null) {
                 onLanguageClicked.accept(btnLanguage);
             }
         });
-        icons.add(btnLanguage);
+        icons.add(btnLanguage, "w 46!, h 28!");
 
-        // Wifi icon button
-        btnWifi = new JButton(new FlatSVGIcon("images/exam/icons/wifi.svg", 16, 16));
-        btnWifi.setContentAreaFilled(false);
-        btnWifi.setBorderPainted(false);
-        btnWifi.setFocusPainted(false);
-        btnWifi.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnWifi.setMargin(new Insets(0, 0, 0, 0));
-        btnWifi.addActionListener(e -> {
-            System.out.println("[TSE_CONTROL] WiFi click.");
+        // The unified Tray Cluster
+        cluster = new TSEQuickSettingsTrayCluster(comp -> {
             if (onQuickSettingsClicked != null) {
-                onQuickSettingsClicked.accept(btnWifi);
+                onQuickSettingsClicked.accept("cluster", comp);
             }
         });
-        icons.add(btnWifi);
+        icons.add(cluster, "h 28!");
 
-        // Volume icon
-        JButton btnVolume = new JButton(new FlatSVGIcon("images/exam/icons/volume-2.svg", 16, 16));
-        btnVolume.setContentAreaFilled(false);
-        btnVolume.setBorderPainted(false);
-        btnVolume.setFocusPainted(false);
-        btnVolume.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnVolume.setMargin(new Insets(0, 0, 0, 0));
-        btnVolume.addActionListener(e -> {
-            System.out.println("[TSE_CONTROL] Volume click.");
-            if (onQuickSettingsClicked != null) {
-                onQuickSettingsClicked.accept(btnVolume);
-            }
-        });
-        icons.add(btnVolume);
-
-        // Battery – custom Graphics2D component
-        battery = new BatteryStatusIcon();
-        battery.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        battery.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                System.out.println("[TSE_CONTROL] Battery click.");
-                if (onQuickSettingsClicked != null) {
-                    onQuickSettingsClicked.accept(battery);
+        // Clock initialization
+        currentPolicy = TSESecurityPolicy.forLogin(); // default policy
+        stateStore = new QuickSettingsStateStore(currentPolicy);
+        clockService = new ClockService(stateStore);
+        batteryService = new BatteryService(stateStore);
+        networkService = new NetworkService(stateStore);
+        
+        lblClock = new JLabel("--:--");
+        lblClock.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblClock.setForeground(ICON_COLOR);
+        lblClock.setToolTipText("Loading date...");
+        
+        stateStore.addListener(snapshot -> {
+            SwingUtilities.invokeLater(() -> {
+                if (currentPolicy.getClockMode() == TSESecurityPolicy.ClockMode.SHOW) {
+                    lblClock.setText(snapshot.clockTime);
+                    lblClock.setToolTipText(snapshot.clockDate);
+                    lblClock.setVisible(true);
+                } else {
+                    lblClock.setVisible(false);
                 }
-            }
+                
+                String tooltip = snapshot.hasBattery ? (snapshot.batteryCharging ? "Đang sạc (" + snapshot.batteryPercent + "%)" : snapshot.batteryPercent + "%") : "Không phát hiện pin";
+                cluster.updateBattery(snapshot.hasBattery, snapshot.batteryCharging, snapshot.batteryPercent, tooltip);
+
+                boolean hasWifi = !"NO_ADAPTER".equals(snapshot.wifiStatus) && !"DISABLED".equals(snapshot.wifiStatus) && !"ERROR".equals(snapshot.wifiStatus);
+                boolean isWifiConnected = "CONNECTED".equals(snapshot.wifiStatus);
+                String wifiTooltip = isWifiConnected ? "Đã kết nối: " + snapshot.wifiSsid + " (" + snapshot.wifiSignal + "%)" :
+                        "DISABLED".equals(snapshot.wifiStatus) ? "WiFi bị vô hiệu hóa" :
+                        "NO_ADAPTER".equals(snapshot.wifiStatus) ? "Không tìm thấy card WiFi" : "Đã ngắt kết nối WiFi";
+                if (snapshot.wifiError != null) {
+                    wifiTooltip = snapshot.wifiError;
+                }
+                cluster.updateWifi(hasWifi, isWifiConnected, wifiTooltip);
+            });
         });
-        icons.add(battery, "w 28!, h 14!, aligny center");
+        
+        clockService.initialize();
+        batteryService.initialize();
+        networkService.initialize();
+        
+        icons.add(lblClock, "gapleft 8, gapright 8, h 28!");
 
         // Power button
         btnPower = new JButton(ExamLoginMockPanel.loadSVG("images/exam/icons/power.svg", 16, POWER_RED));
+        setupHoverEffect(btnPower);
         btnPower.setContentAreaFilled(false);
         btnPower.setBorderPainted(false);
         btnPower.setFocusPainted(false);
         btnPower.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnPower.setPreferredSize(new Dimension(36, 28));
+        btnPower.setMinimumSize(new Dimension(36, 28));
+        btnPower.setMaximumSize(new Dimension(36, 28));
         btnPower.addActionListener(e -> {
             if (onExitRequest == null) {
                 return;
             }
             onExitRequest.run();
         });
-        icons.add(btnPower);
+        icons.add(btnPower, "w 36!, h 28!");
 
         add(icons, "cell 0 0");
         
@@ -120,62 +142,50 @@ public class ExamFooterStatusBar extends JPanel {
 
     private void startStatusPolling() {
         updateStatus(); // Initial update
-        statusTimer = new Timer(20000, e -> updateStatus()); // Every 20 seconds
+        statusTimer = new Timer(2000, e -> updateStatus()); // Every 2 seconds for faster response
         statusTimer.start();
     }
 
     private void updateStatus() {
-        // Run network check in a background thread to prevent UI freezing
-        new SwingWorker<TSENetworkStatusProvider.NetworkStatus, Void>() {
-            @Override
-            protected TSENetworkStatusProvider.NetworkStatus doInBackground() {
-                return TSENetworkStatusProvider.getStatus();
-            }
 
+        // Run volume check
+        new SwingWorker<TSEVolumeStatus, Void>() {
+            @Override
+            protected TSEVolumeStatus doInBackground() {
+                return TSEVolumeController.getStatus();
+            }
             @Override
             protected void done() {
                 try {
-                    TSENetworkStatusProvider.NetworkStatus netStatus = get();
-                    if (!netStatus.hasWifiAdapter) {
-                        btnWifi.setIcon(new FlatSVGIcon("images/exam/icons/wifi-off.svg", 16, 16));
-                    } else if (!netStatus.isConnected) {
-                        btnWifi.setIcon(new FlatSVGIcon("images/exam/icons/wifi-off.svg", 16, 16));
-                    } else {
-                        btnWifi.setIcon(new FlatSVGIcon("images/exam/icons/wifi.svg", 16, 16));
-                    }
-                    btnWifi.setToolTipText(netStatus.tooltip);
+                    TSEVolumeStatus volStatus = get();
+                    String tooltip = volStatus.supported ? (volStatus.muted ? "Muted" : "Volume: " + volStatus.percent + "%") : "No Audio Device";
+                    cluster.updateVolume(volStatus.supported, volStatus.muted, volStatus.percent, tooltip);
                 } catch (Exception e) {}
             }
         }.execute();
+    }
 
-        // Run battery check in background
-        new SwingWorker<TSEBatteryStatusProvider.BatteryStatus, Void>() {
-            @Override
-            protected TSEBatteryStatusProvider.BatteryStatus doInBackground() {
-                return TSEBatteryStatusProvider.getStatus();
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    TSEBatteryStatusProvider.BatteryStatus batStatus = get();
-                    if (batStatus.hasBattery) {
-                        battery.setVisible(true);
-                        battery.setBatteryPercent(batStatus.percent);
-                        battery.setCharging(batStatus.isCharging);
-                        battery.setToolTipText(batStatus.tooltip);
-                        battery.repaint();
-                    } else {
-                        // AC Only or Unknown
-                        battery.setVisible(true);
-                        battery.setBatteryPercent(100);
-                        battery.setCharging(true);
-                        battery.setToolTipText(batStatus.tooltip);
-                        battery.repaint();
-                    }
-                } catch (Exception e) {}
-            }
-        }.execute();
+    public void stopStatusPolling() {
+        if (statusTimer != null) {
+            statusTimer.stop();
+            System.out.println("[TSE_PARENT_FOOTER] Status polling stopped.");
+        }
+        if (clockService != null) {
+            clockService.terminate();
+            clockService = null;
+        }
+        if (batteryService != null) {
+            batteryService.terminate();
+            batteryService = null;
+        }
+        if (networkService != null) {
+            networkService.terminate();
+            networkService = null;
+        }
+        if (stateStore != null) {
+            stateStore.shutdown();
+            stateStore = null;
+        }
     }
 
     public void applyLanguage(TSELanguageManager languageManager) {
@@ -197,15 +207,81 @@ public class ExamFooterStatusBar extends JPanel {
     }
 
     private JButton dimTextButton(String text) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        JButton button = new JButton(text) {
+            private boolean hovered = false;
+            private boolean active = false;
+            {
+                addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override public void mouseEntered(java.awt.event.MouseEvent e) { hovered = true; repaint(); }
+                    @Override public void mouseExited(java.awt.event.MouseEvent e) { hovered = false; repaint(); }
+                    @Override public void mousePressed(java.awt.event.MouseEvent e) { active = true; repaint(); }
+                    @Override public void mouseReleased(java.awt.event.MouseEvent e) { active = false; repaint(); }
+                });
+            }
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (active) {
+                    g2.setColor(new Color(255, 255, 255, 50));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                } else if (hovered) {
+                    g2.setColor(new Color(255, 255, 255, 25));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
         button.setForeground(ICON_COLOR);
         button.setContentAreaFilled(false);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         button.setMargin(new Insets(0, 0, 0, 0));
+        button.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+        button.setIcon(null);
         return button;
+    }
+
+    private JButton createIconButton(String svgPath, int size) {
+        JButton btn = new JButton(new FlatSVGIcon(svgPath, size, size)) {
+            private boolean hovered = false;
+            private boolean active = false;
+            {
+                addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override public void mouseEntered(java.awt.event.MouseEvent e) { hovered = true; repaint(); }
+                    @Override public void mouseExited(java.awt.event.MouseEvent e) { hovered = false; repaint(); }
+                    @Override public void mousePressed(java.awt.event.MouseEvent e) { active = true; repaint(); }
+                    @Override public void mouseReleased(java.awt.event.MouseEvent e) { active = false; repaint(); }
+                });
+            }
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (active) {
+                    g2.setColor(new Color(255, 255, 255, 50));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                } else if (hovered) {
+                    g2.setColor(new Color(255, 255, 255, 25));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        return btn;
+    }
+
+    private void setupHoverEffect(JButton btn) {
+        // Obsolete, replaced by inline listeners above
     }
 
     private JLabel dimSvgLabel(String svgPath) {

@@ -68,9 +68,25 @@ public class MainDashboard extends JFrame {
     public int getCurrentUserId() { return this.currentUserId; }
     public Image getAvatar() { return headerPanel != null ? headerPanel.getAvatar() : null; }
 
+    public static String currentUserRole = "student";
+    public static String currentStaticUserName = "";
+    public static String currentStaticUserAvatarBase64 = "";
+
     public MainDashboard(int userId, String userName) {
-        this.currentUserId = userId; 
-        this.userName = userName;
+        this(userId, userName, "student", "");
+    }
+
+    public MainDashboard(int uid, String name, String role) {
+        this(uid, name, role, "");
+    }
+
+    public MainDashboard(int uid, String name, String role, String avatar) {
+        this.currentUserId = uid; 
+        this.userName = name;
+        currentUserRole = role != null ? role : "student";
+        currentStaticUserName = name;
+        currentStaticUserAvatarBase64 = avatar != null ? avatar : "";
+        
         setupFrame();
         
         JPanel sidebar = createSidebar();
@@ -83,8 +99,6 @@ public class MainDashboard extends JFrame {
         // NHÚNG CHAT UI (JAVA NATIVE) VÀ BÓNG MA ELECTRON (3D)
         // ---------------------------------------------------------
         lavieWidget = new LavieChatWidget(this);
-        
-        // Cửa sổ Chat bây giờ là JWindow nổi độc lập nên không cần gắn vào GlassPane nữa
         
         // Khởi động Electron ngầm
         startGhostElectron();
@@ -145,10 +159,6 @@ public class MainDashboard extends JFrame {
         }
     }
 
-    MainDashboard(int uid, String role, String avatar, String email) {
-        throw new UnsupportedOperationException("Not supported yet."); 
-    }
-
     private void setupFrame() {
         setTitle("TutorHub Enterprise");
         setSize(1350, 800);
@@ -156,6 +166,16 @@ public class MainDashboard extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(Color.decode("#FAF8FF"));
+        
+        getRootPane().putClientProperty("JRootPane.titleBarShowTitle", false);
+        getRootPane().putClientProperty("JRootPane.titleBarShowIcon", false);
+        
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowOpened(java.awt.event.WindowEvent e) {
+                getContentPane().requestFocusInWindow();
+            }
+        });
     }
 
     public void openNewBlackboard() {
@@ -201,10 +221,35 @@ public class MainDashboard extends JFrame {
     // =========================================================
     // MENU BÊN TRÁI (ĐÃ NÂNG CẤP LÊN GIAO DIỆN ENTERPRISE)
     // =========================================================
+    private SidebarMenuItem msgMenuItem;
+    private PremiumCard premiumCard;
+
+    public void updateMessageTabBadge(int count) {
+        if (msgMenuItem != null) {
+            msgMenuItem.setBadge(count);
+        }
+    }
+
     private JPanel createSidebar() {
         sidebarPanel = new JPanel(new BorderLayout());
-        sidebarPanel.setBackground(SIDEBAR_BG);
-        sidebarPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, Color.decode("#E2E8F0"))); 
+        sidebarPanel.setOpaque(true);
+        sidebarPanel.setBackground(Color.decode("#F6F7FB"));
+        sidebarPanel.setBorder(new EmptyBorder(0, 16, 16, 8));
+
+        JPanel innerCard = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0, 0, 0, 12));
+                g2.fillRoundRect(2, 4, getWidth() - 4, getHeight() - 2, 24, 24);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight() - 4, 24, 24);
+                g2.dispose();
+            }
+        };
+        innerCard.setOpaque(false);
+        sidebarPanel.add(innerCard, BorderLayout.CENTER);
 
         JPanel topWrapper = new JPanel(new BorderLayout());
         topWrapper.setOpaque(false);
@@ -213,7 +258,7 @@ public class MainDashboard extends JFrame {
         JPanel logoPanel = new JPanel();
         logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.X_AXIS));
         logoPanel.setOpaque(false);
-        logoPanel.setBorder(new EmptyBorder(30, 16, 20, 0));
+        logoPanel.setBorder(new EmptyBorder(15, 16, 5, 0));
         
         JLabel lblLogoIcon = new JLabel();
         try {
@@ -255,7 +300,7 @@ public class MainDashboard extends JFrame {
         
         topWrapper.add(logoPanel, BorderLayout.CENTER);
 
-        JPanel togglePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 35));
+        JPanel togglePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 18));
         togglePanel.setOpaque(false);
         
         JPanel btnToggle = new JPanel(new BorderLayout()) {
@@ -282,21 +327,21 @@ public class MainDashboard extends JFrame {
             public void mouseClicked(MouseEvent e) {
                 isSidebarExpanded = !isSidebarExpanded;
                 if(isSidebarExpanded) {
-                    sidebarPanel.setMinimumSize(new Dimension(180, 0));
-                    sidebarPanel.setPreferredSize(new Dimension(180, 0));
+                    sidebarPanel.setMinimumSize(new Dimension(190, 0));
+                    sidebarPanel.setPreferredSize(new Dimension(190, 0));
                     textPanel.setVisible(true);
                     lblLogoIcon.setVisible(true);
-                    bottomPanel.setVisible(true);
+                    premiumCard.setExpanded(true);
                     for(SidebarMenuItem item : menuItems) {
                         item.setExpanded(true);
                     }
                     lblToggleIcon.setText("«");
                 } else {
-                    sidebarPanel.setMinimumSize(new Dimension(56, 0));
-                    sidebarPanel.setPreferredSize(new Dimension(56, 0));
+                    sidebarPanel.setMinimumSize(new Dimension(88, 0));
+                    sidebarPanel.setPreferredSize(new Dimension(88, 0));
                     textPanel.setVisible(false);
-                    lblLogoIcon.setVisible(true); // logo icon still shown
-                    bottomPanel.setVisible(false);
+                    lblLogoIcon.setVisible(false);
+                    premiumCard.setExpanded(false);
                     for(SidebarMenuItem item : menuItems) {
                         item.setExpanded(false);
                     }
@@ -314,44 +359,51 @@ public class MainDashboard extends JFrame {
         togglePanel.add(btnToggle);
         topWrapper.add(togglePanel, BorderLayout.EAST);
 
-        sidebarPanel.add(topWrapper, BorderLayout.NORTH);
+        innerCard.add(topWrapper, BorderLayout.NORTH);
 
         // --- CÁC TAB MENU ---
         JPanel menuPanel = new JPanel();
         menuPanel.setLayout(new BoxLayout(menuPanel, BoxLayout.Y_AXIS));
         menuPanel.setOpaque(false);
-        menuPanel.setBorder(new EmptyBorder(16, 12, 0, 12));
+        menuPanel.setBorder(new EmptyBorder(15, 0, 0, 0));
 
         // Theo thứ tự menu hình mẫu
-        menuPanel.add(createMenuItem("Bảng tin lớp", "home", "Home", 0)); 
-        menuPanel.add(createMenuItem("Reels", "reel", "Reels", 0));
-        menuPanel.add(createMenuItem("Tin nhắn", "message", "Chat", 2)); 
-        menuPanel.add(createMenuItem("Lớp học của tôi", "saved", "Saved", 0)); 
-        menuPanel.add(createMenuItem("Lớp đã nhận", "myclass", "Taken", 0)); 
-        menuPanel.add(createMenuItem("Lịch dạy", "calendar", "Schedule", 0)); 
-        menuPanel.add(createMenuItem("Thi (Exam)", "task", "Exam", 0)); 
-        menuPanel.add(createMenuItem("Nhiệm vụ", "task", "Todo", 0));
-        menuPanel.add(createMenuItem("Tài liệu", "text", "Docs", 0));
-        menuPanel.add(createMenuItem("Bảng vẽ", "draw", "Blackboard", 0)); 
-        menuPanel.add(createMenuItem("Hồ sơ (eKYC)", "user", "Profile", 0));
+        menuPanel.add(createMenuItem("Bảng tin", "home.png", "Home", 0)); 
+        menuPanel.add(createMenuItem("Reels", "reel.svg", "Reels", 0));
+        msgMenuItem = createMenuItem("Tin nhắn", "lucide-message-circle.svg", "Chat", 0); 
+        menuPanel.add(msgMenuItem); 
+        menuPanel.add(createMenuItem("Lớp học", "saved.svg", "Saved", 0)); 
+        
+        if ("tutor".equalsIgnoreCase(currentUserRole) || "admin".equalsIgnoreCase(currentUserRole)) {
+            menuPanel.add(createMenuItem("Đã nhận", "lucide-users.svg", "Taken", 0)); 
+            menuPanel.add(createMenuItem("Lịch", "lucide-calendar.svg", "Schedule", 0)); 
+            menuPanel.add(createMenuItem("Thi", "lucide-graduation-cap.svg", "Exam", 0)); 
+            menuPanel.add(createMenuItem("QuizHub", "lucide-gamepad-2.svg", "QuizHub", 0)); 
+            menuPanel.add(createMenuItem("Đề thi", "lucide-file-text.svg", "Exam", 0)); 
+            menuPanel.add(createMenuItem("Câu hỏi", "lucide-library.svg", "Question", 0)); 
+            menuPanel.add(createMenuItem("Nhiệm vụ", "lucide-list-todo.svg", "Todo", 0)); 
+        } else {
+            menuPanel.add(createMenuItem("Đã nhận", "lucide-users.svg", "Taken", 0)); 
+            menuPanel.add(createMenuItem("Lịch", "lucide-calendar.svg", "Schedule", 0)); 
+            menuPanel.add(createMenuItem("Thi", "lucide-graduation-cap.svg", "Exam", 0)); 
+            menuPanel.add(createMenuItem("QuizHub", "lucide-gamepad-2.svg", "QuizHub", 0)); 
+            menuPanel.add(createMenuItem("Nhiệm vụ", "lucide-list-todo.svg", "Todo", 0)); 
+        }
 
-        JScrollPane scrollPane = new JScrollPane(menuPanel);
-        scrollPane.setBorder(null);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(4, 0));
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        menuPanel.add(createMenuItem("Tài liệu", "lucide-book-open.svg", "Docs", 0));
+        menuPanel.add(createMenuItem("Bảng vẽ", "lucide-palette.svg", "Blackboard", 0)); 
+        menuPanel.add(createMenuItem("Hồ sơ", "lucide-user.svg", "Profile", 0));
 
-        sidebarPanel.add(scrollPane, BorderLayout.CENTER);
+        innerCard.add(menuPanel, BorderLayout.CENTER);
 
         // --- THẺ PREMIUM ---
         bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setOpaque(false);
         bottomPanel.setBorder(new EmptyBorder(16, 16, 24, 16));
-        bottomPanel.add(new PremiumCard(), BorderLayout.CENTER);
+        premiumCard = new PremiumCard();
+        bottomPanel.add(premiumCard, BorderLayout.CENTER);
         
-        sidebarPanel.add(bottomPanel, BorderLayout.SOUTH);
+        innerCard.add(bottomPanel, BorderLayout.SOUTH);
 
         return sidebarPanel;
     }
@@ -373,63 +425,31 @@ public class MainDashboard extends JFrame {
         private JLabel lblIcon, lblText;
         private String iconName;
         private JPanel badgeWrapper;
+        private JLabel lblBadge;
 
         public SidebarMenuItem(String title, String iconName, String cardName, int badgeCount) {
             this.cardName = cardName; 
             this.iconName = iconName;
             
-            setLayout(new BorderLayout(12, 0)); 
+            setLayout(new BorderLayout(14, 0)); 
             setOpaque(false); 
-            setBorder(new EmptyBorder(0, 12, 0, 12)); 
-            setMaximumSize(new Dimension(999, 42)); 
-            setPreferredSize(new Dimension(228, 42)); 
+            setBorder(new EmptyBorder(0, 24, 0, 12)); 
+            setMaximumSize(new Dimension(999, 44)); 
+            setPreferredSize(new Dimension(210, 44)); 
             setCursor(new Cursor(Cursor.HAND_CURSOR));
             setAlignmentX(Component.LEFT_ALIGNMENT);
             
             lblIcon = new JLabel(); 
-            try {
-                com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/" + iconName + ".svg", 20, 20);
-                svgIc.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> Color.BLACK));
-                lblIcon.setIcon(svgIc);
-            } catch(Exception ex) {
-                try {
-                    com.formdev.flatlaf.extras.FlatSVGIcon svgIc2 = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon_svg/" + iconName + ".svg", 20, 20);
-                    svgIc2.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> Color.BLACK));
-                    lblIcon.setIcon(svgIc2);
-                } catch(Exception ex2) {
-                    setNetworkIcon(lblIcon, "https://img.icons8.com/fluency-systems-regular/48/73708A/" + iconName + ".png", 20, 20);
-                }
-            }
+            loadIcon(lblIcon, iconName, false);
             
             lblText = new JLabel(title); 
-            lblText.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
-            lblText.setForeground(TEXT_MUTED);
+            lblText.setFont(new Font("Segoe UI", Font.PLAIN, 14)); 
+            lblText.setForeground(Color.decode("#64748B"));
             
             add(lblIcon, BorderLayout.WEST); 
             add(lblText, BorderLayout.CENTER);
 
-            if (badgeCount > 0) {
-                JPanel badgePanel = new JPanel(new BorderLayout()) { 
-                    @Override protected void paintComponent(Graphics g) { 
-                        Graphics2D g2 = (Graphics2D) g.create(); 
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-                        g2.setColor(PRIMARY); 
-                        g2.fillRoundRect(0, 0, getWidth(), getHeight(), getWidth(), getHeight()); 
-                        g2.dispose(); 
-                    } 
-                };
-                badgePanel.setOpaque(false); 
-                badgePanel.setBorder(new EmptyBorder(2, 6, 2, 6));
-                JLabel lblBadge = new JLabel(badgeCount > 99 ? "99+" : String.valueOf(badgeCount)); 
-                lblBadge.setFont(new Font("Segoe UI", Font.BOLD, 10)); 
-                lblBadge.setForeground(Color.WHITE); 
-                badgePanel.add(lblBadge, BorderLayout.CENTER);
-                
-                badgeWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 10)); 
-                badgeWrapper.setOpaque(false); 
-                badgeWrapper.add(badgePanel); 
-                add(badgeWrapper, BorderLayout.EAST);
-            }
+            setBadge(badgeCount);
 
             addMouseListener(new MouseAdapter() {
                 @Override public void mouseEntered(MouseEvent e) { if(!isActive) { isHovered = true; repaint(); } }
@@ -438,15 +458,51 @@ public class MainDashboard extends JFrame {
             });
         }
 
-                public void setExpanded(boolean expanded) {
+        public void setBadge(int count) {
+            if (count > 0) {
+                if (badgeWrapper == null) {
+                    JPanel badgePanel = new JPanel(new BorderLayout()) { 
+                        @Override protected void paintComponent(Graphics g) { 
+                            Graphics2D g2 = (Graphics2D) g.create(); 
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
+                            g2.setColor(Color.decode("#EF4444")); // Red color for badge
+                            g2.fillRoundRect(0, 0, getWidth(), getHeight(), getWidth(), getHeight()); 
+                            g2.dispose(); 
+                        } 
+                    };
+                    badgePanel.setOpaque(false); 
+                    badgePanel.setBorder(new EmptyBorder(2, 6, 2, 6));
+                    lblBadge = new JLabel(count > 99 ? "99+" : String.valueOf(count)); 
+                    lblBadge.setFont(new Font("Segoe UI", Font.BOLD, 10)); 
+                    lblBadge.setForeground(Color.WHITE); 
+                    badgePanel.add(lblBadge, BorderLayout.CENTER);
+                    
+                    badgeWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 10)); 
+                    badgeWrapper.setOpaque(false); 
+                    badgeWrapper.add(badgePanel); 
+                    add(badgeWrapper, BorderLayout.EAST);
+                    revalidate();
+                    repaint();
+                } else {
+                    lblBadge.setText(count > 99 ? "99+" : String.valueOf(count));
+                    badgeWrapper.setVisible(true);
+                }
+            } else {
+                if (badgeWrapper != null) badgeWrapper.setVisible(false);
+            }
+        }
+
+        public void setExpanded(boolean expanded) {
             lblText.setVisible(expanded);
             if(badgeWrapper != null) badgeWrapper.setVisible(expanded);
             if (expanded) {
-                setPreferredSize(new Dimension(228, 42));
-                setMaximumSize(new Dimension(999, 42));
+                setPreferredSize(new Dimension(210, 44));
+                setMaximumSize(new Dimension(999, 44));
+                setBorder(new EmptyBorder(0, 24, 0, 12)); 
             } else {
-                setPreferredSize(new Dimension(42, 42));
-                setMaximumSize(new Dimension(42, 42));
+                setPreferredSize(new Dimension(88, 44));
+                setMaximumSize(new Dimension(88, 44));
+                setBorder(new EmptyBorder(0, 23, 0, 0)); 
             }
             revalidate();
             repaint();
@@ -455,29 +511,45 @@ public class MainDashboard extends JFrame {
         public void setActive(boolean active) {
             this.isActive = active;
             this.isHovered = false;
-            Color iconColor = active ? PRIMARY : Color.BLACK;
             if (active) {
-                lblText.setForeground(PRIMARY);
-                lblText.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                lblText.setForeground(Color.decode("#7C3AED"));
+                lblText.setFont(new Font("Segoe UI", Font.BOLD, 14));
             } else {
-                lblText.setForeground(TEXT_MUTED);
-                lblText.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                lblText.setForeground(Color.decode("#64748B"));
+                lblText.setFont(new Font("Segoe UI", Font.PLAIN, 14));
             }
+            loadIcon(lblIcon, iconName, active);
+            repaint();
+        }
+
+        private void loadIcon(JLabel label, String name, boolean active) {
+            if (name.endsWith(".png") || name.endsWith(".jpg")) {
+                try {
+                    java.net.URL url = getClass().getResource("/images/icon/" + name);
+                    if (url != null) {
+                        java.awt.Image img = javax.imageio.ImageIO.read(url);
+                        label.setIcon(new javax.swing.ImageIcon(img.getScaledInstance(20, 20, java.awt.Image.SCALE_SMOOTH)));
+                        return;
+                    }
+                } catch (Exception e) {}
+            }
+            Color iconColor = active ? Color.decode("#F43F5E") : Color.decode("#475569");
             try {
-                com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/" + iconName + ".svg", 20, 20);
+                String cleanName = name.replace(".svg", "");
+                com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/" + cleanName + ".svg", 18, 18);
                 svgIc.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> iconColor));
-                lblIcon.setIcon(svgIc);
+                label.setIcon(svgIc);
             } catch(Exception ex) {
                 try {
-                    com.formdev.flatlaf.extras.FlatSVGIcon svgIc2 = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon_svg/" + iconName + ".svg", 20, 20);
+                    String cleanName = name.replace(".svg", "");
+                    com.formdev.flatlaf.extras.FlatSVGIcon svgIc2 = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon_svg/" + cleanName + ".svg", 18, 18);
                     svgIc2.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> iconColor));
-                    lblIcon.setIcon(svgIc2);
+                    label.setIcon(svgIc2);
                 } catch(Exception ex2) {
-                    String colorHex = active ? "7C3AED" : "000000";
-                    setNetworkIcon(lblIcon, "https://img.icons8.com/fluency-systems-" + (active ? "filled" : "regular") + "/48/" + colorHex + "/" + iconName + ".png", 20, 20);
+                    String colorHex = active ? "F43F5E" : "475569";
+                    setNetworkIcon(label, "https://img.icons8.com/fluency-systems-regular/48/" + colorHex + "/" + name.replace(".svg", "").replace(".png", "") + ".png", 20, 20);
                 }
             }
-            repaint();
         }
 
         @Override protected void paintComponent(Graphics g) {
@@ -485,11 +557,11 @@ public class MainDashboard extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create(); 
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             if (isActive) {
-                g2.setColor(PRIMARY_BG);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(Color.decode("#F3E8FF")); 
+                g2.fillRoundRect(12, 0, getWidth() - 24, getHeight(), 16, 16);
             } else if (isHovered) {
-                g2.setColor(HOVER_BG);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(Color.decode("#F8FAFC"));
+                g2.fillRoundRect(12, 0, getWidth() - 24, getHeight(), 16, 16);
             }
             g2.dispose();
         }
@@ -535,40 +607,25 @@ public class MainDashboard extends JFrame {
 
 
     class PremiumCard extends JPanel {
+        private JLabel lblBtnText;
+        private boolean isExpanded = true;
+        
         public PremiumCard() {
-            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS)); 
+            setLayout(new BorderLayout()); 
             setOpaque(false); 
-            setBorder(new EmptyBorder(16, 16, 16, 16)); 
+            setBorder(new EmptyBorder(0, 0, 0, 0)); 
             setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setPreferredSize(new Dimension(140, 42));
+            setMaximumSize(new Dimension(999, 42));
             
-            JLabel lblTitle = new JLabel("Nâng cấp tài khoản"); 
-            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 14)); 
-            lblTitle.setForeground(Color.WHITE);
-            lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-            JLabel lblDesc = new JLabel("<html><div style='text-align:center; color: #EDE7FF; font-size: 11px; line-height: 1.4;'>Trải nghiệm nhiều tính năng hơn với gói Premium.</div></html>"); 
-            lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
-            
-            JPanel btnCTA = new JPanel(new BorderLayout()) { 
-                @Override protected void paintComponent(Graphics g) { 
-                    Graphics2D g2 = (Graphics2D) g.create(); 
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-                    g2.setColor(new Color(255, 255, 255, 50)); 
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12); 
-                    g2.dispose(); 
-                } 
-            };
-            btnCTA.setOpaque(false); 
-            btnCTA.setMaximumSize(new Dimension(999, 32)); 
-            btnCTA.setBorder(new EmptyBorder(6, 0, 6, 0));
-            
-            JLabel lblBtnText = new JLabel("Nâng cấp ngay  →", SwingConstants.CENTER); 
-            lblBtnText.setFont(new Font("Segoe UI", Font.BOLD, 12)); 
+            lblBtnText = new JLabel(" Nâng cấp", SwingConstants.CENTER); 
+            try {
+                com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/potion-bottle-svgrepo-com.svg", 28, 28);
+                lblBtnText.setIcon(svgIc);
+            } catch(Exception e) {}
+            lblBtnText.setFont(new Font("Segoe UI", Font.BOLD, 14)); 
             lblBtnText.setForeground(Color.WHITE);
-            btnCTA.add(lblBtnText, BorderLayout.CENTER); 
-            btnCTA.setAlignmentX(Component.CENTER_ALIGNMENT);
-            
-            add(lblTitle); add(Box.createVerticalStrut(6)); add(lblDesc); add(Box.createVerticalStrut(14)); add(btnCTA);
+            add(lblBtnText, BorderLayout.CENTER); 
             
             addMouseListener(new MouseAdapter() { 
                 public void mouseClicked(MouseEvent e) { 
@@ -576,14 +633,45 @@ public class MainDashboard extends JFrame {
                 } 
             });
         }
+        
+        public void setExpanded(boolean expanded) {
+            this.isExpanded = expanded;
+            if (expanded) {
+                setPreferredSize(new Dimension(150, 42));
+                setMaximumSize(new Dimension(999, 42));
+                try {
+                    com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/potion-bottle-svgrepo-com.svg", 28, 28);
+                    lblBtnText.setIcon(svgIc);
+                } catch(Exception e) {}
+                lblBtnText.setText(" Nâng cấp");
+            } else {
+                setPreferredSize(new Dimension(36, 36));
+                setMaximumSize(new Dimension(36, 36));
+                lblBtnText.setText("");
+                try {
+                    com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/potion-bottle-svgrepo-com.svg", 26, 26);
+                    lblBtnText.setIcon(svgIc);
+                } catch(Exception e) {}
+            }
+            revalidate();
+            repaint();
+        }
+        
         @Override protected void paintComponent(Graphics g) { 
+            super.paintComponent(g); 
             Graphics2D g2 = (Graphics2D) g.create(); 
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
             GradientPaint gp = new GradientPaint(0, 0, Color.decode("#A78BFA"), getWidth(), getHeight(), Color.decode("#7C3AED")); 
             g2.setPaint(gp); 
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16); 
+            if (isExpanded) {
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24); 
+            } else {
+                int size = Math.min(getWidth(), getHeight());
+                int x = (getWidth() - size) / 2;
+                int y = (getHeight() - size) / 2;
+                g2.fillOval(x, y, size, size);
+            }
             g2.dispose(); 
-            super.paintComponent(g); 
         }
     }
 
@@ -591,6 +679,24 @@ public class MainDashboard extends JFrame {
         JPanel mainArea = new JPanel(new BorderLayout());
         
         headerPanel = new HeaderPanel(this, this.userName);
+        if (!currentStaticUserAvatarBase64.isEmpty() && !currentStaticUserAvatarBase64.equals("NO_AVATAR") && !currentStaticUserAvatarBase64.equals("DEFAULT")) {
+            new Thread(() -> {
+                try {
+                    if (currentStaticUserAvatarBase64.startsWith("http")) {
+                        Image avatarImg = javax.imageio.ImageIO.read(new java.net.URL(currentStaticUserAvatarBase64));
+                        if (avatarImg != null) {
+                            SwingUtilities.invokeLater(() -> headerPanel.updateAvatar(avatarImg));
+                        }
+                    } else {
+                        byte[] decodedBytes = java.util.Base64.getDecoder().decode(currentStaticUserAvatarBase64);
+                        Image avatarImg = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(decodedBytes));
+                        if (avatarImg != null) {
+                            SwingUtilities.invokeLater(() -> headerPanel.updateAvatar(avatarImg));
+                        }
+                    }
+                } catch (Exception ex) { }
+            }).start();
+        }
         mainArea.add(headerPanel, BorderLayout.NORTH);
 
         cardLayout = new CardLayout();
@@ -649,10 +755,20 @@ public class MainDashboard extends JFrame {
         examTab = new com.mycompany.tutorhub_enterprise.client.exam.ExamTab(this.currentUserId, "TUTOR", NetworkManager.getInstance());
         mainCardPanel.add(examTab, "Exam");
 
+        com.mycompany.tutorhub_enterprise.client.exam.ui.QuestionBankTab questionBankTab = new com.mycompany.tutorhub_enterprise.client.exam.ui.QuestionBankTab(this.currentUserId, currentUserRole, NetworkManager.getInstance());
+        mainCardPanel.add(questionBankTab, "Question");
+
+        com.mycompany.tutorhub_enterprise.client.exam.ui.QuizHubTab quizHubTab = new com.mycompany.tutorhub_enterprise.client.exam.ui.QuizHubTab();
+        mainCardPanel.add(quizHubTab, "QuizHub");
+
         JPanel mainWrapper = new JPanel(new BorderLayout());
+        mainWrapper.setFocusable(true);
+        mainWrapper.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) { mainWrapper.requestFocusInWindow(); }
+        });
         mainWrapper.setOpaque(true);
-        mainWrapper.setBackground(Color.decode("#F0F2F5"));
-        mainWrapper.setBorder(new EmptyBorder(16, 16, 16, 16));
+        mainWrapper.setBackground(Color.decode("#F6F7FB"));
+        mainWrapper.setBorder(new EmptyBorder(0, 0, 0, 0));
         
         // Tạo bo góc và shadow cho content
         JPanel cardWrapper = new JPanel(new BorderLayout()) {
@@ -685,9 +801,9 @@ public class MainDashboard extends JFrame {
     }
 
     private void setupSplitPane(JPanel sidebar, JPanel mainArea) {
-        sidebar.setMinimumSize(new Dimension(180, 0)); 
-        sidebar.setPreferredSize(new Dimension(180, 0));
-        mainArea.setMinimumSize(new Dimension(600, 0));
+        sidebar.setMinimumSize(new Dimension(190, 0));
+        sidebar.setPreferredSize(new Dimension(190, 0));
+        mainArea.setMinimumSize(new Dimension(400, 0));
 
         mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, mainArea);
         mainSplitPane.setContinuousLayout(true);
@@ -695,7 +811,7 @@ public class MainDashboard extends JFrame {
         mainSplitPane.setBorder(null);
         mainSplitPane.setOpaque(false);
         mainSplitPane.setDividerSize(0); 
-        mainSplitPane.setBackground(Color.decode("#F0F2F5"));
+        mainSplitPane.setBackground(Color.decode("#F6F7FB"));
         
         add(mainSplitPane, BorderLayout.CENTER);
     }
@@ -807,12 +923,64 @@ public class MainDashboard extends JFrame {
                 } else if ("GET_LOCKET_VIDEOS_RESPONSE".equals(packet.action)) {
                     if (packet.data != null) {
                         locketVideos = (java.util.List<String>) packet.data;
-                        if (homeTab != null) homeTab.loadReelsToVideoSection(locketVideos);
+                        // DO NOT OVERWRITE HomeTab's real Locket posts with reels videos!
                         if (activeLocketPlayer != null && activeLocketPlayer.isDisplayable()) {
                             activeLocketPlayer.reloadVideos(locketVideos);
                         }
                     }
-                } 
+                } else if ("LOCKET_POST_LIST_SUCCESS".equals(packet.action)) {
+                    if (homeTab != null && packet.payload != null) {
+                        try {
+                            java.util.List<com.mycompany.tutorhub_enterprise.client.home.HomeLocketItem> items = new java.util.ArrayList<>();
+                            com.google.gson.JsonArray arr = com.google.gson.JsonParser.parseString(packet.payload).getAsJsonArray();
+                            for (com.google.gson.JsonElement el : arr) {
+                                com.google.gson.JsonObject obj = el.getAsJsonObject();
+                                com.mycompany.tutorhub_enterprise.client.home.HomeLocketItem item = new com.mycompany.tutorhub_enterprise.client.home.HomeLocketItem();
+                                item.id = obj.has("id") ? obj.get("id").getAsString() : "";
+                                item.authorName = obj.has("authorName") && !obj.get("authorName").isJsonNull() ? obj.get("authorName").getAsString() : "";
+                                item.timeText = obj.has("timeText") && !obj.get("timeText").isJsonNull() ? obj.get("timeText").getAsString() : "";
+                                item.imageUrl = obj.has("imageUrl") && !obj.get("imageUrl").isJsonNull() ? obj.get("imageUrl").getAsString() : "";
+                                item.thumbnailUrl = obj.has("thumbnailUrl") && !obj.get("thumbnailUrl").isJsonNull() ? obj.get("thumbnailUrl").getAsString() : item.imageUrl;
+                                item.authorAvatar = obj.has("authorAvatar") && !obj.get("authorAvatar").isJsonNull() ? obj.get("authorAvatar").getAsString() : "";
+                                item.caption = obj.has("caption") && !obj.get("caption").isJsonNull() ? obj.get("caption").getAsString() : "";
+                                item.likeCount = obj.has("likeCount") && !obj.get("likeCount").isJsonNull() ? obj.get("likeCount").getAsInt() : 0;
+                                item.commentCount = obj.has("commentCount") && !obj.get("commentCount").isJsonNull() ? obj.get("commentCount").getAsInt() : 0;
+                                item.likedByMe = obj.has("likedByMe") && !obj.get("likedByMe").isJsonNull() ? obj.get("likedByMe").getAsBoolean() : false;
+                                item.canDelete = obj.has("canDelete") && !obj.get("canDelete").isJsonNull() ? obj.get("canDelete").getAsBoolean() : false;
+                                items.add(item);
+                            }
+                            homeTab.handleLocketPostListSuccess(items);
+                        } catch(Exception ex) { ex.printStackTrace(); }
+                    }
+                } else if ("LOCKET_POST_CREATE_SUCCESS".equals(packet.action)) {
+                    if (homeTab != null) homeTab.handleCreateSuccess();
+                } else if ("LOCKET_ERROR".equals(packet.action)) {
+                    if (homeTab != null) homeTab.handleCreateError(packet.payload);
+                } else if ("LOCKET_POST_REACT_SUCCESS".equals(packet.action)) {
+                    if (homeTab != null) {
+                        try {
+                            com.google.gson.JsonObject obj = com.google.gson.JsonParser.parseString(packet.payload).getAsJsonObject();
+                            long postId = obj.get("postId").getAsLong();
+                            boolean reacted = obj.get("reacted").getAsBoolean();
+                            homeTab.handleLocketReactionSuccess(postId, reacted);
+                        } catch(Exception e) { e.printStackTrace(); }
+                    }
+                } else if ("LOCKET_COMMENT_LIST_SUCCESS".equals(packet.action)) {
+                    if (homeTab != null) {
+                        homeTab.handleLocketCommentListSuccess(packet.payload);
+                    }
+                } else if ("LOCKET_COMMENT_CREATE_SUCCESS".equals(packet.action)) {
+                    if (homeTab != null) {
+                        homeTab.handleLocketCommentCreateSuccess(packet.payload);
+                    }
+                } else if ("LOCKET_COMMENT_DELETE_SUCCESS".equals(packet.action)) {
+                    if (homeTab != null) {
+                        try {
+                            long commentId = Long.parseLong(packet.payload);
+                            homeTab.handleLocketCommentDeleteSuccess(commentId);
+                        } catch(Exception e) { e.printStackTrace(); }
+                    }
+                }
                 
                 else if ("ACCEPT_SUCCESS".equals(packet.action)) {
                     if (headerPanel != null) {
@@ -1157,7 +1325,7 @@ public class MainDashboard extends JFrame {
 
     public static void main(String[] args) {
         try { UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf()); } catch (Exception ex) {}
-        SwingUtilities.invokeLater(() -> new MainDashboard(1, "Bá Sáng").setVisible(true));
+        SwingUtilities.invokeLater(() -> new MainDashboard(1, "Bá Sáng", "TUTOR").setVisible(true));
     }
 }
 

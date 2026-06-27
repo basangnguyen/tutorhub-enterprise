@@ -23,6 +23,8 @@ public class ExamTab extends JPanel {
         this.networkManager = networkManager;
         
         setLayout(new BorderLayout());
+        setOpaque(true);
+        setBackground(Color.WHITE);
         
         // Toolbar
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -30,7 +32,7 @@ public class ExamTab extends JPanel {
         refreshBtn.addActionListener(e -> loadExams());
         toolbar.add(refreshBtn);
         
-        if ("TUTOR".equalsIgnoreCase(role)) {
+        if ("TUTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role)) {
             JButton createBtn = new JButton("Tạo Kỳ Thi");
             createBtn.addActionListener(e -> openCreateExamDialog());
             toolbar.add(createBtn);
@@ -55,6 +57,21 @@ public class ExamTab extends JPanel {
         JButton startBtn = new JButton("Tham gia kỳ thi");
         startBtn.addActionListener(e -> startSelectedExam(startBtn));
         actionPanel.add(startBtn);
+        
+        if ("TUTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role)) {
+            JButton previewBtn = new JButton("Xem trước đề");
+            previewBtn.addActionListener(e -> previewSelectedExam());
+            actionPanel.add(previewBtn);
+            
+            JButton assignBtn = new JButton("Gán đề thi");
+            assignBtn.addActionListener(e -> openAssignPaperDialog());
+            actionPanel.add(assignBtn);
+            
+            JButton testV2Btn = new JButton("Test Start V2");
+            testV2Btn.addActionListener(e -> testStartV2ForSelectedExam());
+            actionPanel.add(testV2Btn);
+        }
+        
         add(actionPanel, BorderLayout.SOUTH);
         
         loadExams();
@@ -121,6 +138,74 @@ public class ExamTab extends JPanel {
             com.mycompany.tutorhub_enterprise.client.exam.integration.SecureExamLauncherBridge.launchExam(examId);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Chưa tìm thấy TutorHub Secure Exam. Vui lòng cài đặt ứng dụng thi bảo mật trước.");
+        }
+    }
+    
+    private void previewSelectedExam() {
+        int selectedRow = examTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một kỳ thi trước khi xem trước.");
+            return;
+        }
+        
+        try {
+            int examId = (int) tableModel.getValueAt(selectedRow, 0);
+            java.util.Map<String, Object> req = new java.util.HashMap<>();
+            req.put("examId", examId);
+            
+            String jsonPayload = new com.google.gson.Gson().toJson(req);
+            networkManager.sendPacket(new Packet("EXAM_PACKAGE_PREVIEW_BY_EXAM", jsonPayload));
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi gửi yêu cầu xem trước.");
+        }
+    }
+    
+    private void openAssignPaperDialog() {
+        int selectedRow = examTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một kỳ thi trước khi gán đề.");
+            return;
+        }
+        
+        int examId = (int) tableModel.getValueAt(selectedRow, 0);
+        String examTitle = (String) tableModel.getValueAt(selectedRow, 1);
+        String status = (String) tableModel.getValueAt(selectedRow, 3);
+        
+        if (!"DRAFT".equalsIgnoreCase(status) && !"Nháp".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "Chỉ có thể gán đề cho kỳ thi ở trạng thái Nháp.");
+            return;
+        }
+        
+        JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
+        com.mycompany.tutorhub_enterprise.client.exam.ui.AssignPaperToExamDialog dialog = 
+            new com.mycompany.tutorhub_enterprise.client.exam.ui.AssignPaperToExamDialog(parent, examId, examTitle, networkManager);
+        dialog.setVisible(true);
+    }
+    
+    private void testStartV2ForSelectedExam() {
+        int selectedRow = examTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một kỳ thi trước khi test V2.");
+            return;
+        }
+        
+        try {
+            int examId = (int) tableModel.getValueAt(selectedRow, 0);
+            java.util.Map<String, Object> reqData = new java.util.HashMap<>();
+            reqData.put("examId", examId);
+            reqData.put("password", "");
+            reqData.put("clientBuild", "tutorhub_tse_v1");
+            reqData.put("debugMode", true);
+
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("protocolVersion", 1);
+            payload.put("requestId", java.util.UUID.randomUUID().toString());
+            payload.put("data", reqData);
+            
+            String jsonPayload = new com.google.gson.Gson().toJson(payload);
+            networkManager.sendPacket(new Packet("EXAM_START_REQUEST_V2", jsonPayload));
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi gửi yêu cầu test V2.");
         }
     }
 }

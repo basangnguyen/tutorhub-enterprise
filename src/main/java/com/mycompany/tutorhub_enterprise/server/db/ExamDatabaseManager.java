@@ -6,8 +6,29 @@ import java.sql.Statement;
 
 public class ExamDatabaseManager {
 
+    private static void safeAddColumn(Statement st, String table, String columnDef) {
+        try {
+            st.execute("ALTER TABLE " + table + " ADD COLUMN " + columnDef);
+        } catch (java.sql.SQLException e) {
+            String msg = e.getMessage().toLowerCase();
+            if (!msg.contains("duplicate column name") && !msg.contains("already exists")) {
+                System.err.println("[DB WARNING] Could not add column " + columnDef + " to " + table + ": " + e.getMessage());
+            }
+        }
+    }
+
     static {
         try (Connection conn = DatabaseManager.getConnection(); Statement st = conn.createStatement()) {
+            // 0. Bảng schema_migrations
+            st.execute("CREATE TABLE IF NOT EXISTS schema_migrations (" +
+                "id SERIAL PRIMARY KEY, " +
+                "module_name VARCHAR(100) NOT NULL, " +
+                "migration_key VARCHAR(150) NOT NULL, " +
+                "description TEXT, " +
+                "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "UNIQUE(module_name, migration_key)" +
+                ")");
+
             // 1. Bảng exams
             st.execute("CREATE TABLE IF NOT EXISTS exams (" +
                 "id SERIAL PRIMARY KEY, " +
@@ -27,6 +48,7 @@ public class ExamDatabaseManager {
                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                 "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                 ")");
+            try { st.execute("ALTER TABLE exams ADD COLUMN paper_id INT"); } catch (Exception ignore) {}
 
             // 2. Bảng questions
             st.execute("CREATE TABLE IF NOT EXISTS questions (" +
@@ -102,6 +124,105 @@ public class ExamDatabaseManager {
                 "description TEXT, " +
                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                 ")");
+
+            // 7. Bảng question_banks (Additive cho Phase 1 & 2)
+            st.execute("CREATE TABLE IF NOT EXISTS question_banks (" +
+                "id SERIAL PRIMARY KEY, " +
+                "name VARCHAR(255) NOT NULL, " +
+                "description TEXT, " +
+                "creator_id INT NOT NULL, " +
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ")");
+            // Migration for Phase 2: Add columns to question_banks if they don't exist
+            try { st.execute("ALTER TABLE question_banks ADD COLUMN description TEXT"); } catch (Exception ignored) {}
+            try { st.execute("ALTER TABLE question_banks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"); } catch (Exception ignored) {}
+
+            // Migration for Phase 2: Add columns to questions
+            try { st.execute("ALTER TABLE questions ADD COLUMN bank_id INT REFERENCES question_banks(id) ON DELETE CASCADE"); } catch (Exception ignored) {}
+            try { st.execute("ALTER TABLE questions ADD COLUMN creator_id INT"); } catch (Exception ignored) {}
+            try { st.execute("ALTER TABLE questions ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"); } catch (Exception ignored) {}
+
+            // Bảng question_options (Additive cho Phase 2)
+            st.execute("CREATE TABLE IF NOT EXISTS question_options (" +
+                "id SERIAL PRIMARY KEY, " +
+                "question_id INT NOT NULL REFERENCES questions(id) ON DELETE CASCADE, " +
+                "option_label VARCHAR(10), " +
+                "content TEXT NOT NULL, " +
+                "is_correct BOOLEAN DEFAULT FALSE, " +
+                "order_index INT DEFAULT 0" +
+                ")");
+
+            // 8. Bảng exam_papers (Additive cho Phase 1)
+            st.execute("CREATE TABLE IF NOT EXISTS exam_papers (" +
+                "id SERIAL PRIMARY KEY, " +
+                "title VARCHAR(255) NOT NULL, " +
+                "total_score FLOAT DEFAULT 0, " +
+                "creator_id INT NOT NULL, " +
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ")");
+            try { st.execute("ALTER TABLE exam_papers ADD COLUMN description TEXT"); } catch (Exception ignore) {}
+            try { st.execute("ALTER TABLE exam_papers ADD COLUMN status VARCHAR(50) DEFAULT 'DRAFT'"); } catch (Exception ignore) {}
+            try { st.execute("ALTER TABLE exam_papers ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"); } catch (Exception ignore) {}
+
+            // 9. Bảng exam_paper_questions (Additive cho Phase 1)
+            st.execute("CREATE TABLE IF NOT EXISTS exam_paper_questions (" +
+                "paper_id INT REFERENCES exam_papers(id) ON DELETE CASCADE, " +
+                "question_id INT REFERENCES questions(id) ON DELETE CASCADE, " +
+                "order_idx INT DEFAULT 0, " +
+                "points FLOAT DEFAULT 1.0, " +
+                "PRIMARY KEY (paper_id, question_id)" +
+                ")");
+            try { st.execute("ALTER TABLE exam_paper_questions ADD COLUMN is_required BOOLEAN DEFAULT TRUE"); } catch (Exception ignore) {}
+            try { st.execute("ALTER TABLE exam_paper_questions ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"); } catch (Exception ignore) {}
+
+            // 10. Bảng exam_attempts (Additive cho Phase 1 & 5C)
+            st.execute("CREATE TABLE IF NOT EXISTS exam_attempts (" +
+                "id VARCHAR(36) PRIMARY KEY, " +
+                "exam_id INT REFERENCES exams(id) ON DELETE CASCADE, " +
+                "user_id INT NOT NULL, " +
+                "status VARCHAR(50) DEFAULT 'IN_PROGRESS', " +
+                "started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "submitted_at TIMESTAMP, " +
+                "final_score FLOAT" +
+                ")");
+            safeAddColumn(st, "exam_attempts", "paper_id INT");
+            safeAddColumn(st, "exam_attempts", "attempt_no INT DEFAULT 1");
+            safeAddColumn(st, "exam_attempts", "deadline_at TIMESTAMP");
+            safeAddColumn(st, "exam_attempts", "session_token_hash VARCHAR(128)");
+            safeAddColumn(st, "exam_attempts", "client_nonce VARCHAR(64)");
+            safeAddColumn(st, "exam_attempts", "package_hash VARCHAR(128)");
+            safeAddColumn(st, "exam_attempts", "client_info_json TEXT");
+            safeAddColumn(st, "exam_attempts", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+            // 11. Bảng exam_assignments (Additive cho Phase 1)
+            st.execute("CREATE TABLE IF NOT EXISTS exam_assignments (" +
+                "exam_id INT REFERENCES exams(id) ON DELETE CASCADE, " +
+                "user_id INT NOT NULL, " +
+                "assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "PRIMARY KEY (exam_id, user_id)" +
+                ")");
+
+            // 12. Bảng exam_results (Additive cho Phase 1)
+            st.execute("CREATE TABLE IF NOT EXISTS exam_results (" +
+                "id SERIAL PRIMARY KEY, " +
+                "attempt_id VARCHAR(36) REFERENCES exam_attempts(id) ON DELETE CASCADE, " +
+                "total_score FLOAT, " +
+                "graded_by INT, " +
+                "graded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ")");
+
+            // 13. Bảng exam_audit_logs (Additive cho Phase 1)
+            st.execute("CREATE TABLE IF NOT EXISTS exam_audit_logs (" +
+                "id BIGSERIAL PRIMARY KEY, " +
+                "user_id INT, " +
+                "attempt_id VARCHAR(36), " +
+                "action VARCHAR(255) NOT NULL, " +
+                "details TEXT, " +
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ")");
+
+
 
             System.out.println("[DB] Đã kiểm tra và tạo cấu trúc bảng thi cử (Exam Module) thành công!");
         } catch (Exception e) {

@@ -29,6 +29,8 @@ public class LoginFrame extends JFrame {
     private JTextField txtUsername;
     private JPasswordField txtPassword;
     private RoundedButton btnLogin; 
+    private JCheckBox chkAutoLogin;
+    private JCheckBox chkRemember;
 
     public LoginFrame() {
         setTitle("TutorHub Enterprise - Login");
@@ -177,41 +179,47 @@ public class LoginFrame extends JFrame {
         btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 16));
         rightPanel.add(btnLogin);
 
-        JCheckBox chkAutoLogin = new JCheckBox("Auto Login");
-        chkAutoLogin.setBounds(30, 335, 100, 20);
+        chkAutoLogin = new JCheckBox("Keep me signed in");
+        chkAutoLogin.setBounds(30, 335, 140, 20);
         chkAutoLogin.setBackground(Color.WHITE);
         chkAutoLogin.setForeground(TEXT_SUB);
         chkAutoLogin.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        chkAutoLogin.setEnabled(false);
+        chkAutoLogin.setToolTipText("Tính năng đang phát triển (Đang chờ OS Secure Storage)");
         rightPanel.add(chkAutoLogin);
 
-        JCheckBox chkRemember = new JCheckBox("Remember Password");
-        chkRemember.setBounds(175, 335, 145, 20);
+        chkRemember = new JCheckBox("Remember Me");
+        chkRemember.setBounds(180, 335, 140, 20);
         chkRemember.setBackground(Color.WHITE);
         chkRemember.setForeground(TEXT_SUB);
         chkRemember.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        chkRemember.setToolTipText("Chỉ nhớ email/tài khoản");
         rightPanel.add(chkRemember);
+        
+        // Load Remember Me preferences
+        java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(LoginFrame.class);
+        String savedEmail = prefs.get("saved_email", "");
+        if (!savedEmail.isEmpty()) {
+            txtUsername.setText(savedEmail);
+            chkRemember.setSelected(true);
+            System.out.println("[REMEMBER_ME] loaded username = true");
+        }
 
         JLabel lblOr = new JLabel("------------------ Or ------------------", SwingConstants.CENTER);
         lblOr.setForeground(Color.decode("#D1D5DB"));
-        lblOr.setBounds(30, 385, 290, 20);
+        lblOr.setBounds(30, 390, 290, 20);
         rightPanel.add(lblOr);
-
-        RoundedButton btnSms = new RoundedButton("Log in with SMS", Color.decode("#ECFDF5"), PRIMARY_GREEN, BORDER_COLOR, 48);
-        btnSms.setBounds(30, 420, 290, 44);
-        btnSms.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnSms.setIconTextGap(12);
-        rightPanel.add(btnSms);
 
         RoundedButton btnFacebook = new RoundedButton("Log in with Facebook", Color.decode("#F0F2F5"), FB_BLUE, null, 44);
         setLocalIcon(btnFacebook, "/images/icon/facebook.svg", 22, 22); 
-        btnFacebook.setBounds(30, 475, 290, 44);
+        btnFacebook.setBounds(30, 430, 290, 44);
         btnFacebook.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnFacebook.setIconTextGap(12); 
         rightPanel.add(btnFacebook);
 
         RoundedButton btnGoogle = new RoundedButton("Log in with Google", Color.WHITE, TEXT_MAIN, BORDER_COLOR, 44);
         setLocalIcon(btnGoogle, "/images/icon/google.svg", 22, 22);
-        btnGoogle.setBounds(30, 530, 290, 44);
+        btnGoogle.setBounds(30, 490, 290, 44);
         btnGoogle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnGoogle.setIconTextGap(12);
         rightPanel.add(btnGoogle);
@@ -220,7 +228,7 @@ public class LoginFrame extends JFrame {
         JLabel lblForget = new JLabel("Forget Password", SwingConstants.CENTER);
         lblForget.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         lblForget.setForeground(TEXT_SUB);
-        lblForget.setBounds(30, 585, 290, 20);
+        lblForget.setBounds(30, 560, 290, 20);
         lblForget.setCursor(new Cursor(Cursor.HAND_CURSOR));
         rightPanel.add(lblForget);
         
@@ -243,9 +251,38 @@ public class LoginFrame extends JFrame {
             public void mouseExited(MouseEvent e) { btnLogin.setBgColor(PRIMARY_GREEN); }
         });
         
-        btnSms.addActionListener(e -> new SmsLoginDialog(LoginFrame.this).setVisible(true));
-        btnFacebook.addActionListener(e -> showSocialLoginUnavailable("Facebook"));
-        btnGoogle.addActionListener(e -> showSocialLoginUnavailable("Google"));
+        btnFacebook.addActionListener(e -> {
+            com.mycompany.tutorhub_enterprise.client.oauth.FacebookLoginFlow.startFacebookLogin(this);
+        });
+        btnGoogle.addActionListener(e -> com.mycompany.tutorhub_enterprise.client.oauth.OAuthLoginFlow.startGoogleLogin(this));
+
+        btnLogin.setEnabled(false);
+        btnFacebook.setEnabled(false);
+        btnGoogle.setEnabled(false);
+        btnLogin.setText("Connecting...");
+        
+        new Thread(() -> {
+            try {
+                System.out.println("[LOGIN_FRAME] Connecting to cloud...");
+                NetworkManager.getInstance().connect("localhost", 8888);
+                System.out.println("[LOGIN_FRAME] WebSocket connected, buttons enabled");
+                SwingUtilities.invokeLater(() -> {
+                    btnLogin.setEnabled(true);
+                    btnFacebook.setEnabled(true);
+                    btnGoogle.setEnabled(true);
+                    btnLogin.setText("Log In");
+                });
+            } catch (Exception e) {
+                System.out.println("[LOGIN_FRAME] Lỗi kết nối WebSocket: " + e.getMessage());
+                SwingUtilities.invokeLater(() -> {
+                    btnLogin.setText("Offline - Try Restart");
+                    btnLogin.setEnabled(false);
+                    btnFacebook.setEnabled(false);
+                    btnGoogle.setEnabled(false);
+                    JOptionPane.showMessageDialog(LoginFrame.this, "Không thể kết nối đến Máy chủ.\nVui lòng kiểm tra mạng và khởi động lại ứng dụng.", "Lỗi kết nối", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        }).start();
     }
 
     private void showSocialLoginUnavailable(String provider) {
@@ -271,21 +308,13 @@ public class LoginFrame extends JFrame {
         new Thread(() -> {
             boolean isDbSuccess = false;
             String message = "Không thể kết nối đến Máy chủ!";
-            int uid = 1; // ID mặc định nếu có lỗi tách
+            AuthResponse finalRes = null;
 
             try {
                 AuthResponse res = new AuthClient().login(username, password);
-
+                finalRes = res;
                 isDbSuccess = res.isSuccess();
                 message = res.getMessage();
-                
-                // Tách lấy ID thực tế từ Server trả về (DASHBOARD_GO|id)
-                String dashboardPayload = res.getDashboardPayload();
-                if (isDbSuccess && dashboardPayload != null && dashboardPayload.contains("|")) {
-                    try {
-                        uid = Integer.parseInt(dashboardPayload.split("\\|")[1]);
-                    } catch (Exception ignored) {}
-                }
             } catch (Exception ex) {
                 System.err.println("[SOCKET ERROR] " + ex.getMessage());
             }
@@ -299,12 +328,20 @@ public class LoginFrame extends JFrame {
                 return;
             }
 
-            final int finalUid = uid;
+            final AuthResponse validRes = finalRes;
             SwingUtilities.invokeLater(() -> {
                 btnLogin.setText("Log In");
-                dispose(); 
-                // Truyền ID thật và username vào Dashboard
-                new MainDashboard(finalUid, username).setVisible(true); 
+                
+                // Process Remember Me
+                java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(LoginFrame.class);
+                if (chkRemember.isSelected()) {
+                    prefs.put("saved_email", username);
+                    System.out.println("[REMEMBER_ME] saved username = true");
+                } else {
+                    prefs.remove("saved_email");
+                }
+                
+                openDashboardFromAuth(validRes, username);
             });
 
         }).start();
@@ -312,14 +349,30 @@ public class LoginFrame extends JFrame {
 
     void openDashboardFromAuth(AuthResponse res, String fallbackName) {
         int uid = 1;
+        String role = "STUDENT";
+        String avatar = "";
+        String name = fallbackName;
         if (res != null && res.getDashboardPayload() != null && res.getDashboardPayload().contains("|")) {
             try {
-                uid = Integer.parseInt(res.getDashboardPayload().split("\\|")[1]);
+                String[] parts = res.getDashboardPayload().split("\\|");
+                uid = Integer.parseInt(parts[1]);
+                if (parts.length > 2) {
+                    role = parts[2];
+                }
+                if (parts.length > 3) {
+                    avatar = parts[3];
+                }
+                if (parts.length > 4) {
+                    name = parts[4];
+                }
+                if (res.getSessionInfo() != null) {
+                    com.mycompany.tutorhub_enterprise.client.auth.ClientSessionManager.setSession(res.getSessionInfo(), uid, role);
+                }
             } catch (Exception ignored) {}
         }
 
         dispose();
-        new MainDashboard(uid, fallbackName).setVisible(true);
+        new MainDashboard(uid, name, role, avatar).setVisible(true);
     }
     
     private void xuLyDangNhapOAuth(String name, String email) {
@@ -337,7 +390,7 @@ public class LoginFrame extends JFrame {
                     if (res.success) {
                         dispose(); 
                         // Tạm cấp ID = 1 cho người dùng đăng nhập MXH
-                        new MainDashboard(1, name).setVisible(true); 
+                        new MainDashboard(1, name, "STUDENT").setVisible(true); 
                     } else {
                         JOptionPane.showMessageDialog(this, res.message, "Lỗi xác thực", JOptionPane.ERROR_MESSAGE);
                     }
@@ -454,8 +507,8 @@ public class LoginFrame extends JFrame {
             }
 
             // --- TẠO 2 NÚT NEXT & PREV CHUYỂN SLIDE ---
-            CircleButton btnPrev = new CircleButton("<");
-            CircleButton btnNext = new CircleButton(">");
+            CircleButton btnPrev = new CircleButton("‹");
+            CircleButton btnNext = new CircleButton("›");
             
             // Canh lề 2 bên, giữa theo chiều dọc (Chiều cao panel là 360)
             btnPrev.setBounds(10, 160, 35, 35);
@@ -552,222 +605,7 @@ public class LoginFrame extends JFrame {
     }
 }
 
-class SmsLoginDialog extends JDialog {
-    private final LoginFrame parentFrame;
-    private final Color PRIMARY_GREEN = Color.decode("#10B981");
-    private final Color TEXT_MAIN = Color.decode("#111827");
-    private final Color TEXT_SUB = Color.decode("#6B7280");
-    private final Color ERROR = Color.decode("#DC2626");
 
-    private JTextField txtPhone;
-    private JTextField txtOtp;
-    private JLabel lblStatus;
-    private JButton btnSendOtp;
-    private JButton btnVerify;
-    private Timer otpTimer;
-    private int countdown = 60;
-
-    SmsLoginDialog(LoginFrame parent) {
-        super(parent, "SMS Login", true);
-        this.parentFrame = parent;
-        setSize(430, 455);
-        setLocationRelativeTo(parent);
-        setResizable(false);
-        setLayout(null);
-        getContentPane().setBackground(Color.WHITE);
-
-        JLabel lblTitle = new JLabel("Đăng nhập bằng SMS", SwingConstants.CENTER);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        lblTitle.setForeground(TEXT_MAIN);
-        lblTitle.setBounds(0, 28, 430, 34);
-        add(lblTitle);
-
-        JLabel lblSub = new JLabel("Dùng số điện thoại đã xác minh trong Hồ sơ", SwingConstants.CENTER);
-        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblSub.setForeground(TEXT_SUB);
-        lblSub.setBounds(0, 66, 430, 22);
-        add(lblSub);
-
-        JLabel lblPhone = new JLabel("Số điện thoại");
-        lblPhone.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblPhone.setForeground(TEXT_MAIN);
-        lblPhone.setBounds(42, 112, 180, 20);
-        add(lblPhone);
-
-        txtPhone = new JTextField();
-        txtPhone.setBounds(42, 138, 346, 44);
-        txtPhone.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        txtPhone.putClientProperty("JTextField.placeholderText", "0912345678 hoặc +84912345678");
-        txtPhone.putClientProperty("JComponent.arc", 14);
-        InputFilters.installPhoneFilter(txtPhone);
-        add(txtPhone);
-
-        JLabel lblOtp = new JLabel("Mã OTP");
-        lblOtp.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblOtp.setForeground(TEXT_MAIN);
-        lblOtp.setBounds(42, 198, 180, 20);
-        add(lblOtp);
-
-        txtOtp = new JTextField();
-        txtOtp.setBounds(42, 224, 206, 44);
-        txtOtp.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        txtOtp.setHorizontalAlignment(JTextField.CENTER);
-        txtOtp.putClientProperty("JTextField.placeholderText", "123456");
-        txtOtp.putClientProperty("JComponent.arc", 14);
-        InputFilters.installOtpFilter(txtOtp);
-        add(txtOtp);
-
-        btnSendOtp = new JButton("Gửi mã");
-        btnSendOtp.setBounds(258, 224, 130, 44);
-        btnSendOtp.setBackground(Color.decode("#F3F4F6"));
-        btnSendOtp.setForeground(TEXT_MAIN);
-        btnSendOtp.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnSendOtp.putClientProperty("JComponent.arc", 14);
-        btnSendOtp.setFocusPainted(false);
-        btnSendOtp.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        add(btnSendOtp);
-
-        lblStatus = new JLabel(" ");
-        lblStatus.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        lblStatus.setForeground(TEXT_SUB);
-        lblStatus.setBounds(42, 276, 346, 24);
-        add(lblStatus);
-
-        btnVerify = new JButton("Xác minh và đăng nhập");
-        btnVerify.setBounds(42, 318, 346, 48);
-        btnVerify.setBackground(PRIMARY_GREEN);
-        btnVerify.setForeground(Color.WHITE);
-        btnVerify.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        btnVerify.putClientProperty("JComponent.arc", 999);
-        btnVerify.setFocusPainted(false);
-        btnVerify.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        add(btnVerify);
-
-        JButton btnCancel = new JButton("Hủy");
-        btnCancel.setBounds(165, 372, 100, 28);
-        btnCancel.setContentAreaFilled(false);
-        btnCancel.setBorderPainted(false);
-        btnCancel.setForeground(TEXT_SUB);
-        btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        add(btnCancel);
-
-        addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override public void windowClosed(java.awt.event.WindowEvent e) { stopCooldown("Gửi mã"); }
-            @Override public void windowClosing(java.awt.event.WindowEvent e) { stopCooldown("Gửi mã"); }
-        });
-        btnCancel.addActionListener(e -> dispose());
-        btnSendOtp.addActionListener(e -> requestSmsOtp());
-        btnVerify.addActionListener(e -> verifySmsOtp());
-    }
-
-    private void requestSmsOtp() {
-        String phone = txtPhone.getText().trim();
-        if (!InputFilters.isValidPhone(phone)) {
-            setStatus("Nhập số điện thoại hợp lệ trước khi gửi mã.", ERROR);
-            txtPhone.requestFocus();
-            return;
-        }
-
-        setStatus("Đang gửi mã xác minh...", TEXT_SUB);
-        startCooldown();
-
-        new Thread(() -> {
-            try {
-                AuthResponse res = new AuthClient().requestSmsLoginOtp(phone);
-
-                SwingUtilities.invokeLater(() -> {
-                    if (res.isSuccess()) {
-                        setStatus("Mã OTP đã được gửi. Nhập 6 số để đăng nhập.", PRIMARY_GREEN);
-                        txtOtp.requestFocus();
-                    } else {
-                        stopCooldown("Gửi mã");
-                        setStatus(res.getMessage(), ERROR);
-                    }
-                });
-            } catch (Exception ex) {
-                SwingUtilities.invokeLater(() -> {
-                    stopCooldown("Gửi mã");
-                    setStatus("Không kết nối được server. Vui lòng thử lại.", ERROR);
-                });
-            }
-        }).start();
-    }
-
-    private void verifySmsOtp() {
-        String phone = txtPhone.getText().trim();
-        String otp = txtOtp.getText().trim();
-        if (!InputFilters.isValidPhone(phone)) {
-            setStatus("Số điện thoại chưa hợp lệ.", ERROR);
-            txtPhone.requestFocus();
-            return;
-        }
-        if (!InputFilters.isValidOtp(otp)) {
-            setStatus("Mã OTP phải gồm đúng 6 chữ số.", ERROR);
-            txtOtp.requestFocus();
-            return;
-        }
-
-        btnVerify.setEnabled(false);
-        btnVerify.setText("Đang xác minh...");
-        setStatus("Đang kiểm tra mã OTP...", TEXT_SUB);
-
-        new Thread(() -> {
-            try {
-                AuthResponse res = new AuthClient().verifySmsLogin(phone, otp);
-
-                SwingUtilities.invokeLater(() -> {
-                    btnVerify.setEnabled(true);
-                    btnVerify.setText("Xác minh và đăng nhập");
-                    if (res.isSuccess()) {
-                        stopCooldown("Gửi mã");
-                        dispose();
-                        parentFrame.openDashboardFromAuth(res, phone);
-                    } else {
-                        setStatus(res.getMessage(), ERROR);
-                    }
-                });
-            } catch (Exception ex) {
-                SwingUtilities.invokeLater(() -> {
-                    btnVerify.setEnabled(true);
-                    btnVerify.setText("Xác minh và đăng nhập");
-                    setStatus("Không kết nối được server. Vui lòng thử lại.", ERROR);
-                });
-            }
-        }).start();
-    }
-
-    private void startCooldown() {
-        if (otpTimer != null) {
-            otpTimer.stop();
-        }
-        btnSendOtp.setEnabled(false);
-        countdown = 60;
-        btnSendOtp.setText(countdown + "s");
-        otpTimer = new Timer(1000, e -> {
-            countdown--;
-            btnSendOtp.setText(countdown + "s");
-            if (countdown <= 0) {
-                stopCooldown("Gửi lại");
-            }
-        });
-        otpTimer.start();
-    }
-
-    private void stopCooldown(String text) {
-        if (otpTimer != null) {
-            otpTimer.stop();
-        }
-        btnSendOtp.setEnabled(true);
-        btnSendOtp.setText(text);
-    }
-
-    private void setStatus(String message, Color color) {
-        lblStatus.setText(message == null || message.trim().isEmpty() ? " " : message);
-        lblStatus.setForeground(color);
-    }
-}
-
-// ==========================================================
 // CLASS DIALOG: FORGOT PASSWORD (ENGLISH VERSION)
 // ==========================================================
 class ForgotPasswordDialog extends JDialog {

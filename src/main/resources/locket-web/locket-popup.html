@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TutorHub Locket</title>
+  <link rel="stylesheet" href="locket-popup.css">
+</head>
+<body>
+  <div class="locket-wrapper">
+    <main class="locket-shell" id="locketShell">
+
+    <!-- ========== CỘT TRÁI ========== -->
+    <aside class="left-panel" aria-label="Locket navigation">
+
+      <!-- Card Tạo bài mới -->
+      <button class="create-card" id="createPostButton" type="button" aria-label="Tao bai moi">
+        <div class="create-plus-circle">
+          <img id="plusIcon" src="../../images/icon/plus1.svg" alt="+">
+        </div>
+        <span class="create-label">Tạo bài mới</span>
+      </button>
+
+      <!-- Section Gần đây -->
+      <section class="recent-section">
+        <div class="section-label">
+          <span class="section-label-icon"><img id="clockIcon" src="../../images/icon/clock_color.svg" alt="🕐"></span>
+          Gần đây
+        </div>
+        <div class="recent-list" id="recentList"></div>
+      </section>
+    </aside>
+
+    <!-- ========== KHU GIỮA ========== -->
+    <section class="viewer-panel" id="viewerPanel" aria-label="Locket photo viewer">
+
+      <!-- Header avatar/tên/thời gian -->
+      <header class="viewer-meta" id="viewerMeta">
+        <div class="avatar-wrap">
+          <div class="avatar" id="authorAvatar">TH</div>
+        </div>
+        <div class="meta-copy">
+          <div class="author-name" id="authorName">TutorHub</div>
+          <div class="time-text" id="timeText">Vừa xong</div>
+        </div>
+      </header>
+
+      <!-- Khung ảnh lớn -->
+      <div class="stage-wrap">
+        <button class="photo-nav prev" id="prevButton" type="button" aria-label="Anh truoc">&#8249;</button>
+        <div class="photo-stage" id="photoStage">
+          <img id="viewerImage" alt="">
+          <div class="camera-frame" id="cameraFrame">
+            <img id="cameraImage" alt="Camera preview">
+            <div class="camera-hint" id="cameraHint">Đang mở camera...</div>
+          </div>
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon"><img src="../../images/icon/camera_empty.png" alt="📸"></div>
+            <strong>Chưa có ảnh Locket</strong>
+            <span>Hãy tạo khoảnh khắc đầu tiên!</span>
+          </div>
+          <div class="upload-overlay" id="uploadOverlay">
+            <span class="spinner"></span>
+            <span id="uploadText">Đang đăng ảnh...</span>
+          </div>
+        </div>
+        <button class="photo-nav next" id="nextButton" type="button" aria-label="Anh tiep theo">&#8250;</button>
+      </div>
+
+      <!-- Caption input + Đăng -->
+      <div class="caption-row" id="captionRow">
+        <input id="captionInput" maxlength="150" placeholder="Thêm caption ngắn..." autocomplete="off">
+        <button id="submitButton" type="button">Đăng</button>
+      </div>
+
+      <!-- Status line -->
+      <p class="status-line" id="statusLine"></p>
+
+      <!-- Dải cảm xúc + Nhắn tin -->
+      <footer class="social-strip" id="socialStrip">
+        <div class="reaction-row">
+          <button class="reaction" data-reaction="LIKE"    type="button" title="Thich"><img src="../../images/reactions/like.gif" alt="👍"></button>
+          <button class="reaction" data-reaction="HEART"   type="button" title="Yeu thich"><img src="../../images/reactions/love.gif" alt="❤️"></button>
+          <button class="reaction" data-reaction="LOVE"    type="button" title="Tieu cam"><img src="../../images/reactions/care.gif" alt="🥰"></button>
+          <button class="reaction" data-reaction="HAHA"    type="button" title="Ha ha"><img src="../../images/reactions/haha.gif" alt="😁"></button>
+          <button class="reaction" data-reaction="WOW"     type="button" title="Wow"><img src="../../images/reactions/wow.gif" alt="😮"></button>
+          <button class="reaction" data-reaction="SAD"     type="button" title="Buon"><img src="../../images/reactions/sad.gif" alt="😢"></button>
+          <button class="reaction" data-reaction="ANGRY"   type="button" title="Buc boi"><img src="../../images/reactions/angry.gif" alt="😡"></button>
+        </div>
+        <button class="message-button" id="messageButton" type="button">
+          <img class="msg-icon" src="../../images/icon/message.svg" alt="Nhắn tin">
+          Nhắn tin
+        </button>
+      </footer>
+    </section>
+
+    <!-- ========== CỘT PHẢI ========== -->
+    <aside class="action-panel" aria-label="Locket actions">
+      <button class="round-action" id="playButton" type="button">
+        <img class="action-icon" src="../../images/icon/bomb-product-video-svgrepo-com.svg" alt="Phát">
+        <strong class="action-label">Phát</strong>
+      </button>
+      <button class="round-action" id="imageButton" type="button">
+        <img class="action-icon" src="../../images/icon/camera.svg" alt="Ảnh">
+        <strong class="action-label">Ảnh</strong>
+      </button>
+      <button class="round-action ok-action" id="okButton" type="button">
+        <span class="ok-label-text" id="okLabel">OK</span>
+      </button>
+      <button class="round-action" id="optionsButton" type="button">
+        <img class="action-icon" src="../../images/icon/tuychon.svg" alt="Tùy chọn">
+        <strong class="action-label">Tùy chọn</strong>
+      </button>
+      <button class="round-action exit-action" id="exitButton" type="button">
+        <img class="action-icon" src="../../images/icon_svg/x.svg" alt="Thoát">
+        <strong class="action-label">Thoát</strong>
+      </button>
+    </aside>
+
+  </main>
+  </div>
+
+  <script src="locket-popup.js"></script>
+</body>
+</html>

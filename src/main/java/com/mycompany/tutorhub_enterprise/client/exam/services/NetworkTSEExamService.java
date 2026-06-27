@@ -107,8 +107,6 @@ public class NetworkTSEExamService implements TSEExamService {
                 reqPacket.data = payload; // Để cả payload và data cho server parse
                 
                 System.out.println("[TSE_NETWORK] Starting exam: userId=" + userId + ", examId=" + examId + ", passwordLength=" + (password == null ? 0 : password.length()));
-                System.out.println("[TSE_NETWORK] EXAM_START_REQUEST data=" + reqPacket.data);
-                System.out.println("[TSE_NETWORK] EXAM_START_REQUEST payload=" + reqPacket.payload);
                 System.out.println("[TSE_NETWORK] Gửi request: action=EXAM_START_REQUEST, reqId=" + reqId);
                 NetworkManager.getInstance().sendPacket(reqPacket);
                 
@@ -136,11 +134,19 @@ public class NetworkTSEExamService implements TSEExamService {
                                 res.htmlContent = (String) map.get("htmlContent");
                             }
                             if (map.containsKey("questionCount")) {
-                                res.questionCount = ((Double) map.get("questionCount")).intValue();
+                                Object questionCountValue = map.get("questionCount");
+                                if (questionCountValue instanceof Number) {
+                                    res.questionCount = ((Number) questionCountValue).intValue();
+                                } else {
+                                    res.questionCount = Integer.parseInt(String.valueOf(questionCountValue));
+                                }
                             } else {
                                 // Default to 1 for dummy mocks unless explicitly 0
                                 res.questionCount = 1;
                             }
+                            System.out.println("[TSE_NETWORK] Parsed EXAM_START_RESPONSE questionCount=" + res.questionCount
+                                    + ", htmlLength=" + (res.htmlContent == null ? 0 : res.htmlContent.length())
+                                    + ", htmlHasNoQuestionsMessage=" + (res.htmlContent != null && res.htmlContent.contains("chưa có câu")));
                         }
                     } catch (Exception e) {
                         System.err.println("[TSE_NETWORK] Lỗi parse data từ EXAM_START_RESPONSE: " + e.getMessage());

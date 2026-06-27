@@ -1,5 +1,9 @@
 package com.mycompany.tutorhub_enterprise.client;
 
+import com.mycompany.tutorhub_enterprise.client.home.HomeSocialWebPanel;
+import com.mycompany.tutorhub_enterprise.client.home.HomeBannerItem;
+import com.mycompany.tutorhub_enterprise.client.home.HomeLocketItem;
+import com.mycompany.tutorhub_enterprise.client.home.HomeSocialState;
 import com.mycompany.tutorhub_enterprise.models.Packet;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -58,7 +62,9 @@ public class HomeTab extends JPanel {
 
     private PillButton btnAll, btnNear, btnHighSalary, btnTakenQuick, btnAdvancedFilter, btnSort;
     private PillButton btnViewToggle;
-    private VideoReelSection videoReel;
+    private HomeSocialWebPanel homeSocialWebPanel;
+    private final java.util.List<HomeLocketItem> currentLocketItems = new ArrayList<>();
+    private Runnable openMessagesHandler;
 
     public HomeTab() {
         setLayout(new BorderLayout(0, 0));
@@ -66,45 +72,90 @@ public class HomeTab extends JPanel {
         setBorder(null);
 
         initEmptyState();
+        requestLocketPosts(); // Load global feed
 
         JPanel mainContent = new JPanel(new BorderLayout(0, 0)); 
         mainContent.setOpaque(false);
 
-        // --- 1. BANNER (SLIDE) ---
-        JPanel bannerContainer = new JPanel(new BorderLayout());
-        bannerContainer.setOpaque(false);
-        bannerContainer.setBorder(new EmptyBorder(16, 24, 8, 24)); 
-
-        JPanel bannerWrapper = new JPanel(new BorderLayout()) {
-            @Override
-            public void paint(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int arc = 20; 
-                Shape clip = new java.awt.geom.RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), arc, arc);
-                g2.setClip(clip);
-                super.paint(g2); 
-                g2.setClip(null);
-                
-                g2.setColor(new Color(0, 0, 0, 15)); 
-                g2.setStroke(new BasicStroke(2f));
-                g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, arc, arc);
-                g2.setColor(BORDER); 
-                g2.setStroke(new BasicStroke(1.0f));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
-                g2.dispose();
-            }
-        };
-        bannerWrapper.setOpaque(false);
+        // --- 1. HOME SOCIAL WEB PROTOTYPE: Banner + global Locket feed ---
+        homeSocialWebPanel = new HomeSocialWebPanel();
+        java.util.List<HomeLocketItem> defaultLocketItems = createDefaultHomeLocketItems();
+        currentLocketItems.clear();
+        currentLocketItems.addAll(defaultLocketItems);
+        homeSocialWebPanel.setHomeSocialState(new HomeSocialState(
+                createDefaultHomeBanners(),
+                defaultLocketItems,
+                true
+        ));
         
-        BannerSlider heroSlider = new BannerSlider();
-        heroSlider.setPreferredSize(new Dimension(0, 160)); 
-        heroSlider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
-        bannerWrapper.add(heroSlider, BorderLayout.CENTER);
-        bannerContainer.add(bannerWrapper, BorderLayout.CENTER);
-
-        // --- 2. VIDEO REEL ---
-        videoReel = new VideoReelSection();
+        homeSocialWebPanel.setEventListener((type, payload) -> {
+            try {
+                if ("LOCKET_POST_REACT".equals(type)) {
+                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+                    Long postId = parseLocketPostId(json);
+                    if (postId == null) {
+                        System.out.println("[HOME_TAB] Skip backend reaction for local/sample Locket post: " + payload);
+                        return;
+                    }
+                    
+                    com.google.gson.JsonObject reqPayload = new com.google.gson.JsonObject();
+                    reqPayload.addProperty("postId", postId);
+                    reqPayload.addProperty("reactionType", "HEART");
+                    
+                    com.mycompany.tutorhub_enterprise.models.Packet request = new com.mycompany.tutorhub_enterprise.models.Packet(
+                        "LOCKET_POST_REACT", reqPayload.toString()
+                    );
+                    NetworkManager.getInstance().sendPacket(request);
+                } else if ("LOCKET_CREATE_OPEN".equals(type)) {
+                    openLocketPopup(0);
+                } else if ("LOCKET_VIEW_OPEN".equals(type)) {
+                    openLocketPopup(resolveLocketIndex(payload));
+                } else if ("LOCKET_COMMENT_OPEN".equals(type)) {
+                    // Mở danh sách bình luận
+                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+                    Long postId = parseLocketPostId(json);
+                    if (postId != null) {
+                        com.google.gson.JsonObject reqPayload = new com.google.gson.JsonObject();
+                        reqPayload.addProperty("postId", postId);
+                        reqPayload.addProperty("limit", 20);
+                        com.mycompany.tutorhub_enterprise.models.Packet request = new com.mycompany.tutorhub_enterprise.models.Packet(
+                            "LOCKET_COMMENT_LIST", reqPayload.toString()
+                        );
+                        NetworkManager.getInstance().sendPacket(request);
+                    } else {
+                        // Trả về mảng rỗng cho bài đăng mẫu không tồn tại trong CSDL
+                        if (homeSocialWebPanel != null) {
+                            homeSocialWebPanel.updateLocketComments("[]");
+                        }
+                    }
+                } else if ("LOCKET_COMMENT_CREATE".equals(type)) {
+                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+                    Long postId = parseLocketPostId(json);
+                    if (postId != null && json.has("content")) {
+                        com.google.gson.JsonObject reqPayload = new com.google.gson.JsonObject();
+                        reqPayload.addProperty("postId", postId);
+                        reqPayload.addProperty("content", json.get("content").getAsString());
+                        com.mycompany.tutorhub_enterprise.models.Packet request = new com.mycompany.tutorhub_enterprise.models.Packet(
+                            "LOCKET_COMMENT_CREATE", reqPayload.toString()
+                        );
+                        NetworkManager.getInstance().sendPacket(request);
+                    } else if (json.has("content")) {
+                        // Fake comment creation cho bài đăng mẫu
+                        com.google.gson.JsonObject fakeComment = new com.google.gson.JsonObject();
+                        fakeComment.addProperty("id", System.currentTimeMillis());
+                        fakeComment.addProperty("postId", json.has("id") ? json.get("id").getAsString() : "");
+                        fakeComment.addProperty("authorName", "Bạn (Chế độ xem thử)");
+                        fakeComment.addProperty("content", json.get("content").getAsString());
+                        fakeComment.addProperty("timeAgo", "Vừa xong");
+                        if (homeSocialWebPanel != null) {
+                            homeSocialWebPanel.addLocketComment(fakeComment.toString());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
 
         // --- 3. TIÊU ĐỀ LỚP HỌC & BỘ LỌC ---
         filterArea = new JPanel();
@@ -116,9 +167,22 @@ public class HomeTab extends JPanel {
         classHeaderPanel.setOpaque(false);
         classHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        titlePanel.setOpaque(false);
+        
+        JLabel lblBefore = new JLabel();
+        lblBefore.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/scenario-screenplay-script-svgrepo-com.svg", 26, 26));
+        
         JLabel classTitle = new JLabel("Lớp học nổi bật");
-        classTitle.setFont(new Font("Segoe UI", Font.BOLD, 17)); 
-        classTitle.setForeground(TEXT);
+        classTitle.setFont(new Font("Segoe UI", Font.BOLD, 22)); 
+        classTitle.setForeground(Color.decode("#e11d48"));
+        
+        JLabel lblAfter = new JLabel();
+        lblAfter.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/fire-like-trend-svgrepo-com (1).svg", 24, 24));
+        
+        titlePanel.add(lblBefore);
+        titlePanel.add(classTitle);
+        titlePanel.add(lblAfter);
         
         JLabel seeAllClasses = new JLabel("Xem tất cả");
         seeAllClasses.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -134,7 +198,7 @@ public class HomeTab extends JPanel {
             }
         });
         
-        classHeaderPanel.add(classTitle, BorderLayout.WEST);
+        classHeaderPanel.add(titlePanel, BorderLayout.WEST);
         classHeaderPanel.add(seeAllClasses, BorderLayout.EAST);
         
         filterArea.add(classHeaderPanel);
@@ -155,8 +219,7 @@ public class HomeTab extends JPanel {
         JPanel topElementsWrapper = new JPanel();
         topElementsWrapper.setLayout(new BoxLayout(topElementsWrapper, BoxLayout.Y_AXIS));
         topElementsWrapper.setOpaque(false);
-        topElementsWrapper.add(bannerContainer);
-        topElementsWrapper.add(videoReel);
+        topElementsWrapper.add(homeSocialWebPanel);
         topElementsWrapper.add(filterArea);
 
         WebScrollPanel scrollContent = new WebScrollPanel(new BorderLayout());
@@ -175,6 +238,69 @@ public class HomeTab extends JPanel {
         mainContent.add(mainScrollPane, BorderLayout.CENTER);
         add(mainContent, BorderLayout.CENTER);
         updateUIState();
+    }
+
+    public void setOpenMessagesHandler(Runnable handler) {
+        this.openMessagesHandler = handler;
+    }
+
+    private void openMessagesFromLocket() {
+        if (openMessagesHandler != null) {
+            openMessagesHandler.run();
+        } else {
+            System.out.println("[HOME_TAB] Locket message requested, but no dashboard callback is bound.");
+        }
+    }
+
+    private void openLocketPopup(int startIndex) {
+        SwingUtilities.invokeLater(() -> {
+            Window owner = SwingUtilities.getWindowAncestor(this);
+            Frame frame = owner instanceof Frame ? (Frame) owner : null;
+            com.mycompany.tutorhub_enterprise.client.home.LocketWebPopupDialog dialog =
+                    new com.mycompany.tutorhub_enterprise.client.home.LocketWebPopupDialog(
+                            frame,
+                            new ArrayList<>(currentLocketItems),
+                            Math.max(0, startIndex),
+                            this::refreshLocketPosts,
+                            this::openMessagesFromLocket
+                    );
+            dialog.setVisible(true);
+        });
+    }
+
+    private int resolveLocketIndex(String payload) {
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload == null ? "{}" : payload).getAsJsonObject();
+            if (json.has("id")) {
+                String id = json.get("id").getAsString();
+                for (int i = 0; i < currentLocketItems.size(); i++) {
+                    if (id.equals(currentLocketItems.get(i).id)) {
+                        return i;
+                    }
+                }
+            }
+            if (json.has("index")) {
+                return json.get("index").getAsInt();
+            }
+        } catch (Exception ignored) {
+        }
+        return 0;
+    }
+
+    private Long parseLocketPostId(com.google.gson.JsonObject json) {
+        try {
+            if (json == null) {
+                return null;
+            }
+            if (json.has("postId")) {
+                return json.get("postId").getAsLong();
+            }
+            if (json.has("id")) {
+                return Long.parseLong(json.get("id").getAsString());
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
     
     // =========================================================
@@ -225,11 +351,296 @@ public class HomeTab extends JPanel {
     }
 
     public void loadReelsToVideoSection(java.util.List<String> data) {
+        java.util.List<HomeLocketItem> mappedItems = mapLegacyLocketItems(data);
         SwingUtilities.invokeLater(() -> {
-            if (videoReel != null) {
-                videoReel.loadReels(data);
+            currentLocketItems.clear();
+            currentLocketItems.addAll(mappedItems);
+            if (homeSocialWebPanel != null) {
+                homeSocialWebPanel.notifyLegacyLocketDataAvailable(data == null ? 0 : data.size());
+                homeSocialWebPanel.setLocketItems(mappedItems);
             }
         });
+    }
+
+    // --- PHASE 4A/4B: BACKEND INTEGRATION ---
+    public void handleCreateSuccess() {
+        SwingUtilities.invokeLater(() -> {
+            com.mycompany.tutorhub_enterprise.client.home.LocketWebPopupDialog.closeActiveInstance();
+            refreshLocketPosts();
+        });
+    }
+
+    public void handleCreateError(String errorMsg) {
+        com.mycompany.tutorhub_enterprise.client.home.LocketWebPopupDialog.handleUploadError(errorMsg);
+    }
+
+    public void setCurrentClassContext(Integer classId, String className) {
+        // Locket is a global photo feed now; live classroom context is intentionally ignored here.
+    }
+
+    public void refreshLocketPosts() {
+        requestLocketPosts();
+    }
+
+    public void requestLocketPosts() {
+        try {
+            com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+            payload.addProperty("limit", 20);
+            payload.addProperty("cursor", 0);
+            
+            com.mycompany.tutorhub_enterprise.models.Packet request = new com.mycompany.tutorhub_enterprise.models.Packet(
+                "LOCKET_POST_LIST", payload.toString()
+            );
+            NetworkManager.getInstance().sendPacket(request);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private String presignIfB2Url(String url) {
+        if (url == null || url.trim().isEmpty()) return url;
+        if (url.startsWith("data:image/")) return url;
+        
+        // Handle absolute local files by converting to Base64
+        if (url.startsWith("file://") || url.startsWith("/") || url.matches("^[A-Za-z]:[\\\\/].*")) {
+            String path = url.replace("file://", "");
+            if (path.startsWith("/") && path.matches("^/[A-Za-z]:.*")) {
+                path = path.substring(1);
+            }
+            try {
+                java.io.File f = new java.io.File(path);
+                if (f.exists() && f.isFile()) {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
+                    String base64 = java.util.Base64.getEncoder().encodeToString(bytes);
+                    String mimeType = "image/png";
+                    String lowerPath = path.toLowerCase();
+                    if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) mimeType = "image/jpeg";
+                    else if (lowerPath.endsWith(".gif")) mimeType = "image/gif";
+                    else if (lowerPath.endsWith(".webp")) mimeType = "image/webp";
+                    return "data:" + mimeType + ";base64," + base64;
+                }
+            } catch (Exception ex) {
+                System.err.println("[LOCKET_IMAGE] Error converting local file to base64: " + ex.getMessage());
+            }
+        }
+        
+        if (!url.startsWith("http")) return url;
+        if (!url.contains("backblazeb2.com")) return url;
+        if (url.contains("X-Amz-Signature") || url.contains("x-amz-signature") || url.contains("Signature=")) return url;
+        try {
+            return com.mycompany.tutorhub_enterprise.utils.B2Helper.getPresignedUrl(url);
+        } catch (Exception e) {
+            String safeUrl = url.length() > 50 ? url.substring(0, 50) + "..." : url;
+            System.err.println("[LOCKET_IMAGE][PRESIGN_ERROR] " + safeUrl + " -> " + e.getMessage());
+            return url;
+        }
+    }
+
+    public void handleLocketPostListSuccess(java.util.List<HomeLocketItem> items) {
+        if (items != null) {
+            for (HomeLocketItem item : items) {
+                if (item.authorAvatar == null || item.authorAvatar.isEmpty() || "null".equals(item.authorAvatar)) {
+                    item.authorInitials = getInitials(item.authorName);
+                }
+                item.imageUrl = presignIfB2Url(item.imageUrl);
+                item.thumbnailUrl = presignIfB2Url(item.thumbnailUrl);
+            }
+        }
+        SwingUtilities.invokeLater(() -> {
+            currentLocketItems.clear();
+            if (items != null) {
+                currentLocketItems.addAll(items);
+            }
+            if (homeSocialWebPanel != null) {
+                homeSocialWebPanel.setLocketItems(items);
+            }
+        });
+    }
+
+    public void handleLocketReactionSuccess(long postId, boolean reacted) {
+        SwingUtilities.invokeLater(() -> {
+            if (homeSocialWebPanel != null) {
+                homeSocialWebPanel.updateLocketReaction(postId, reacted);
+            }
+        });
+    }
+
+    public void handleLocketCommentListSuccess(String payload) {
+        SwingUtilities.invokeLater(() -> {
+            if (homeSocialWebPanel != null) {
+                homeSocialWebPanel.updateLocketComments(payload);
+            }
+        });
+    }
+
+    public void handleLocketCommentCreateSuccess(String payload) {
+        SwingUtilities.invokeLater(() -> {
+            if (homeSocialWebPanel != null) {
+                homeSocialWebPanel.addLocketComment(payload);
+            }
+        });
+    }
+
+    public void handleLocketCommentDeleteSuccess(long commentId) {
+        SwingUtilities.invokeLater(() -> {
+            if (homeSocialWebPanel != null) {
+                homeSocialWebPanel.deleteLocketComment(commentId);
+            }
+        });
+    }
+    
+    private String getInitials(String name) {
+        if (name == null || name.isEmpty()) return "?";
+        String[] parts = name.trim().split("\\s+");
+        if (parts.length == 1) {
+            return parts[0].substring(0, 1).toUpperCase();
+        } else {
+            return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
+        }
+    }
+
+    private java.util.List<HomeBannerItem> createDefaultHomeBanners() {
+        java.util.List<HomeBannerItem> banners = new ArrayList<>();
+        banners.add(new HomeBannerItem(
+                "home-banner-1",
+                "../images/slide1.png",
+                "Explore Dream Platform",
+                "Bang tin lop, lich hoc va khoanh khac hoc tap trong mot khong gian gon gang.",
+                "Kham pha ngay"
+        ));
+        banners.add(new HomeBannerItem(
+                "home-banner-2",
+                "../images/slide2.png",
+                "Lop hoc thong minh hon",
+                "Theo doi lop dang dien ra, lich sap toi va noi dung noi bat cua lop.",
+                "Mo lop hoc"
+        ));
+        banners.add(new HomeBannerItem(
+                "home-banner-3",
+                "../images/slide3.png",
+                "Giu lai buoi hoc dang nho",
+                "Locket giup luu lai khoanh khac hoc tap bang anh, cam xuc va tin nhan.",
+                "Xem Locket"
+        ));
+        return banners;
+    }
+
+    private java.util.List<HomeLocketItem> createDefaultHomeLocketItems() {
+        java.util.List<HomeLocketItem> items = new ArrayList<>();
+        items.add(new HomeLocketItem("sample-locket-1", "../images/general/general1.png", "../images/general/general1.png", "Buoi hoc hom nay that hieu qua", "Nguyen Ngoc Le Vy", "", "LV", "2 gio truoc", 128, 24, true, false));
+        items.add(new HomeLocketItem("sample-locket-2", "../images/english/english1.jpg", "../images/english/english1.jpg", "Hoc tieng Anh moi ngay", "Minh Anh", "", "MA", "1 ngay truoc", 96, 18, false, false));
+        items.add(new HomeLocketItem("sample-locket-3", "../images/chemistry/chemistry1.jpg", "../images/chemistry/chemistry1.jpg", "Hoa hoc that thu vi", "Gia Han", "", "GH", "2 ngay truoc", 104, 20, true, false));
+        items.add(new HomeLocketItem("sample-locket-4", "../images/math/math1.jpg", "../images/math/math1.jpg", "Giai bai tap toan nang cao", "Quang Huy", "", "QH", "3 ngay truoc", 88, 16, false, false));
+        items.add(new HomeLocketItem("sample-locket-5", "../images/IELTS/IELTS1.jpg", "../images/IELTS/IELTS1.jpg", "Co gang tung ngay de dat muc tieu", "Bao Tran", "", "BT", "4 ngay truoc", 112, 22, false, false));
+        return items;
+    }
+
+    private java.util.List<HomeLocketItem> mapLegacyLocketItems(java.util.List<String> data) {
+        java.util.List<HomeLocketItem> items = new ArrayList<>();
+        if (data == null) {
+            return items;
+        }
+        for (int i = 0; i < data.size(); i++) {
+            String raw = data.get(i);
+            if (raw == null || raw.trim().isEmpty()) {
+                continue;
+            }
+            String[] parts = raw.split(";;", -1);
+            String id = safePart(parts, 0, "legacy-locket-" + (i + 1));
+            String imageUrl = normalizeHomeSocialImageUrl(safePart(parts, 1, ""), i);
+            String caption = safePart(parts, 2, "");
+            String authorName = safePart(parts, 4, "TutorHub");
+            String authorAvatar = toDataImageUrl(safePart(parts, 5, ""));
+            String initials = initialsFromName(authorName);
+            
+            // Presign if necessary
+            imageUrl = presignIfB2Url(imageUrl);
+            
+            items.add(new HomeLocketItem(
+                    id,
+                    imageUrl,
+                    imageUrl,
+                    caption,
+                    authorName,
+                    authorAvatar,
+                    initials,
+                    "Vua xong",
+                    0,
+                    0,
+                    false,
+                    false
+            ));
+        }
+        return items;
+    }
+
+    private String safePart(String[] parts, int index, String fallback) {
+        if (parts == null || index < 0 || index >= parts.length) {
+            return fallback;
+        }
+        String value = safeTrim(parts[index]);
+        return value.isEmpty() ? fallback : value;
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String normalizeHomeSocialImageUrl(String value, int index) {
+        String imageUrl = safeTrim(value);
+        if (imageUrl.isEmpty()) {
+            return fallbackHomeSocialImage(index);
+        }
+        String lower = imageUrl.toLowerCase();
+        if (lower.startsWith("http://") || lower.startsWith("https://")
+                || lower.startsWith("data:") || lower.startsWith("file:")
+                || lower.startsWith("jar:")) {
+            return imageUrl;
+        }
+        if (imageUrl.startsWith("/")) {
+            return ".." + imageUrl;
+        }
+        if (lower.startsWith("images/")) {
+            return "../" + imageUrl;
+        }
+        return imageUrl;
+    }
+
+    private String fallbackHomeSocialImage(int index) {
+        String[] localImages = {
+            "../images/general/general1.png",
+            "../images/english/english1.jpg",
+            "../images/chemistry/chemistry1.jpg",
+            "../images/math/math1.jpg",
+            "../images/IELTS/IELTS1.jpg"
+        };
+        return localImages[Math.abs(index) % localImages.length];
+    }
+
+    private String toDataImageUrl(String avatarBase64) {
+        String value = safeTrim(avatarBase64);
+        if (value.isEmpty()) {
+            return "";
+        }
+        if (value.startsWith("data:") || value.startsWith("http") || value.startsWith("/") || value.startsWith("../")) {
+            return value;
+        }
+        return "data:image/png;base64," + value;
+    }
+
+    private String initialsFromName(String name) {
+        String value = safeTrim(name);
+        if (value.isEmpty()) {
+            return "TH";
+        }
+        String[] parts = value.split("\\s+");
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            if (!part.isEmpty() && out.length() < 2) {
+                out.append(Character.toUpperCase(part.charAt(0)));
+            }
+        }
+        return out.length() == 0 ? "TH" : out.toString();
     }
 
     private JPanel createModernFilterBar() {

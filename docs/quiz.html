@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
+<title>Quiz - Cơ sở ATTT</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #f7f7f4; --ink: #1a1a1a; --line: #e2e0d8; --muted: #777;
+    --green: #3b6d11; --blue: #1a4f8b; --orange: #b85b14;
+    --accent: var(--green);
+  }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.5;
+    padding-bottom: 84px;
+  }
+  .quiz-header {
+    position: sticky; top: 0; z-index: 10; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .top {
+    padding: 10px 14px 8px; background: var(--bg);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .top h1 { margin: 0; font-size: 15px; flex: 1; min-width: 100px; }
+  .top .score { font-size: 13px; color: #555; font-weight: 600; }
+  .top .timer { font-size: 13px; font-weight: 600; color: var(--blue); font-variant-numeric: tabular-nums; }
+  .back-btn { background: none; border: none; color: var(--blue); font-size: 14px; cursor: pointer; padding: 6px 2px; }
+  .pbar { height: 4px; background: var(--line); }
+  .pbar > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+  .container { padding: 12px; max-width: 760px; margin: 0 auto; }
+
+  /* MENU */
+  .menu-wrap { padding: 24px 16px; text-align: center; }
+  .menu-title { font-size: 24px; font-weight: 700; margin: 20px 0 6px; }
+  .menu-sub { color: #666; margin-bottom: 22px; }
+  .cards { display: flex; flex-direction: column; gap: 14px; max-width: 380px; margin: 0 auto; }
+  @media (min-width: 800px) { .cards { flex-direction: row; max-width: 900px; } .cards .card { flex: 1; } }
+  .card {
+    background: white; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06); border: 1px solid #e8e6df;
+    cursor: pointer; transition: transform .15s, box-shadow .15s; text-align: left;
+  }
+  .card:active { transform: scale(.98); }
+  .card .accent { height: 6px; }
+  .card .body { padding: 18px; }
+  .card .big { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+  .card .mid { font-size: 14px; color: #333; margin-bottom: 6px; }
+  .card .desc { font-size: 12px; color: #777; }
+  .card .best { font-size: 12px; color: #2b6b2b; font-weight: 600; margin-top: 8px; min-height: 16px; }
+  .card .go { display: inline-block; margin-top: 12px; padding: 7px 16px; border-radius: 8px; color: white; font-weight: 600; font-size: 14px; }
+
+  .modes { max-width: 380px; margin: 22px auto 0; text-align: left; background: white; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .modes h3 { margin: 0 0 10px; font-size: 14px; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; }
+  .toggle-row label { flex: 1; cursor: pointer; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; background: white; padding: 6px 12px; font-size: 13px; cursor: pointer; color: #555; font-family: inherit; }
+  .seg button.on { background: var(--accent); color: white; font-weight: 600; }
+  .switch { position: relative; width: 44px; height: 25px; flex-shrink: 0; }
+  .switch input { display: none; }
+  .switch span { position: absolute; inset: 0; background: #ccc; border-radius: 25px; transition: .2s; cursor: pointer; }
+  .switch span::after { content: ""; position: absolute; width: 19px; height: 19px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .2s; }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(19px); }
+
+  /* QUIZ */
+  .q { background: white; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; position: relative; scroll-margin-top: 110px; }
+  .q.flagged { border-color: #e0a93a; box-shadow: 0 0 0 1px #e0a93a; }
+  .q-head { font-weight: 600; margin-bottom: 10px; font-size: 15px; line-height: 1.45; padding-right: 34px; }
+  .q-num { color: #888; font-weight: 500; margin-right: 4px; }
+  .q-multi { color: var(--blue); font-weight: 500; font-size: 12px; margin-left: 4px; }
+  .flag-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 18px; cursor: pointer; opacity: .35; line-height: 1; padding: 2px; }
+  .flag-btn.on { opacity: 1; }
+  .opt { display: flex; align-items: flex-start; gap: 10px; padding: 10px 8px; border-radius: 8px; cursor: pointer; transition: background .1s; border: 1px solid transparent; margin: 2px 0; font-size: 14px; }
+  .opt:active { background: #f0eee8; }
+  .opt input { margin-top: 3px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer; }
+  .opt .letter { font-weight: 600; color: #555; margin-right: 4px; }
+  .opt.correct { background: #d6f5e0; border-color: #b3e6c2; }
+  .opt.wrong { background: #f8d6d6; border-color: #eab8b8; }
+  .expl { display: none; margin-top: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; line-height: 1.5; background: #f5f5f2; }
+  .expl.show { display: block; }
+  .expl.ok { background: #eaf8ee; color: #2b6b2b; }
+  .expl.err { background: #fdecec; color: #a33; }
+  .expl.miss { background: #fff4e0; color: #8a5b00; }
+  .why-wrong { margin-top: 7px; padding: 7px 9px; background: #fff0f0; border-left: 3px solid #e09; border-left-color: #d9534f; border-radius: 0 5px 5px 0; color: #a33; line-height: 1.55; }
+
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--line); padding: 9px 12px; display: flex; gap: 8px; align-items: center; box-shadow: 0 -2px 8px rgba(0,0,0,.04); z-index: 9; }
+  .btn { border: none; border-radius: 8px; font-size: 14px; font-weight: 600; padding: 10px 14px; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-secondary { background: #e8e6df; color: #333; }
+  .btn-ghost { background: white; border: 1px solid var(--line); color: #444; }
+  .progress { margin-left: auto; font-size: 12px; color: #888; }
+
+  .result-banner { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--line); }
+  .result-banner .num { font-size: 22px; font-weight: 700; }
+  .result-banner .msg { color: #555; margin-top: 4px; font-size: 13px; }
+  .result-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+  /* navigator grid */
+  .nav-toggle { position: fixed; right: 14px; bottom: 70px; z-index: 11; background: var(--accent); color: white; border: none; width: 46px; height: 46px; border-radius: 50%; font-size: 18px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+  .nav-sheet { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 20; display: none; align-items: flex-end; }
+  .nav-sheet.show { display: flex; }
+  .nav-inner { background: white; width: 100%; max-height: 70vh; border-radius: 16px 16px 0 0; padding: 16px; overflow-y: auto; }
+  .nav-inner h3 { margin: 0 0 4px; font-size: 16px; }
+  .nav-legend { font-size: 12px; color: #888; margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+  .nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 8px; }
+  .nav-cell { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; color: #444; display: flex; align-items: center; justify-content: center; position: relative; }
+  .nav-cell.answered { background: #e3edf7; border-color: #b9d3ec; }
+  .nav-cell.flagged::after { content: "🚩"; position: absolute; top: -6px; right: -4px; font-size: 10px; }
+  .nav-cell.right { background: #d6f5e0; border-color: #b3e6c2; }
+  .nav-cell.bad { background: #f8d6d6; border-color: #eab8b8; }
+
+  /* flashcards */
+  .fc-wrap { padding: 16px; max-width: 560px; margin: 0 auto; }
+  .fc-card { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 28px 22px; min-height: 240px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 3px 14px rgba(0,0,0,.07); cursor: pointer; }
+  .fc-q { font-size: 17px; font-weight: 600; line-height: 1.5; }
+  .fc-tap { text-align: center; color: #aaa; font-size: 12px; margin-top: 18px; }
+  .fc-ans { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line); }
+  .fc-ans .lbl { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .fc-ans .val { font-size: 15px; font-weight: 600; color: var(--green); }
+  .fc-ans .ex { font-size: 13px; color: #555; margin-top: 8px; line-height: 1.5; }
+  .fc-nav { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+  .fc-nav .pos { margin-left: auto; font-size: 13px; color: #888; }
+
+  /* search */
+  .search-box { flex-basis: 100%; display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; margin-top: 2px; }
+  .search-box .search-ico { font-size: 15px; opacity: .6; }
+  .search-box input { flex: 1; border: none; outline: none; font-size: 15px; font-family: inherit; background: transparent; color: var(--ink); }
+  .search-clear { border: none; background: #ececec; color: #777; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 12px; display: none; flex-shrink: 0; }
+  .search-clear.show { display: block; }
+  .search-count { font-size: 12px; color: var(--muted); margin: 0 2px 8px; min-height: 0; }
+  .search-count.show { min-height: 16px; }
+  .search-empty { text-align: center; color: var(--muted); padding: 30px 16px; font-size: 14px; }
+  .q.search-hide { display: none; }
+  mark { background: #ffe07a; color: inherit; padding: 0 1px; border-radius: 2px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- MENU -->
+<div id="menu" class="menu-wrap">
+  <div class="menu-title">Cơ sở An toàn Thông tin</div>
+  <div class="menu-sub">Chọn đề và chế độ để bắt đầu</div>
+  <div class="cards">
+    <div class="card" onclick="startQuiz(1)">
+      <div class="accent" style="background:#3b6d11"></div>
+      <div class="body">
+        <div class="big" style="color:#3b6d11">Đề 1</div>
+        <div class="mid">50 câu trắc nghiệm</div>
+        <div class="desc">Cơ bản · Gồm 2 câu chọn nhiều đáp án</div>
+        <div class="best" id="best-1"></div>
+        <div class="go" style="background:#3b6d11">Bắt đầu →</div>
+      </div>
+    </div>
+    <div class="card" onclick="startQuiz(2)">
+      <div class="accent" style="background:#1a4f8b"></div>
+      <div class="body">
+        <div class="big" style="color:#1a4f8b">Đề 2</div>
+        <div class="mid">60 câu trắc nghiệm</div>
+        <div class="desc">Đáp án đã kiểm tra & sửa</div>
+        <div class="best" id="best-2"></div>
+        <div class="go" style="background:#1a4f8b">Bắt đầu →</div>
+      </div>
+    </div>
+    <div class="card" onclick="startQuiz(3)">
+      <div class="accent" style="background:#b85b14"></div>
+      <div class="body">
+        <div class="big" style="color:#b85b14">Đề 3</div>
+        <div class="mid">86 câu trắc nghiệm</div>
+        <div class="desc">Mới cập nhật · Giải đầy đủ</div>
+        <div class="best" id="best-3"></div>
+        <div class="go" style="background:#b85b14">Bắt đầu →</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modes">
+    <h3>⚙️ Tuỳ chọn làm bài</h3>
+    <div class="toggle-row">
+      <label>Chế độ</label>
+      <div class="seg" id="seg-mode">
+        <button class="on" data-v="study" onclick="setMode('study')">Ôn tập</button>
+        <button data-v="exam" onclick="setMode('exam')">Thi thử</button>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <label for="sw-shuffleQ">Trộn thứ tự câu hỏi</label>
+      <div class="switch"><input type="checkbox" id="sw-shuffleQ"><span onclick="this.previousElementSibling.click()"></span></div>
+    </div>
+    <div class="toggle-row">
+      <label for="sw-shuffleO">Trộn thứ tự đáp án</label>
+      <div class="switch"><input type="checkbox" id="sw-shuffleO"><span onclick="this.previousElementSibling.click()"></span></div>
+    </div>
+    <div class="toggle-row">
+      <label for="sw-instant">Hiện giải thích ngay khi chọn (chỉ Ôn tập)</label>
+      <div class="switch"><input type="checkbox" id="sw-instant" checked><span onclick="this.previousElementSibling.click()"></span></div>
+    </div>
+    <div class="toggle-row" id="row-limit">
+      <label>Giới hạn số câu</label>
+      <div class="seg" id="seg-limit">
+        <button class="on" data-v="0" onclick="setLimit(0)">Tất cả</button>
+        <button data-v="10" onclick="setLimit(10)">10</button>
+        <button data-v="20" onclick="setLimit(20)">20</button>
+        <button data-v="30" onclick="setLimit(30)">30</button>
+      </div>
+    </div>
+    <div class="toggle-row" style="border-top:1px solid var(--line); margin-top:6px; padding-top:12px;">
+      <label>Hoặc ôn nhanh kiểu thẻ lật</label>
+      <button class="btn btn-ghost" onclick="startFlashcards()">🃏 Flashcard</button>
+    </div>
+  </div>
+  <div id="fc-deck-pick" class="hidden"></div>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="hidden">
+  <div class="quiz-header">
+    <div class="top">
+      <button class="back-btn" onclick="backToMenu()">← Đổi đề</button>
+      <h1 id="quiz-title"></h1>
+      <span class="timer" id="timer"></span>
+      <span class="score" id="score">Chưa nộp</span>
+      <div class="search-box">
+        <span class="search-ico">🔍</span>
+        <input type="text" id="search-input" placeholder="Tìm câu hỏi / đáp án theo chữ..." oninput="doSearch(this.value)" autocomplete="off">
+        <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Xoá">✕</button>
+      </div>
+    </div>
+    <div class="pbar"><div id="pbar-fill"></div></div>
+  </div>
+  <div class="container">
+    <div class="search-count" id="search-count"></div>
+    <div id="result" class="result-banner hidden"></div>
+    <div id="questions"></div>
+    <div id="search-empty" class="search-empty hidden">Không tìm thấy câu nào khớp với từ khoá.</div>
+  </div>
+  <button class="nav-toggle" onclick="openNav()" title="Bản đồ câu hỏi">⊞</button>
+  <div class="bottom-bar">
+    <button class="btn btn-primary" id="grade-btn" onclick="grade()">Chấm điểm</button>
+    <button class="btn btn-secondary" onclick="resetQuiz()">Làm lại</button>
+    <span class="progress" id="progress"></span>
+  </div>
+</div>
+
+<!-- FLASHCARDS -->
+<div id="flash" class="hidden">
+  <div class="quiz-header">
+    <div class="top">
+      <button class="back-btn" onclick="backToMenu()">← Thoát</button>
+      <h1 id="fc-title">Flashcard</h1>
+    </div>
+  </div>
+  <div class="fc-wrap">
+    <div class="fc-card" id="fc-card" onclick="flipCard()">
+      <div class="fc-q" id="fc-q"></div>
+      <div id="fc-back" class="hidden">
+        <div class="fc-ans">
+          <div class="lbl">Đáp án đúng</div>
+          <div class="val" id="fc-a"></div>
+          <div class="ex" id="fc-ex"></div>
+        </div>
+      </div>
+      <div class="fc-tap" id="fc-hint">Chạm để lật thẻ</div>
+    </div>
+    <div class="fc-nav">
+      <button class="btn btn-secondary" onclick="fcPrev()">← Trước</button>
+      <button class="btn btn-ghost" onclick="fcShuffle()">🔀 Trộn</button>
+      <button class="btn btn-primary" onclick="fcNext()">Sau →</button>
+      <span class="pos" id="fc-pos"></span>
+    </div>
+  </div>
+</div>
+
+<!-- NAV SHEET -->
+<div class="nav-sheet" id="nav-sheet" onclick="if(event.target===this)closeNav()">
+  <div class="nav-inner">
+    <h3>Bản đồ câu hỏi</h3>
+    <div class="nav-legend">
+      <span><i class="dot" style="background:#e3edf7;border:1px solid #b9d3ec"></i>Đã chọn</span>
+      <span><i class="dot" style="background:white;border:1px solid var(--line)"></i>Chưa làm</span>
+      <span>🚩 Đánh dấu</span>
+    </div>
+    <div class="nav-grid" id="nav-grid"></div>
+  </div>
+</div>
+
+<script>
+/* ====== DỮ LIỆU ====== */
+const QUIZ_1 = [
+ ["Tấn công XSS (Cross Site Scripting) xuất hiện ở tầng nào?",["Presentation","Application","Session","Data Link"],[1],"",{0:"Presentation (tầng trình diễn) lo mã hóa/định dạng dữ liệu, không phải nơi script web chạy.",2:"Session quản lý phiên kết nối, không liên quan tới mã script chèn vào trang web.",3:"Data Link là tầng khung/MAC, quá thấp; XSS là lỗ hổng tầng ứng dụng web."}],
+ ["Trình tự truy cập nào sau đây là ĐÚNG?",["Xác thực → Định danh → Cấp quyền","Định danh → Cấp quyền → Xác thực","Định danh → Xác thực → Cấp quyền","Cấp quyền → Xác thực → Định danh"],[2],"",{0:"Sai thứ tự: phải Định danh (khai báo bạn là ai) trước, rồi mới Xác thực.",1:"Không thể Cấp quyền trước khi Xác thực danh tính người dùng.",3:"Ngược hoàn toàn: Cấp quyền là bước cuối, không phải bước đầu."}],
+ ["Giao thức nào làm việc ở tầng Transport của TCP/IP?",["UDP","FTP","HTTP","SNMP"],[0],"",{1:"FTP là giao thức tầng Application, không phải Transport.",2:"HTTP là giao thức tầng Application.",3:"SNMP là giao thức tầng Application để quản trị mạng."}],
+ ["Công ty hải sản muốn bảo vệ cách chế biến/đóng gói không bị lộ cho đối thủ. Khía cạnh nào của ATTT?",["Tính toàn vẹn","Tính bí mật","Tính sẵn sàng","Tính cấp quyền"],[1],"",{0:"Toàn vẹn lo dữ liệu không bị sửa đổi; ở đây vấn đề là giữ kín bí quyết khỏi đối thủ.",2:"Sẵn sàng lo việc truy cập được khi cần; không liên quan tới giữ bí mật công thức.",3:"'Tính cấp quyền' không phải một trong ba trụ cột CIA; câu này nói về giữ kín = bí mật."}],
+ ["Công nghệ nào sau đây đảm bảo tính toàn vẹn cho dữ liệu?",["3DES","RC4","AES","MD5"],[3],"MD5 là hàm băm → đảm bảo toàn vẹn.",{0:"3DES là thuật toán mã hóa đối xứng → đảm bảo bí mật, không phải toàn vẹn.",1:"RC4 là mã hóa luồng → đảm bảo bí mật, không phải toàn vẹn.",2:"AES là mã hóa đối xứng → đảm bảo bí mật, không phải toàn vẹn."}],
+ ["Phát biểu nào sau đây đúng với NIDS?",["Lưu lượng mạng được phân tích để tìm gói tin độc hại","Các gói tin độc hại bị ngăn chặn","Hoạt động trên từng máy cá nhân","Máy được bảo vệ ngay cả khi không kết nối LAN"],[0],"NIDS chỉ phân tích/phát hiện (Detection), không chặn.",{1:"Đây là mô tả IPS (ngăn chặn), còn NIDS chỉ phát hiện và cảnh báo.",2:"Hoạt động trên từng máy cá nhân là HIDS, không phải NIDS (mức mạng).",3:"NIDS phân tích lưu lượng mạng nên máy mất kết nối LAN thì không được bảo vệ."}],
+ ["Cường dùng phương pháp mã hóa để mã hóa file, phương pháp nào thường được dùng?",["WEP","Bất đối xứng","Đối xứng","RSA"],[2],"",{0:"WEP là chuẩn bảo mật Wi-Fi cũ, không phải phương pháp mã hóa file thông thường.",1:"Bất đối xứng chậm, ít dùng để mã hóa cả file; thường chỉ mã hóa khóa.",3:"RSA là một thuật toán bất đối xứng, chậm khi mã hóa file lớn."}],
+ ["Bước nào thực hiện đầu tiên: I A A A (Identification, Authentication, Authorization, Auditing)?",["Authentication","Authorization","Accounting","None of these"],[3],"Bước đầu tiên là Identification → không có trong A/B/C.",{0:"Authentication là bước thứ hai, sau Identification.",1:"Authorization là bước thứ ba.",2:"Accounting/Auditing là bước cuối. Bước đầu là Identification → không có trong danh sách."}],
+ ["Xác thực nào KHÔNG phải là xác thực đa nhân tố? (chọn 2)",["Thẻ từ + Mã PIN","Mật khẩu một lần (OTP)","Mật khẩu + vị trí địa lý","Token","Smartcard + Mã PIN"],[1,3],"OTP và Token chỉ là một nhân tố.",{0:"Thẻ từ (có) + PIN (biết) là hai nhân tố → đa nhân tố thật sự.",2:"Mật khẩu (biết) + vị trí địa lý (nơi bạn ở) là hai nhân tố khác loại.",4:"Smartcard (có) + PIN (biết) là hai nhân tố → đa nhân tố thật sự."}],
+ ["Mật khẩu thuộc nhân tố xác thực nào?",["Cái người dùng biết","Cái người dùng có","Cái thuộc về bản thể người dùng","Vị trí địa lý"],[0],"",{1:"'Cái người dùng có' là token, thẻ, điện thoại - không phải mật khẩu.",2:"'Cái thuộc về bản thể' là sinh trắc (vân tay, khuôn mặt).",3:"Vị trí địa lý là yếu tố 'nơi bạn ở', không phải mật khẩu."}],
+ ["Độ an toàn mật khẩu nào lớn nhất (gồm chữ số, chữ hoa và thường)?",["12345678","12a4567","A2a34567","2a13456","123456789012","1a2345678"],[2],"A2a34567 có cả chữ thường, chữ hoa và số → không gian ký tự lớn nhất.",{0:"Chỉ toàn chữ số, không gian ký tự nhỏ.",1:"Chỉ chữ số + một chữ thường, độ phức tạp thấp.",3:"Chỉ chữ thường + số, thiếu chữ hoa.",4:"Dài nhưng chỉ toàn chữ số → không gian ký tự hẹp.",5:"Chỉ chữ thường + số, thiếu chữ hoa nên kém C."}],
+ ["Mô hình bảo mật nào dùng phân loại dữ liệu và phân quyền dựa trên phân loại dữ liệu?",["RBAC","DAC","PKI","MAC"],[3],"",{0:"RBAC phân quyền theo vai trò, không dựa trên nhãn phân loại dữ liệu.",1:"DAC để chủ sở hữu tự quyết, không dùng nhãn phân loại bắt buộc.",2:"PKI là hạ tầng khóa công khai, không phải mô hình kiểm soát truy cập."}],
+ ["Snort là gì?",["IPS","IDS","Tường lửa","VPN Software"],[1],"",{0:"Snort chủ yếu là IDS; bản thân nó phát hiện chứ không phải IPS thuần.",2:"Snort không phải tường lửa lọc gói.",3:"Snort không phải phần mềm VPN."}],
+ ["Cấp quyền truy cập tài nguyên cho nhân viên dễ hơn thay vì cấp quyền cá nhân từng tệp/máy in/ứng dụng. Dùng mô hình nào?",["Kiểm soát truy cập bắt buộc","Kiểm soát truy cập tùy ý","Kiểm soát truy cập dựa trên vai trò","Kiểm soát truy cập theo thời gian trong ngày"],[2],"",{0:"MAC dùng nhãn bảo mật bắt buộc, không phải để gom quyền theo nhóm công việc.",1:"DAC cấp quyền lẻ tẻ theo chủ sở hữu, đúng cái mà câu hỏi muốn tránh.",3:"Kiểm soát theo thời gian chỉ giới hạn giờ truy cập, không giải quyết việc gom quyền."}],
+ ["Tầng nào của OSI có thể giám sát lưu lượng đến/đi từ router?",["Network","Transport","Data Link","Session"],[0],"",{1:"Transport (tầng 4) lo phân đoạn dữ liệu, không phải nơi định tuyến/lọc IP của router.",2:"Data Link là tầng switch/MAC, router làm việc ở tầng cao hơn.",3:"Session quản lý phiên, không liên quan giám sát lưu lượng router."}],
+ ["Triển khai PKI, cần mã hóa thư và gửi cho đồng nghiệp An. Cần khóa nào?",["Private key của An","Public key của An","Private key của bạn","Public key của bạn"],[1],"",{0:"Không ai đưa private key của mình cho người khác; và không dùng nó để mã hóa thư gửi đi.",2:"Private key của bạn dùng để ký/giải mã thư bạn nhận, không phải để mã hóa gửi cho An.",3:"Public key của bạn để người khác mã hóa gửi cho bạn, không dùng để gửi cho An."}],
+ ["Hệ mã nào có độ an toàn cao nhất trên lý thuyết?",["AES","3DES","One-time pad","RSA"],[2],"",{0:"AES rất mạnh nhưng vẫn lý thuyết bị phá nếu đủ tài nguyên; không an toàn tuyệt đối.",1:"3DES yếu hơn AES, không phải an toàn tuyệt đối.",3:"RSA dựa vào độ khó phân tích số, không an toàn tuyệt đối về lý thuyết."}],
+ ["Tệp bị đổi tên ngẫu nhiên, có tài liệu hướng dẫn thanh toán để giải mã. Nhiễm mã độc nào?",["Encryptionware","Virus","Criminalware","Ransomware"],[3],"",{0:"'Encryptionware' không phải thuật ngữ chuẩn cho loại mã độc này.",1:"Virus lây vào file, không có đặc trưng đòi tiền chuộc để giải mã.",2:"'Criminalware' là thuật ngữ chung mơ hồ, không chỉ đúng hành vi tống tiền mã hóa."}],
+ ["Dùng máy chủ FTP an toàn cho luồng dữ liệu FTP qua SSL. Nên dùng gì?",["FTPS","SFTP","IPSec","TLS"],[0],"",{1:"SFTP chạy trên SSH chứ không phải SSL; câu hỏi yêu cầu FTP qua SSL.",2:"IPSec bảo vệ ở tầng mạng, không phải FTP-over-SSL.",3:"TLS là giao thức nền; FTP dùng nó gọi là FTPS - đáp án cụ thể là FTPS."}],
+ ["Kiểu kiểm thử khi người kiểm thử được cung cấp thông tin cấu hình hệ thống?",["White box","Black box","Gray box","Blue box"],[0],"",{1:"Black box là kiểm thử không có thông tin nội bộ - ngược với đề bài.",2:"Gray box chỉ có một phần thông tin, không phải đầy đủ cấu hình.",3:"'Blue box' không phải thuật ngữ kiểm thử hộp."}],
+ ["Phát biểu nào đúng với HIDS?",["Lưu lượng mạng nghi ngờ sẽ bị ngăn chặn","Gói tin mã hóa không thể bị theo dõi","Nó cần được cài đặt trên mỗi hệ thống khi triển khai","Các tệp nhật ký sẽ không bị phân tích"],[2],"HIDS đặt trên host → phải cài tác nhân trên từng máy cần bảo vệ.",{0:"Ngăn chặn lưu lượng là việc của IPS, không phải HIDS (chỉ phát hiện).",1:"HIDS đặt trên host có thể thấy dữ liệu sau giải mã, nên phát biểu này sai.",3:"HIDS chính là phân tích tệp nhật ký; nói nó không phân tích log là sai."}],
+ ["Trong mật mã khóa bí mật, số khóa trong hệ thống 10 người dùng?",["54","45","10","20"],[1],"n(n-1)/2 = 10×9/2 = 45.",{0:"54 không khớp công thức n(n-1)/2.",2:"10 là số người dùng, không phải số khóa cần thiết.",3:"20 không khớp công thức; đáp số đúng là 45."}],
+ ["Mạng có 250 máy. Dùng công cụ gì để đánh giá độ an toàn các máy?",["Bộ phân tích giao thức mạng","Công cụ quét cổng mạng","Công cụ quét lỗ hổng","Công cụ bẻ mật khẩu"],[2],"Vulnerability scanner dò và báo cáo điểm yếu trên nhiều máy.",{0:"Bộ phân tích giao thức chỉ bắt/xem gói tin, không tự đánh giá lỗ hổng nhiều máy.",1:"Quét cổng chỉ liệt kê cổng mở, chưa đánh giá điểm yếu bảo mật.",3:"Bẻ mật khẩu chỉ kiểm tra mật khẩu yếu, không quét toàn bộ lỗ hổng."}],
+ ["Đâu là tên một loại mã độc?",["Caterpillars","Worms","Lions","Horses"],[1],"",{0:"'Caterpillars' (sâu bướm) không phải loại mã độc.",2:"'Lions' không phải mã độc.",3:"'Horses' đơn lẻ không phải; thuật ngữ đúng là 'Trojan horse', còn ở đây là Worms."}],
+ ["Biểu thức thể hiện tính trội nào là ĐÚNG?",["(3, KD) ≤ (2, (HC, LTV))","(3, (KD, HC)) ≤ (2, (KD, LTV))","(2, KD) ≤ (3, (KD, LTV))","(2, (KD, LTV)) ≤ (3, KD)"],[2],"Trội đúng khi mức nhỏ ≤ lớn VÀ tập hạng mục ⊆: 2≤3 và {KD}⊆{KD,LTV}.",{0:"Vi phạm điều kiện: mức 3 không ≤ mức 2.",1:"Tập {KD,HC} không phải con của {KD,LTV} nên không trội.",3:"Mức 2 không ≤ mức 3 theo chiều này, và tập không thỏa."}],
+ ["Giám sát viên tìm cổng nào để kiểm tra luồng POP3 bằng Ethereal?",["143","25","110","125"],[2],"",{0:"Cổng 143 là IMAP, không phải POP3.",1:"Cổng 25 là SMTP (gửi mail), không phải POP3.",3:"Cổng 125 không phải cổng POP3 chuẩn."}],
+ ["Email giả ngân hàng yêu cầu đăng nhập qua liên kết để xác minh tài khoản. Loại tấn công nào?",["Phishing","Spam","Dictionary attack","Spim"],[0],"",{1:"Spam là thư rác hàng loạt, không nhắm lừa lấy thông tin đăng nhập cá nhân.",2:"Dictionary attack là dò mật khẩu, không phải email lừa đảo.",3:"Spim là spam qua tin nhắn tức thời, không phải email giả ngân hàng."}],
+ ["UAC Windows 8 hiện lời nhắc xác nhận trước khi thay đổi cài đặt. Chống tấn công nào?",["Leo thang đặc quyền","Adware","Spyware","Worms"],[0],"UAC ngăn tiến trình tự động lấy quyền admin → chống privilege escalation.",{1:"Adware hiện quảng cáo, UAC không sinh ra để chống cái này.",2:"Spyware do điệp gián - UAC không trực tiếp chặn loại này.",3:"Worm tự lây lan; UAC không phải cơ chế chống sâu."}],
+ ["Phần mềm nào chống lại việc thu thập thông tin cá nhân của người dùng?",["Anti-spam","Antivirus","Antispyware","Anti-adware"],[2],"",{0:"Anti-spam lọc thư rác, không chống thu thập thông tin cá nhân.",1:"Antivirus chống virus, không chuyên chống do thám.",3:"Anti-adware chỉ chống phần mềm quảng cáo, không phải spyware do thám."}],
+ ["Virus Michelangelo (1991) ghi đè 100 sector đầu đĩa cứng vào 6/3 hằng năm. Loại virus nào?",["Zero day","Worm","Trojan","Logic bomb"],[3],"Kích hoạt theo mốc thời gian (6/3) → đặc trưng logic bomb.",{0:"Zero day là lỗ hổng chưa vá, không phải cơ chế kích hoạt theo ngày.",1:"Worm tự lây lan; câu này kích hoạt theo mốc thời gian.",2:"Trojan ngụy trang; ở đây đặc trưng là kích hoạt theo ngày 6/3 → logic bomb."}],
+ ["Hacker ARP poisoning để mọi lưu lượng qua laptop hắn trước khi ra Internet. Loại tấn công nào?",["Rainbow tables","Man in the middle","DNS poison","Spoofing"],[1],"ARP poisoning là một dạng MitM.",{0:"Rainbow tables dùng để bẻ hash mật khẩu, không phải định tuyến lưu lượng.",2:"DNS poison giả mạo phân giải tên miền, không phải ép mọi lưu lượng qua máy hacker.",3:"Spoofing là thuật ngữ chung; ở đây ARP poisoning cụ thể là MitM."}],
+ ["Phát biểu nào đúng về trojan horse?",["Chương trình tấn công hệ thống trong khi vẫn làm các hành động có vẻ không gây hại","Tượng gỗ hình con ngựa chiến binh Hy Lạp dùng tấn công thành Troy","Có khả năng lây lan nhanh","Có khả năng tự sao chép"],[0],"Trojan không tự nhân bản, ngụy trang là chương trình vô hại.",{1:"Đây là điển tích lịch sử, không phải định nghĩa kỹ thuật của trojan.",2:"Lây lan nhanh là đặc trưng của worm, không phải trojan.",3:"Tự sao chép là đặc trưng virus/worm; trojan không tự nhân bản."}],
+ ["Muốn dữ liệu trên cloud chỉ khả dụng cho người có khóa chia sẻ. Nên áp dụng gì?",["Quyền truy cập tệp","Băm tập tin","Sao lưu tệp","Mã hóa tập tin"],[3],"Mã hóa dữ liệu at-rest → chỉ người có khóa mới đọc được.",{0:"Đặt quyền truy cập tệp chỉ giới hạn ai mở, người có quyền vẫn đọc rõ nội dung.",1:"Băm chỉ kiểm tra toàn vẹn, không giấu nội dung.",2:"Sao lưu lo phục hồi dữ liệu, không bảo vệ tính bí mật."}],
+ ["Mã độc nào có khả năng tự nhân bản? (chọn 2)",["Virus","Trojan","Worm","Logic Bomb"],[0,2],"",{1:"Trojan không tự nhân bản, nó ngụy trang chờ người chạy.",3:"Logic Bomb chỉ chờ điều kiện kích hoạt, không tự nhân bản."}],
+ ["Kỹ thuật nào giúp đảm bảo tính bí mật cho dữ liệu?",["MD5","Disk encryption","E-mail digital signatures","SHA"],[1],"Mã hóa đĩa → bí mật. MD5/SHA là toàn vẹn, chữ ký số là xác thực/chống chối bỏ.",{0:"MD5 là hàm băm → đảm bảo toàn vẹn, không phải bí mật.",2:"Chữ ký số email đảm bảo xác thực/chống chối bỏ, không phải bí mật.",3:"SHA là hàm băm → đảm bảo toàn vẹn, không phải bí mật."}],
+ ["Thiết lập luật ACL cho router, tuân thủ hướng dẫn nào?",["Không cho phép lưu lượng dựa trên IP","Không chặn lưu lượng dựa trên IP","Quy tắc đầu tiên phải là từ chối tất cả","Quy tắc cuối cùng phải là từ chối tất cả"],[3],"ACL có implicit deny all ở cuối.",{0:"'Không cho phép dựa trên IP' không phải nguyên tắc ACL chuẩn.",1:"'Không chặn dựa trên IP' sai vì ACL chính là lọc theo IP.",2:"Deny-all phải ở cuối (ngầm định), không phải quy tắc đầu tiên."}],
+ ["Kỹ thuật nào xác định khi nào tài khoản người dùng bị sửa đổi thông tin?",["Cài keyloggers trên máy trạm từng người","Kiểm toán Firewall","Kiểm toán tài khoản","Cài tường lửa cá nhân trên máy trạm từng người"],[2],"Chính sách 'Audit User Account Management' ghi sự kiện tạo/đổi/xóa tài khoản.",{0:"Keylogger ghi phím gõ, không phát hiện thay đổi tài khoản.",1:"Kiểm toán firewall ghi lưu lượng, không theo dõi sửa đổi tài khoản người dùng.",3:"Tường lửa cá nhân lọc kết nối, không ghi sự kiện sửa tài khoản."}],
+ ["DNS sử dụng cổng và giao thức nào?",["UDP/67","UDP/53","TCP/20","TCP/25"],[1],"",{0:"UDP/67 là DHCP, không phải DNS.",2:"TCP/20 là FTP data, không phải DNS.",3:"TCP/25 là SMTP, không phải DNS."}],
+ ["Kiểm soát truy cập nào gán nhãn an toàn tới các thực thể và đối tượng?",["MAC","DAC","RBAC","RuBAC"],[0],"",{1:"DAC để chủ sở hữu tự quyết, không gán nhãn an toàn bắt buộc.",2:"RBAC dựa trên vai trò, không dùng nhãn an toàn cho từng đối tượng.",3:"RuBAC dựa trên quy tắc, không phải gán nhãn an toàn cho thực thể."}],
+ ["Cổng nào cần mở trong tường lửa để truy cập website có dùng SSL?",["443","80","3389","69"],[0],"",{1:"Cổng 80 là HTTP thường, không có SSL.",2:"Cổng 3389 là RDP (remote desktop).",3:"Cổng 69 là TFTP."}],
+ ["Cách hiệu quả nhất để giảm thiểu tấn công của Worm và Virus?",["Bảo vệ tất cả thiết bị Layer 2","Người dùng thường xuyên đổi mật khẩu","Xây tường lửa lọc gói ở vùng biên mạng","Cài các bản cập nhật bảo mật để vá lỗ hổng"],[3],"",{0:"Bảo vệ Layer 2 không trực tiếp ngăn worm/virus lây qua lỗ hổng phần mềm.",1:"Đổi mật khẩu thường xuyên không chống được worm/virus.",2:"Tường lửa biên giúp một phần nhưng vá lỗ hổng mới là cách hiệu quả nhất."}],
+ ["Cho hàm băm H, từ H(x) không thể tìm được x là tính chất nào?",["Nén","Kháng tiền ảnh","Kháng tiền ảnh thứ 2","Kháng va chạm"],[1],"'Từ H(x) không tìm ra x' = pre-image resistance (kháng tiền ảnh).",{0:"Tính nén là rút gọn đầu ra cố định, không phải 'từ H(x) không tìm ra x'.",2:"Kháng tiền ảnh thứ 2: cho x, khó tìm x' khác có cùng hash - khác mô tả.",3:"Kháng va chạm: khó tìm hai đầu vào bất kỳ cùng hash - khác mô tả."}],
+ ["Tấn công nào làm giảm hiệu suất hoặc ngăn chặn việc quản lý các liên kết truyền thông?",["Từ chối dịch vụ (DoS)","Giả mạo (Masquerade)","Sửa đổi thông điệp","Phát lại (Replay)"],[0],"",{1:"Masquerade là giả mạo danh tính, không trực tiếp làm giảm hiệu suất liên kết.",2:"Sửa đổi thông điệp tấn công tính toàn vẹn, không phải làm tê liệt liên kết.",3:"Replay phát lại gói cũ, không phải làm sập/ngăn quản lý liên kết."}],
+ ["Công việc nào xác định tài nguyên, nguy cơ, rủi ro và cách khắc phục/giảm thiểu ảnh hưởng?",["Phân tích rủi ro","Đánh giá lỗ hổng","Quét cổng","Lập bản đồ mạng"],[0],"",{1:"Đánh giá lỗ hổng chỉ tìm điểm yếu, chưa bao gồm phân tích rủi ro tổng thể.",2:"Quét cổng chỉ liệt kê cổng mở.",3:"Lập bản đồ mạng chỉ vẽ sơ đồ, không đánh giá rủi ro & cách khắc phục."}],
+ ["Cấu hình NIPS chặn tấn công directory traversal trên web. Kiểu luật nào?",["Luật dựa trên hành vi","Luật dựa trên mẫu dấu hiệu","Luật dựa trên bất thường","Web-based"],[1],"Directory traversal có mẫu '../' → dùng chữ ký (signature).",{0:"Luật theo hành vi phát hiện bất thường, không hợp cho mẫu cố định như '../'.",2:"Luật bất thường dựa trên lệch chuẩn, không khớp với chuỗi dấu hiệu rõ ràng.",3:"'Web-based' không phải loại luật phát hiện chuẩn."}],
+ ["Khía cạnh bảo mật tổ chức nào tập trung vào bảo mật an ninh IT?",["Biometric information security","Security from frauds","Application security","Information copyright security"],[2],"Application security bảo vệ ứng dụng và dữ liệu.",{0:"Bảo mật sinh trắc chỉ là một khía cạnh nhỏ, không bao trùm an ninh IT.",1:"Chống gian lận là một mục tiêu, không phải khía cạnh bảo mật an ninh IT tổng thể.",3:"Bảo mật bản quyền thông tin là về sở hữu trí tuệ, không phải an ninh IT chung."}],
+ ["Lưu lượng đến TCP 53 từ IP lạ, nhiều lần thất bại zone transfer đến máy chủ. Dấu hiệu tấn công nào?",["ARP poisoning","Cross-site scripting","DNS poisoning","MAC flooding"],[2],"Zone transfer (AXFR) trái phép tới TCP 53 → dấu hiệu tấn công DNS.",{0:"ARP poisoning hoạt động ở mạng nội bộ, không liên quan TCP 53/zone transfer.",1:"XSS là lỗ hổng web, không phải zone transfer DNS.",3:"MAC flooding tấn công switch, không phải truy vấn DNS qua TCP 53."}],
+ ["Đâu là phương pháp kiểm thử thụ động?",["Theo dõi lưu lượng mạng","Tấn công vét cạn mật khẩu","Tấn công giải mã ổ đĩa theo từ điển","OS fingerprinting"],[0],"",{1:"Vét cạn mật khẩu là chủ động, tác động lên hệ thống.",2:"Tấn công từ điển giải mã ổ đĩa là chủ động.",3:"OS fingerprinting gửi gói thăm dò - mang tính chủ động hơn là chỉ nghe."}],
+ ["Mã độc dùng tấn công từ điển chiếm quyền quản trị, rồi liên kết các máy bị xâm nhập nhận lệnh từ xa. Thuật ngữ ĐÚNG NHẤT?",["Exploit","Botnet","Logic bomb","Backdoor"],[1],"Brute-force rồi gộp máy nhiễm vào mạng điều khiển từ xa → botnet.",{0:"Exploit là đoạn mã khai thác lỗ hổng, không phải mạng máy bị điều khiển.",2:"Logic bomb chờ điều kiện kích hoạt, không phải mạng nhận lệnh từ xa.",3:"Backdoor là cửa hậu cho một máy, không phải mạng nhiều máy nhận lệnh."}],
+ ["Loại phần mềm nào lọc bỏ email rác không mong muốn?",["Anti-spam","Antivirus","Antispyware","Anti-adware"],[0],"",{1:"Antivirus chống virus, không chuyên lọc email rác.",2:"Antispyware chống do thám, không lọc spam.",3:"Anti-adware chống quảng cáo, không lọc email rác."}],
+];
+
+const QUIZ_2 = [
+ ["Kiểu tấn công vào hệ mật nào sau đây dựa trên các lý thuyết về xác suất?",["Từ điển","Ngày sinh","Vét cạn","KPA"],[1],"Tấn công ngày sinh (Birthday attack) dựa trên nghịch lý ngày sinh trong xác suất.",{0:"Từ điển dựa trên danh sách mật khẩu có sẵn, không dựa trên lý thuyết xác suất.",2:"Vét cạn thử mọi khả năng bằng sức mạnh tính toán, không dựa nghịch lý xác suất.",3:"KPA (known-plaintext) dựa trên cặp rõ-mã đã biết, không phải xác suất."}],
+ ["Phát biểu nào sau đây đúng về virus?",["Virus làm tràn băng thông của hệ thống","Virus có khả năng tự lan truyền qua mạng","Virus ẩn dưới chương trình lành tính khác","Virus lây nhiễm qua file"],[3],"Virus cần file vật chủ. Tự lan truyền là worm.",{0:"Tràn băng thông là đặc trưng DoS, không phải virus.",1:"Tự lan truyền qua mạng là đặc trưng worm, không phải virus.",2:"Ẩn dưới chương trình lành tính là trojan, không phải virus."}],
+ ["Mô hình kiểm soát truy cập nào trong đó các đối tượng có nhãn (label)?",["MAC","Rule based access control","DAC","Role based access control"],[0],"Đặc trưng 'đối tượng có nhãn' (security label) là của MAC.",{1:"Rule-based dựa trên tập quy tắc, không gán nhãn cho từng đối tượng.",2:"DAC để chủ sở hữu quyết định, không dùng nhãn bảo mật.",3:"Role-based phân quyền theo vai trò, không gán nhãn lên đối tượng."}],
+ ["Lý do nào giải thích ĐÚNG NHẤT tại sao cần sử dụng hàm băm trong chữ ký số?",["Tăng độ an toàn chữ ký số","Không thể thiếu được trong sơ đồ chữ ký số","Đảm bảo tính chống chối bỏ","Giảm kích thước chữ ký số"],[3],"Hàm băm rút gọn thông điệp xuống kích thước cố định trước khi ký → giảm kích thước & tăng tốc độ.",{0:"Hàm băm không trực tiếp 'tăng độ an toàn' mà để rút gọn thông điệp.",1:"Có thể ký trực tiếp không cần băm về lý thuyết, nên không phải 'không thể thiếu'.",2:"Chống chối bỏ đến từ khóa riêng người ký, không phải từ hàm băm."}],
+ ["Công nghệ nào nên được áp dụng để loại bỏ việc các thông tin nhạy cảm được gửi ra bên ngoài tổ chức?",["DLP","HIDS","NIDS","VPN"],[0],"DLP (Data Loss Prevention) chuyên ngăn rò rỉ dữ liệu nhạy cảm.",{1:"HIDS giám sát một host, không chuyên ngăn rò rỉ dữ liệu ra ngoài.",2:"NIDS phát hiện xâm nhập mạng, không chuyên chặn rò rỉ thông tin nhạy cảm.",3:"VPN mã hóa đường truyền, không kiểm soát nội dung dữ liệu gửi ra."}],
+ ["Nguyên tắc mở trong an toàn thông tin quy định:",["Không ai có thể tấn công vào cơ chế bảo vệ ngoại trừ tác giả","Mở toàn bộ hệ thống và cơ chế bảo vệ cho người dùng","Yêu cầu mọi cơ chế bảo vệ và thuật toán đều phải được mở công khai","Hệ thống phải đảm bảo an toàn ngay cả khi kẻ tấn công biết thông tin về thuật toán và cơ chế bảo vệ"],[3],"Nguyên tắc Kerckhoffs: an toàn không phụ thuộc vào bí mật của thiết kế, chỉ phụ thuộc vào bí mật của khóa.",{0:"Đây mô tả 'bảo mật bằng giấu kín' - ngược với nguyên tắc mở.",1:"Mở toàn bộ hệ thống cho người dùng không phải ý nghĩa nguyên tắc mở.",2:"Nguyên tắc không bắt buộc công khai mọi thứ, mà là an toàn vẫn giữ kể cả khi kẻ tấn công biết thuật toán."}],
+ ["Điều nào cần được thực hiện để cấu hình bộ chuyển mạch Ethernet một cách an toàn?",["Vô hiệu hóa cổng không sử dụng và cấu hình VLAN bổ sung","Vô hiệu hóa cổng không sử dụng và gán địa chỉ MAC cho cổng được kích hoạt","Vô hiệu hóa cổng không sử dụng và cấu hình bán song công","Vô hiệu hóa cổng không sử dụng và cấu hình song công hoàn toàn"],[1],"Best practice: tắt cổng không dùng + thiết lập port security (gắn MAC vào cổng).",{0:"VLAN giúp phân tách nhưng câu hỏi nhấn vào gán MAC cho cổng (port security).",2:"Bán song công là cấu hình tốc độ, không liên quan bảo mật cổng.",3:"Song công hoàn toàn là cấu hình hiệu năng, không phải biện pháp bảo mật."}],
+ ["Cách nào tốt nhất và đơn giản nhất để chống lại lỗ hổng trong hệ điều hành?",["Tắt hệ thống khi không sử dụng","Cài đặt lại hệ điều hành thông dụng","Cài đặt bản vá mới nhất","Sao lưu hệ thống thường xuyên"],[2],"Cập nhật bản vá (patching) giải quyết trực tiếp lỗ hổng.",{0:"Tắt máy khi không dùng không vá được lỗ hổng phần mềm.",1:"Cài lại HĐH không tự khắc phục lỗ hổng nếu chưa vá.",3:"Sao lưu giúp phục hồi, không vá lỗ hổng."}],
+ ["Đâu là một thuật toán hàm băm?",["SHA","2DES","Blowfish","Elgamal"],[0],"SHA = Secure Hash Algorithm.",{1:"2DES không phải hàm băm (và bản thân không an toàn, ít dùng).",2:"Blowfish là mã hóa đối xứng, không phải hàm băm.",3:"Elgamal là mã hóa/khóa công khai, không phải hàm băm."}],
+ ["Đoạn mã nào có thể gây ra SQL Injection?",["'OR 1=1//","'OR 1=1-- -","'OR '1'=1","'OR 1=1"],[1],"'--' là dấu chú thích trong SQL, bỏ qua phần kiểm tra mật khẩu phía sau.",{0:"'//' không phải cú pháp comment hợp lệ trong SQL chuẩn để khai thác.",2:"\"'OR '1'=1\" thiếu phần đóng/comment, dễ gây lỗi cú pháp.",3:"\"'OR 1=1\" thiếu dấu comment '--' để bỏ qua phần kiểm tra phía sau."}],
+ ["Trong mô hình MAC để đảm bảo tính bí mật, quy tắc đọc/ghi nào cần tuân thủ?",["Chỉ đọc/ghi ở cùng mức nhãn","Chỉ đọc/ghi ở mức thấp hơn","Đọc xuống và Ghi lên","Đọc lên và Ghi xuống"],[2],"Bell-LaPadula (bí mật): no read up, no write down → Đọc xuống, Ghi lên.",{0:"Chỉ đọc/ghi cùng mức không bảo vệ bí mật theo Bell-LaPadula.",1:"'Chỉ ở mức thấp hơn' không đúng quy tắc; ghi phải lên, đọc phải xuống.",3:"Đọc lên/Ghi xuống là ngược, sẽ làm rò rỉ thông tin mật xuống mức thấp."}],
+ ["Kiểu tấn công nào thử các mật khẩu thông dụng nhiều lần cho tới khi đạt kết quả?",["Birthday attack","Spraying attack","Dictionary attack","Replay attack"],[2],"Dictionary attack (Tấn công từ điển) dùng danh sách các mật khẩu phổ biến có sẵn.",{0:"Birthday attack khai thác đụng độ hash, không thử mật khẩu thông dụng.",1:"Spraying thử một mật khẩu lên nhiều tài khoản, khác với thử nhiều mật khẩu thông dụng vào một tài khoản.",3:"Replay phát lại gói đã bắt, không phải đoán mật khẩu."}],
+ ["Phát biểu nào đúng với hệ thống phát hiện xâm nhập mức mạng - NIDS?",["Hoạt động trên từng máy cá nhân","Các gói tin độc hại bị ngăn chặn","Các lưu lượng mạng được phân tích để tìm gói tin độc hại","Máy tính được bảo vệ ngay cả khi không kết nối LAN"],[2],"NIDS phân tích lưu lượng đi qua mạng để tìm ra dấu hiệu bất thường.",{0:"Hoạt động trên từng máy là HIDS, không phải NIDS.",1:"Ngăn chặn gói là IPS, NIDS chỉ phát hiện.",3:"NIDS dựa vào lưu lượng mạng, mất kết nối LAN thì không bảo vệ được."}],
+ ["Mã độc lây nhiễm cho phép kẻ tấn công điều khiển máy từ xa là loại nào?",["Honeypot","Bot","Trojan","Worm"],[1],"Bot biến máy nạn nhân thành một phần của mạng lưới bị điều khiển từ xa.",{0:"Honeypot là bẫy nhử, không phải mã độc điều khiển máy nạn nhân.",2:"Trojan ngụy trang nhưng thuật ngữ cho máy bị điều khiển từ xa là bot.",3:"Worm chuyên tự lây lan, không nhất thiết để điều khiển từ xa."}],
+ ["Ma trận kiểm soát truy cập (Access Control Matrix) thuộc mô hình kiểm soát truy cập nào?",["MAC","RBAC","ABAC","DAC"],[3],"Ma trận kiểm soát truy cập là cách biểu diễn cơ bản cho DAC.",{0:"MAC dùng nhãn bảo mật, không phải biểu diễn bằng ma trận chủ thể-đối tượng.",1:"RBAC dựa trên vai trò, không phải ma trận truy cập cơ bản.",2:"ABAC dựa trên thuộc tính, không phải ma trận truy cập."}],
+ ["AVra là chương trình quét mã độc nhưng chứa chức năng thu thập thông tin ẩn. AVra là gì?",["Backdoor","Zombie","Virus","Trojan Horse"],[3],"Ẩn mình dưới dạng một phần mềm hữu ích là đặc điểm của Trojan Horse.",{0:"Backdoor tạo cửa hậu, không nhất thiết ngụy trang là phần mềm hữu ích.",1:"Zombie là máy bị chiếm để điều khiển, không phải chương trình ngụy trang.",2:"Virus cần file vật chủ và tự lây; ở đây là ngụy trang → trojan."}],
+ ["Cần cấu hình IDS để phát hiện tấn công directory traversal. Kiểu luật nào?",["Web-based","Signature-based","Anomaly-based","Behavior-based"],[1],"Directory traversal luôn có chuỗi dấu hiệu '../' rõ ràng → dựa trên mẫu/chữ ký.",{0:"'Web-based' không phải loại luật IDS chuẩn.",2:"Anomaly-based phát hiện bất thường, không hợp với mẫu cố định '../'.",3:"Behavior-based dựa hành vi, không khớp chuỗi dấu hiệu rõ ràng."}],
+ ["Cấu hình quyền trên thư mục cho nhóm khác nhau. Bạn đã thực hiện hành động nào?",["Ủy quyền","Phân quyền","Định danh","Xác thực"],[1],"Thiết lập danh sách ai được làm gì trên tài nguyên gọi là Phân quyền (Authorization).",{0:"Ủy quyền (delegation) là trao quyền của mình cho người khác, khác với thiết lập quyền trên thư mục.",2:"Định danh là khai báo bạn là ai, không phải gán quyền.",3:"Xác thực là kiểm tra danh tính, không phải thiết lập quyền truy cập."}],
+ ["Phát biểu nào SAI về SQL Injection?",["SQLi cho phép đánh cắp mật khẩu của toàn bộ người dùng trong CSDL","Lỗ hổng SQLi xuất hiện khi đầu vào không được kiểm tra","Việc sử dụng PL-SQL tạo ra lỗ hổng SQL Injection","SQLi cho phép truy cập máy chủ CSDL và thực thi mã SQL dưới quyền user kết nối"],[2],"Bản thân PL-SQL không tạo ra lỗ hổng. Lỗ hổng sinh ra do không lọc dữ liệu đầu vào.",{0:"SQLi thực tế CÓ thể đánh cắp mật khẩu người dùng → phát biểu này đúng.",1:"SQLi đúng là xuất hiện khi đầu vào không được kiểm tra → phát biểu đúng.",3:"SQLi đúng là cho thực thi mã SQL dưới quyền user kết nối → phát biểu đúng."}],
+ ["Không dùng liên kết chuyên dụng, phương pháp nào tốt nhất để kết nối hai mạng địa lý xa nhau an toàn?",["VPN","DMZ","Tường lửa","VLAN"],[0],"Virtual Private Network tạo đường hầm mã hóa an toàn qua Internet công cộng.",{1:"DMZ là vùng đệm đặt máy chủ công khai, không phải để nối hai mạng xa.",2:"Tường lửa lọc lưu lượng, không tạo kênh kết nối hai mạng xa.",3:"VLAN phân tách mạng nội bộ, không nối hai địa điểm qua Internet."}],
+ ["Đâu KHÔNG phải là mục đích của chữ ký số?",["Đảm bảo tính xác thực","Đảm bảo tính chống chối bỏ","Đảm bảo tính bí mật","Đảm bảo tính toàn vẹn"],[2],"Chữ ký số không mã hóa nội dung thông điệp nên KHÔNG đảm bảo tính bí mật.",{0:"Chữ ký số ĐÚNG là đảm bảo xác thực → đây là mục đích thật.",1:"Chữ ký số ĐÚNG là đảm bảo chống chối bỏ → đây là mục đích thật.",3:"Chữ ký số ĐÚNG là đảm bảo toàn vẹn → đây là mục đích thật."}],
+ ["AES, kích thước bản rõ đầu vào là 156 bit, kích thước bản mã đầu ra là?",["1024 bit","256 bit","128 bit","156 bit"],[1],"AES xử lý theo khối 128-bit. 156 bit > 1 khối nên cần đệm thêm để thành 2 khối = 256 bit.",{0:"1024 bit quá lớn, không khớp cách AES đệm khối 128-bit.",2:"128 bit chỉ đủ 1 khối, nhưng 156 bit vượt 1 khối nên cần 2 khối.",3:"156 bit không phải bội số khối AES; phải đệm lên 256 bit."}],
+ ["Bảng cầu vồng (rainbow table) được dùng cho kiểu tấn công nào?",["Từ điển","Vét cạn","Phát lại","Dùng lại"],[0],"Tương tự từ điển nhưng chứa sẵn các giá trị băm đã tính trước để crack hash nhanh hơn.",{1:"Vét cạn thử mọi khả năng trực tiếp, không dùng bảng băm tính sẵn.",2:"Phát lại là gửi lại gói cũ, không liên quan bảng cầu vồng.",3:"'Dùng lại' không phải kiểu tấn công dùng rainbow table."}],
+ ["Máy tính nhiễm mã độc, lây qua mạng nội bộ và hiển thị banner quảng cáo. Vấn đề gì?",["Worm mang Adware","Tấn công XSS","Adware","Worm"],[0],"Tự lây lan (Worm) kết hợp quảng cáo (Adware).",{1:"XSS là lỗ hổng web phía client, không tự lây qua mạng nội bộ.",2:"Chỉ 'Adware' không giải thích việc tự lây lan giữa các máy.",3:"Chỉ 'Worm' bỏ sót đặc điểm hiển thị quảng cáo (Adware)."}],
+ ["Trong mật mã khóa bí mật, số khóa đủ cho liên lạc trong hệ thống 10 người dùng?",["20","45","10","54"],[1],"Công thức: n(n-1)/2 = 10*9/2 = 45 khóa.",{0:"20 không khớp công thức n(n-1)/2.",2:"10 là số người, không phải số khóa.",3:"54 không khớp công thức; đáp số là 45."}],
+ ["Tập hợp công cụ phần mềm dùng để trốn phát hiện và đạt quyền quản trị máy/mạng là?",["Trojan","Rootkit","Spyware","Backdoor"],[1],"Rootkit chuyên đào sâu, che giấu sự hiện diện và duy trì đặc quyền root/admin.",{0:"Trojan ngụy trang, không phải bộ công cụ che giấu & duy trì quyền root.",2:"Spyware do thám, không chuyên trốn phát hiện và giữ đặc quyền quản trị.",3:"Backdoor là cửa hậu đơn lẻ, không phải bộ công cụ rootkit hoàn chỉnh."}],
+ ["Tấn công SQL Injection thuộc loại hiểm họa ATTT nào?",["Hiểm họa thụ động","Hiểm họa vô ý","Hiểm họa tích cực","Hiểm họa không phụ thuộc hệ thống"],[2],"Tích cực (Active) vì nó thay đổi, truy xuất hoặc làm sai lệch dữ liệu hệ thống.",{0:"Thụ động chỉ nghe/đọc; SQLi thay đổi-truy xuất dữ liệu nên là chủ động.",1:"Vô ý là lỗi không cố tình; SQLi là tấn công có chủ đích.",3:"SQLi phụ thuộc vào hệ thống/CSDL mục tiêu, không phải 'không phụ thuộc hệ thống'."}],
+ ["Giải pháp nào dùng để xác thực vào ứng dụng trên môi trường Internet?",["Mật khẩu + OTP","Thẻ từ/smartcard/token + mã PIN","Mật khẩu + Vân tay","Mật khẩu + Smart card"],[0],"Trên Internet thường dùng Smartphone nhận OTP thay vì phải cắm Smartcard hay quét vân tay.",{1:"Thẻ/smartcard/token + PIN khó dùng qua Internet (phải có đầu đọc thiết bị).",2:"Vân tay cần cảm biến sinh trắc, không tiện cho web đại trà.",3:"Smartcard cần đầu đọc, bất tiện cho xác thực qua mạng phổ thông."}],
+ ["Bắt buộc mã hóa dữ liệu trên điện thoại nhân viên nhằm đảm bảo tính chất nào?",["Bí mật","Toàn vẹn","Trách nhiệm","Sẵn sàng"],[0],"Mã hóa nhằm ngăn người khác đọc nội dung khi mất máy → Tính bí mật.",{1:"Toàn vẹn lo dữ liệu không bị sửa; mã hóa nhằm giấu nội dung khi mất máy.",2:"Trách nhiệm (accountability) lo truy vết hành vi, không phải mục tiêu mã hóa.",3:"Sẵn sàng lo truy cập được khi cần; mã hóa không phục vụ mục tiêu này."}],
+ ["Đâu KHÔNG phải là hiểm họa xuất phát từ thư điện tử?",["Skimming","Kỹ nghệ xã hội","Phishing","Mã độc"],[0],"Skimming là ăn cắp dữ liệu thẻ bằng thiết bị phần cứng lén gắn vào máy ATM/POS.",{1:"Kỹ nghệ xã hội CÓ thể qua email (vd lừa đảo) → là hiểm họa từ email.",2:"Phishing là hiểm họa email điển hình.",3:"Mã độc thường phát tán qua email đính kèm → là hiểm họa từ email."}],
+ ["Loại mã độc nào chỉ tồn tại trên RAM?",["Logic Bomb","Fileless Virus","Rootkit","Backdoor"],[1],"Fileless Malware không ghi lên ổ cứng mà chạy trực tiếp từ bộ nhớ đệm/RAM.",{0:"Logic Bomb chờ điều kiện kích hoạt, có thể nằm trên ổ cứng.",2:"Rootkit thường cài đặt và ẩn trên hệ thống/ổ đĩa.",3:"Backdoor là cửa hậu được cài đặt, không chỉ tồn tại trên RAM."}],
+ ["Sắp xếp các phương pháp xác thực theo thứ tự an toàn TĂNG DẦN:",["Vân tay → mật khẩu → thẻ thông minh","ACL → tên+mật khẩu → quét võng mạc","Mật khẩu → thẻ thông minh → vân tay","Thẻ thông minh → vân tay → mật khẩu"],[2],"Cái biết (Mật khẩu) < Cái có (Smartcard) < Cái thuộc về sinh trắc (Vân tay).",{0:"Sai thứ tự: vân tay (sinh trắc, mạnh nhất) không thể đứng đầu danh sách tăng dần.",1:"ACL không phải phương pháp xác thực nhân tố; thứ tự không chuẩn.",3:"Sai thứ tự: thẻ và vân tay bị đảo, mật khẩu (yếu nhất) phải đứng đầu."}],
+ ["Mã độc tự động lây lan qua mạng nội bộ thuộc loại?",["Trojan Horse","Worm","Virus","Backdoor"],[1],"Đặc trưng số 1 của Worm là khả năng lây lan qua mạng nội bộ một cách tự động.",{0:"Trojan cần người chạy, không tự động lây qua mạng.",2:"Virus lây qua file vật chủ, không tự lây qua mạng độc lập.",3:"Backdoor là cửa hậu, không phải mã tự lây lan."}],
+ ["Cần đảm bảo dữ liệu trên USB KHÔNG BỊ GIẢ MẠO. Nên chọn giải pháp nào?",["Băm và lưu trữ giá trị băm của tập tin","Mã hóa tập tin bằng khóa công khai","Mã hóa tệp tin bằng khóa bí mật","Sao lưu tệp"],[0],"Toàn vẹn (không bị sửa đổi giả mạo) dựa trên việc đối chiếu hàm băm.",{1:"Mã hóa khóa công khai giấu nội dung nhưng không trực tiếp chứng minh chưa bị sửa.",2:"Mã hóa khóa bí mật bảo vệ bí mật, không phải phát hiện giả mạo.",3:"Sao lưu giúp phục hồi, không phát hiện dữ liệu bị sửa đổi."}],
+ ["Muốn mã hóa tệp 18GB, lựa chọn nào phù hợp?",["Mật mã đối xứng","RSA","Mật mã khóa công khai","Hàm băm"],[0],"Dữ liệu lớn bắt buộc phải dùng mật mã đối xứng vì tốc độ mã hóa cực nhanh.",{1:"RSA (bất đối xứng) cực chậm với file lớn, không phù hợp.",2:"Mã khóa công khai chậm, không dùng để mã hóa toàn bộ tệp lớn.",3:"Hàm băm không mã hóa/giải mã được nội dung, chỉ tạo dấu vân tay."}],
+ ["Thuật toán nào đảm bảo tính toàn vẹn cho dữ liệu?",["MD5","3DES","AES","RC4"],[0],"MD5 là thuật toán Băm. Các phương án khác là Mã hóa đối xứng.",{1:"3DES là mã hóa đối xứng → bí mật, không phải toàn vẹn.",2:"AES là mã hóa đối xứng → bí mật, không phải toàn vẹn.",3:"RC4 là mã hóa luồng → bí mật, không phải toàn vẹn."}],
+ ["Tấn công nào KHÔNG thuộc dạng kỹ nghệ xã hội?",["Man in the Middle","Whaling","Vishing","Phishing"],[0],"MitM là kiểu tấn công bắt/sửa gói tin trên hạ tầng mạng, không lừa đảo tâm lý nạn nhân.",{1:"Whaling nhắm lãnh đạo cấp cao - là một dạng kỹ nghệ xã hội.",2:"Vishing lừa qua điện thoại - là kỹ nghệ xã hội.",3:"Phishing lừa qua email - là kỹ nghệ xã hội."}],
+ ["Hiểm họa ATTT nào sau đây là hiểm họa TÍCH CỰC?",["Tấn công vét cạn","Tấn công dò quét mật khẩu","Tấn công nghe lén đường truyền","Tấn công leo thang đặc quyền"],[3],"Leo thang đặc quyền trực tiếp can thiệp và sửa đổi trạng thái kiểm soát hệ thống.",{0:"Vét cạn thử mật khẩu mang tính dò tìm, thường xếp gần thụ động hơn ở câu này.",1:"Dò quét mật khẩu chỉ thăm dò, không trực tiếp sửa đổi trạng thái hệ thống.",2:"Nghe lén là thụ động điển hình, không can thiệp hệ thống."}],
+ ["Phát biểu đúng với hệ mật RSA?",["Là hệ mật sử dụng một cặp khóa có liên hệ với nhau về mặt toán học","Là hệ mật mã đối xứng","Thay thế cho hệ mật DES","Thay thế cho hệ mật AES"],[0],"RSA là thuật toán bất đối xứng dùng Cặp khóa Public/Private.",{1:"RSA là bất đối xứng, không phải đối xứng.",2:"RSA không 'thay thế' DES; chúng khác loại (bất đối xứng vs đối xứng).",3:"RSA không thay thế AES; AES là mã đối xứng dùng cho dữ liệu lớn."}],
+ ["Tấn công nào có thể gây ảnh hưởng đến HOẠT ĐỘNG của máy chủ web?",["Buffer overflow","CSRF","Directory Traversal","XSS"],[0],"Tràn bộ đệm (Buffer Overflow) có thể làm sập (Crash) toàn bộ tiến trình của máy chủ.",{1:"CSRF lừa người dùng thực hiện hành động, không trực tiếp làm sập máy chủ.",2:"Directory Traversal đọc tệp trái phép, không nhất thiết gây gián đoạn hoạt động.",3:"XSS nhắm trình duyệt client, không làm sập tiến trình máy chủ."}],
+ ["Muốn dữ liệu cloud chỉ khả dụng cho người có khóa chia sẻ. Nên áp dụng gì?",["Thiết đặt quyền truy cập tệp","Mã hóa tập tin","Băm tập tin","Sao lưu tệp"],[1],"Người nắm giữ khóa mới giải mã được tập tin đã mã hóa.",{0:"Đặt quyền truy cập tệp dễ bị vượt nếu lấy được dữ liệu thô; mã hóa mới chắc.",2:"Băm chỉ kiểm tra toàn vẹn, không giới hạn ai đọc được.",3:"Sao lưu lo phục hồi, không kiểm soát quyền truy cập theo khóa."}],
+ ["Đâu là hành vi KÉM AN TOÀN NHẤT gây lây nhiễm mã độc?",["Cài phần mềm từ chợ ứng dụng chính thống","Cập nhật phần mềm và bản vá HĐH","Tải xuống tệp tin trên mạng","Vô hiệu hóa cơ chế tự động thực thi"],[2],"Tải tệp tin không kiểm chứng (từ P2P, web lạ) là nguồn gốc của 90% ca nhiễm mã độc.",{0:"Cài từ chợ chính thống là tương đối an toàn.",1:"Cập nhật bản vá là hành vi an toàn, giảm rủi ro.",3:"Tắt tự động thực thi là biện pháp an toàn."}],
+ ["Công ty hải sản muốn bảo vệ cách chế biến/đóng gói không bị lộ. Tính chất nào?",["Tính sẵn sàng","Tính chống chối bỏ","Tính toàn vẹn","Tính bí mật"],[3],"Che giấu thông tin khỏi đối tượng không được phép = Tính bí mật.",{0:"Sẵn sàng lo truy cập được khi cần; ở đây là giữ kín bí quyết.",1:"Chống chối bỏ lo việc không thể phủ nhận hành vi; không liên quan giữ bí mật.",2:"Toàn vẹn lo dữ liệu không bị sửa; câu này nói về giữ kín = bí mật."}],
+ ["UAC trên Windows hiện cảnh báo trước khi thay đổi cấu hình. Chống tấn công nào?",["Ransomware","DNS Poisoning","Vét cạn","Leo thang đặc quyền"],[3],"Yêu cầu người dùng xác nhận rõ ràng để cản mã độc tự động chạy dưới quyền Admin.",{0:"Ransomware mã hóa tống tiền; UAC không sinh ra để chống cái này trực tiếp.",1:"DNS Poisoning giả mạo phân giải tên miền; UAC không liên quan.",2:"Vét cạn dò mật khẩu; UAC không phải biện pháp chống brute-force."}],
+ ["Mô hình bảo mật nào dùng phân loại dữ liệu và phân quyền dựa trên phân loại dữ liệu?",["DAC","MAC","PKI","RBAC"],[1],"MAC cấp phép truy cập dựa theo nhãn dán độ nhạy cảm của dữ liệu (Confidential, Secret...).",{0:"DAC để chủ sở hữu quyết định, không dùng nhãn phân loại bắt buộc.",2:"PKI là hạ tầng khóa công khai, không phải mô hình kiểm soát truy cập.",3:"RBAC theo vai trò, không dựa trên nhãn phân loại dữ liệu."}],
+ ["Giá trị ngẫu nhiên thêm vào trước khi băm mật khẩu được gọi là?",["IV","Hash","Salt","DIP"],[2],"Muối (Salt) làm cho cùng một mật khẩu ở hai tài khoản sẽ sinh ra mã băm khác nhau.",{0:"IV (vector khởi tạo) dùng trong mã hóa khối, không phải giá trị thêm vào để băm mật khẩu.",1:"Hash là kết quả băm, không phải giá trị ngẫu nhiên thêm vào trước khi băm.",3:"'DIP' không phải thuật ngữ chuẩn trong băm mật khẩu."}],
+ ["Triển khai giải pháp cho nhân viên truy cập an toàn từ nhà. Giải pháp nào?",["Site to Site VPN","Point to Point VPN","Point to Site VPN","Firewall"],[2],"Máy tính cá nhân ở nhà kết nối vào cả một hệ thống mạng (Site) của công ty.",{0:"Site-to-Site nối hai mạng văn phòng, không phải cá nhân từ nhà.",1:"Point-to-Point nối hai điểm cố định, không hợp cho người dùng cá nhân linh động.",3:"Firewall chỉ lọc lưu lượng, không tạo kênh truy cập từ xa an toàn."}],
+ ["Tấn công nào KHÔNG ảnh hưởng đến TÍNH BÍ MẬT của dữ liệu trên MÁY CHỦ WEB?",["Command Injection","SQL Injection","XSS","Directory Traversal"],[2],"XSS nhắm vào Trình duyệt của Client, chứ không trực tiếp đọc trộm dữ liệu trên Server.",{0:"Command Injection có thể đọc/lộ dữ liệu trên server → ảnh hưởng bí mật.",1:"SQL Injection truy xuất dữ liệu trong CSDL → ảnh hưởng bí mật.",3:"Directory Traversal đọc tệp trái phép trên server → ảnh hưởng bí mật."}],
+ ["Phát biểu nào ĐÚNG về HIDS?",["Lưu lượng nghi ngờ đi vào mạng sẽ bị ngăn chặn","Không thể theo dõi được lưu lượng bị mã hóa","Không phân tích các tệp nhật ký","Nó phải được cài đặt trên mỗi hệ thống khi cần"],[3],"HIDS (Host-based IDS) phải được cài trực tiếp lên từng máy cụ thể cần giám sát.",{0:"Ngăn chặn lưu lượng vào mạng là IPS/NIDS, không phải HIDS.",1:"HIDS đặt trên host có thể thấy dữ liệu sau giải mã, nên phát biểu này sai.",2:"HIDS chính là phân tích log; nói không phân tích là sai."}],
+ ["Người dùng ký lên thư điện tử gửi đi giúp đảm bảo?",["Tính toàn vẹn của thư","Đặc quyền tối thiểu","Phân quyền cho thư","Tính bí mật của thư"],[0],"Chữ ký số xác nhận danh tính người gửi và nội dung không bị sửa đổi dọc đường.",{1:"Đặc quyền tối thiểu là nguyên tắc cấp quyền, không phải kết quả của ký email.",2:"Ký email không phải để 'phân quyền cho thư'.",3:"Chữ ký số không mã hóa nội dung nên không đảm bảo bí mật."}],
+ ["Phát biểu nào KHÔNG đúng về tính toàn vẹn trong ATTT?",["Có thể bị ảnh hưởng do lỗi đường truyền","Đảm bảo thông tin không bị thay đổi khi truyền dẫn","Có thể bị vi phạm bởi tấn công từ điển","Đảm bảo phát hiện ra sự thay đổi của thông tin"],[2],"Tấn công từ điển nhắm vào cơ chế xác thực (mật khẩu) để đánh cắp bí mật, không phải toàn vẹn.",{0:"Lỗi đường truyền CÓ thể làm hỏng toàn vẹn → phát biểu đúng.",1:"Toàn vẹn ĐÚNG là đảm bảo không bị thay đổi khi truyền → phát biểu đúng.",3:"Toàn vẹn ĐÚNG là giúp phát hiện thay đổi → phát biểu đúng."}],
+ ["Bạn ký số email gửi cho HR. Khẳng định nào ĐÚNG?",["Khóa riêng của HR dùng để xác minh chữ ký số","Khóa công khai của bạn dùng để xác minh chữ ký số","Khóa riêng của HR dùng để tạo chữ ký số","Khóa công khai của bạn dùng để tạo chữ ký số"],[1],"Tạo chữ ký bằng Private Key của mình, người khác kiểm tra chữ ký bằng Public Key của mình.",{0:"Khóa riêng của HR dùng cho việc của HR, không xác minh chữ ký của bạn.",2:"Khóa riêng của HR không liên quan đến chữ ký do bạn tạo.",3:"Khóa công khai dùng để xác minh, không phải để tạo chữ ký (tạo bằng khóa riêng)."}],
+ ["Mô hình kiểm soát truy cập nào là CỐ ĐỊNH, dùng tập quy định quyền truy cập được định nghĩa trước?",["MAC","RBAC","DAC","ABAC"],[0],"MAC (Bắt buộc) do Quản trị viên trung tâm áp đặt gắt gao, không thể thay đổi tùy tiện.",{1:"RBAC linh hoạt theo vai trò, không 'cố định' như MAC.",2:"DAC để chủ sở hữu tùy ý, không cố định theo quy định trung tâm.",3:"ABAC dựa trên thuộc tính linh hoạt, không phải mô hình cố định."}],
+ ["Công việc nào cho phép xác định tài nguyên, nguy cơ, rủi ro và cách khắc phục/giảm thiểu?",["Lập bản đồ mạng","Đánh giá lỗ hổng","Quét cổng","Phân tích rủi ro"],[3],"Quy trình Phân tích rủi ro (Risk Analysis) đánh giá tác động để tìm cách giảm thiểu.",{0:"Lập bản đồ mạng chỉ vẽ sơ đồ, không phân tích rủi ro & cách giảm thiểu.",1:"Đánh giá lỗ hổng chỉ tìm điểm yếu, chưa bao gồm phân tích rủi ro tổng thể.",2:"Quét cổng chỉ liệt kê cổng mở."}],
+ ["Kiểu tấn công dựa trên sức mạnh máy tính để thử sai toàn bộ khả năng có thể của khóa?",["Ngày sinh nhật","Vét cạn","Phát lại","Từ điển"],[1],"Vét cạn (Brute Force) mù quáng thử toàn bộ mọi không gian trường hợp.",{0:"Ngày sinh nhật khai thác đụng độ hash, không phải thử toàn bộ khóa.",2:"Phát lại gửi lại gói cũ, không phải thử mọi khả năng khóa.",3:"Từ điển chỉ thử danh sách có sẵn, không thử toàn bộ không gian khóa."}],
+ ["Mã độc nào sau đây KHÔNG cần vật chủ?",["Backdoor","Virus","Logic Bomb","Worm"],[3],"Virus bắt buộc phải lây bám vào file .exe, file word... Còn Worm tự thân là một chương trình độc lập.",{0:"Backdoor là cửa hậu được cài, thường gắn với hệ thống bị xâm nhập.",1:"Virus BẮT BUỘC cần file vật chủ để lây.",2:"Logic Bomb thường được nhúng trong chương trình/file vật chủ."}],
+ ["Đâu là chức năng của một C&C server?",["Pentest","Phát tán tin rác","Điều khiển mạng botnet","Xác thực, cấp quyền và kiểm soát"],[2],"Command & Control (C&C) là máy chủ đầu não ra lệnh cho hàng ngàn máy zombie.",{0:"Pentest là kiểm thử xâm nhập, không phải chức năng máy chủ C&C.",1:"Phát tán tin rác là hệ quả, không phải định nghĩa C&C.",3:"Xác thực-cấp quyền-kiểm soát là chức năng AAA server, không phải C&C botnet."}],
+ ["Cấp quyền truy cập mạng cho nhân viên THỜI VỤ. Quy tắc nào nên áp dụng?",["Hỏi nhân viên mới quyền họ muốn","Cung cấp tài khoản và các quyền cần thiết","Thêm vào nhóm có quyền cần thiết VÀ thiết đặt thời gian hiệu lực cho tài khoản","Thêm vào nhóm có quyền cần thiết"],[2],"Vì là thời vụ, ngoài quyền tối thiểu thì tài khoản phải Tự Động Khóa sau khi hết hạn.",{0:"Hỏi nhân viên muốn quyền gì là sai nguyên tắc đặc quyền tối thiểu.",1:"Cấp quyền chung chung mà không giới hạn thời gian là chưa đủ cho nhân viên thời vụ.",3:"Thêm vào nhóm quyền nhưng thiếu thiết lập thời hạn hiệu lực cho tài khoản thời vụ."}],
+ ["Phát biểu đúng về nguyên tắc đặc quyền tối thiểu (least privilege)?",["Đảm bảo người dùng có quyền tối thiểu","Đảm bảo người dùng có ít thông tin nhất","Chỉ những người bắt buộc cần thông tin mới có quyền truy cập theo mức độ cần thiết","Không cho phép người dùng trao quyền cho nhau"],[2],"Need-to-know + Least Privilege: Chỉ cung cấp đúng những thứ cần cho công việc.",{0:"'Quyền tối thiểu' chung chung; đáp án đúng nhấn vào need-to-know theo mức cần thiết.",1:"Không phải về 'ít thông tin nhất' mà về quyền truy cập đúng mức cần thiết.",3:"Cấm trao quyền cho nhau không phải định nghĩa của least privilege."}],
+ ["IPS có khả năng nào sau đây mà IDS KHÔNG có?",["Cảnh báo tấn công","Phát hiện tấn công","Giám sát tấn công","Ngăn chặn tấn công"],[3],"IDS chỉ Phát hiện (Detection) và Hô hoán. Còn IPS có quyền Chặn đứng (Prevention) luồng kết nối.",{0:"Cảnh báo tấn công thì IDS cũng làm được.",1:"Phát hiện tấn công là chức năng cốt lõi của cả IDS.",2:"Giám sát tấn công IDS cũng làm; điểm khác biệt là IPS NGĂN CHẶN được."}],
+];
+
+const QUIZ_3 = [
+ ["Nguyên nhân nào sau đây có thể dẫn tới phá vỡ tính bí mật của thông tin trong hệ thống thông tin?",["Tấn công leo thang đặc quyền","Tấn công DoS, DDoS","Lỗi đường truyền","Mất điện"],[0],"Leo thang đặc quyền cho phép kẻ tấn công đọc được tệp tin không được phép, phá vỡ tính bí mật.",{1:"DoS/DDoS phá tính SẴN SÀNG (làm sập dịch vụ), không phải tính bí mật.",2:"Lỗi đường truyền ảnh hưởng toàn vẹn/sẵn sàng, không trực tiếp lộ bí mật.",3:"Mất điện phá tính sẵn sàng, không làm lộ thông tin."}],
+ ["Phát biểu nào sau đây KHÔNG đúng về tính khả dụng trong an toàn thông tin?",["Đảm bảo hệ thống luôn đáp ứng nhu cầu cho người dùng","Đảm bảo khả năng truy cập thông tin, tính năng của hệ thống mỗi khi người dùng hợp lệ có nhu cầu","Bị ảnh hưởng bởi tấn công DoS hoặc DDoS","Có thể bị ảnh hưởng do cấu hình sai"],[0],"Phát biểu A thiếu yếu tố 'người dùng hợp lệ', không thể đáp ứng cho tất cả mọi người vô điều kiện.",{1:"Phát biểu này ĐÚNG (có 'người dùng hợp lệ'), nên không phải đáp án 'KHÔNG đúng'.",2:"DoS/DDoS đúng là ảnh hưởng tính khả dụng → phát biểu đúng.",3:"Cấu hình sai đúng là ảnh hưởng khả dụng → phát biểu đúng."}],
+ ["Phát biểu nào sau đây đúng về nguyên tắc hợp lý đầy đủ trong An toàn thông tin?",["Mục tiêu của nguyên tắc là đưa rủi ro của hệ thống về mức chấp nhận được với chi phí bảo vệ không lớn hơn giá trị của hệ thống.","Áp dụng đầy đủ các biện pháp bảo vệ có thể có cho hệ thống","Các biện pháp bảo vệ làm ảnh hưởng đến hệ thống","Giảm thiểu hoàn toàn rủi ro cho hệ thống"],[0],"Nguyên tắc hợp lý (Cost-Benefit): Chi phí cho các giải pháp bảo mật không được vượt quá giá trị tài sản cần bảo vệ.",{1:"'Áp dụng đầy đủ mọi biện pháp' là quá mức, vi phạm cân bằng chi phí-lợi ích.",2:"'Biện pháp bảo vệ làm ảnh hưởng hệ thống' không phải nội dung nguyên tắc hợp lý.",3:"Không thể 'giảm thiểu hoàn toàn' rủi ro; luôn còn rủi ro tồn dư."}],
+ ["Nguyên tắc mở trong an toàn thông tin quy định:",["Hệ thống phải đảm bảo an toàn ngay cả khi kẻ tấn công biết được thông tin về thuật toán và cơ chế bảo vệ","Yêu cầu mọi cơ chế bảo vệ và thuật toán đều phải được mở công khai","Không ai có thể tấn công vào các cơ chế bảo vệ và thuật toán của hệ thống ngoại trừ tác giả","Mở toàn bộ hệ thống và cơ chế bảo vệ cho người dùng"],[0],"Nguyên tắc Kerckhoffs: Sự an toàn của hệ mật phụ thuộc vào tính bí mật của khóa, chứ không phụ thuộc vào bí mật của thuật toán.",{1:"Nguyên tắc không bắt buộc công khai mọi thứ, mà là an toàn vẫn giữ kể cả khi lộ thuật toán.",2:"Đây là 'bảo mật bằng giấu kín', ngược với nguyên tắc mở.",3:"Mở toàn bộ cho người dùng không phải ý nghĩa nguyên tắc mở."}],
+ ["Hiểm họa an toàn thông tin nào sau đây không phụ thuộc vào sự hoạt động của hệ thống?",["Hiểm họa tự nhiên","Tấn công leo thang đặc quyền","Tấn công dò quét mật khẩu","Hiểm họa mã độc"],[0],"Các hiểm họa tự nhiên (bão, lũ, động đất) xảy ra bất kể hệ thống đang hoạt động hay đã tắt.",{1:"Leo thang đặc quyền cần hệ thống đang hoạt động để khai thác.",2:"Dò quét mật khẩu chỉ xảy ra khi hệ thống đang chạy.",3:"Mã độc cần hệ thống hoạt động để lây và thực thi."}],
+ ["Hiểm họa an toàn thông tin nào sau đây là hiểm họa thụ động?",["Tấn công nghe lén đường truyền","Tấn công leo thang đặc quyền","Tấn công DDoS","Tấn công sử dụng mã độc"],[0],"Nghe lén (Sniffing) là thụ động vì nó không thay đổi dữ liệu mà chỉ sao chép/đọc trộm.",{1:"Leo thang đặc quyền can thiệp/sửa hệ thống → chủ động, không thụ động.",2:"DDoS làm tê liệt dịch vụ → chủ động.",3:"Dùng mã độc thay đổi/phá hệ thống → chủ động."}],
+ ["Tấn công truy cập trái phép thuộc loại hiểm họa an toàn thông tin nào sau đây?",["Hiểm họa thụ động","Hiểm họa chủ động","Hiểm họa tự nhiên","Hiểm họa bên ngoài"],[1],"Truy cập trái phép (Unauthorized access) là can thiệp trực tiếp vào hệ thống nên là chủ động (active).",{0:"Thụ động chỉ nghe/đọc; truy cập trái phép can thiệp vào hệ thống → chủ động.",2:"Tự nhiên là bão lũ thiên tai, không phải hành vi truy cập trái phép.",3:"'Bên ngoài' chỉ vị trí kẻ tấn công, không phân loại chủ động/thụ động."}],
+ ["Mã độc cho phép vượt qua các cơ chế kiểm tra an toàn thông thường nhằm tạo điều kiện đăng nhập trái phép vào hệ thống là loại nào?",["Backdoor","Virus","Worm","Trojan Horse"],[0],"Backdoor (Cửa hậu) tạo lối đi ngầm để kẻ tấn công vượt qua cơ chế đăng nhập truyền thống.",{1:"Virus lây qua file vật chủ, không chuyên tạo cửa hậu vượt đăng nhập.",2:"Worm tự lây lan qua mạng, không phải để vượt cơ chế đăng nhập.",3:"Trojan ngụy trang chờ chạy; thuật ngữ cho 'cửa hậu vượt kiểm tra' là Backdoor."}],
+ ["DarkC là chương trình đọc văn bản nhưng chứa chức năng độc hại cho phép thu thập thông tin mà người dùng không biết. DarkC là dạng mã độc gì?",["Trojan Horse","Virus","Backdoor","Zoombie"],[0],"Đội lốt dưới vỏ bọc một phần mềm lành tính là đặc trưng của Trojan.",{1:"Virus cần file vật chủ và tự lây; ở đây là ngụy trang → trojan.",2:"Backdoor là cửa hậu, không nhất thiết ngụy trang là phần mềm đọc văn bản.",3:"Zombie là máy bị chiếm điều khiển, không phải chương trình ngụy trang."}],
+ ["Mã độc nào sau đây có khả năng tự nhân bản chính nó?",["Virus và Worm","Virus và Trojan Horse","Virus và Zoombie","Virus và Logic Bomb"],[0],"Cả Virus và Worm đều có đặc tính tự nhân bản.",{1:"Trojan KHÔNG tự nhân bản, nó ngụy trang chờ người chạy.",2:"Zombie là máy bị chiếm, không phải mã tự nhân bản.",3:"Logic Bomb chỉ chờ kích hoạt, không tự nhân bản."}],
+ ["Mã độc nào sau đây KHÔNG cần phát tán trong file khác (không cần file vật chủ)?",["Worm","Virus","Logic Borm","Backdoor"],[0],"Worm là chương trình độc lập tự chạy và lây qua mạng mà không cần bám vào một tệp vật chủ.",{1:"Virus BẮT BUỘC cần file vật chủ để lây.",2:"Logic Bomb thường nhúng trong chương trình/file.",3:"Backdoor là cửa hậu được cài vào hệ thống, không tự phát tán độc lập."}],
+ ["Hiểm họa ATTT nào sau đây có thể được giảm thiểu bằng cách sử dụng máy xén giấy?",["Vật lý (Dumpster diving)","Spyware","Nhìn lén","Rootkit"],[0],"Máy xén giấy cắt vụn tài liệu chống lại việc kẻ xấu bới rác tìm thông tin mật.",{1:"Spyware là phần mềm do thám, máy xén giấy không liên quan.",2:"Nhìn lén (shoulder surfing) chống bằng che màn hình, không phải xén giấy.",3:"Rootkit là phần mềm ẩn, không giảm thiểu bằng máy xén giấy."}],
+ ["Phát biểu nào sau đây đúng?",["Worm có thể mang virus.","Worm ghi lại tất cả các ký tự đã gõ vào một tệp văn bản.","Worm lây nhiễm trong file","Worm lây nhiễm vào đĩa cứng MBR"],[0],"Worm thường đóng vai trò là phương tiện lây lan và chuyên chở theo các payload khác (như Virus/Trojan).",{1:"Ghi lại phím gõ là keylogger, không phải đặc trưng worm.",2:"Lây nhiễm trong file là đặc trưng virus, không phải worm.",3:"Lây vào MBR là virus boot sector, không phải worm."}],
+ ["Sau khi người dùng truy cập web nhiễm mã độc, popup quảng cáo liên tục xuất hiện và lây ra toàn bộ các máy trong phòng. Vấn đề gì đã xảy ra?",["Worm mang Adware","Worm","Adware","Tấn công XSS"],[0],"Tự lây lan giữa các máy (Worm) và hiện popup quảng cáo (Adware).",{1:"Chỉ 'Worm' bỏ sót đặc điểm hiển thị quảng cáo (Adware).",2:"Chỉ 'Adware' không giải thích việc tự lây lan giữa các máy.",3:"XSS là lỗ hổng web, không tự lây qua các máy trong phòng."}],
+ ["Nhúng chương trình chờ lệnh thu thập thông tin vào tệp AVI chia sẻ P2P. Khi máy tải về bị kích hoạt, cái gì được tạo ra?",["Botnet","Tấn công DDoS","Logic Bomb","Worm"],[0],"Tạo mạng lưới các máy chờ nhận lệnh (C&C) là định nghĩa của Botnet.",{1:"DDoS là kiểu tấn công sau này; câu hỏi hỏi 'cái được tạo ra' là mạng máy bị chiếm = botnet.",2:"Logic Bomb chờ điều kiện kích hoạt, không phải mạng nhận lệnh từ xa.",3:"Worm tự lây; ở đây nhấn vào mạng máy chờ nhận lệnh → botnet."}],
+ ["Một đầu nối nhỏ giữa bàn phím và cổng USB để thu thập mọi phím gõ. Đây là loại phần cứng nào?",["Keylogger","Trojan","Smartcard","Bộ chuyển đổi PS/2"],[0],"Hardware Keylogger ghi lại mọi thao tác bàn phím.",{1:"Trojan là phần mềm ngụy trang, không phải đầu nối phần cứng gắn vào bàn phím.",2:"Smartcard là thẻ xác thực, không ghi phím gõ.",3:"Bộ chuyển đổi PS/2 chỉ đổi cổng, không thu thập phím gõ."}],
+ ["Sự khác biệt giữa rootkit và tấn công leo thang đặc quyền?",["Sự leo thang đặc quyền là kết quả của một rootkit.","Rootkit tự nhân bản.","Rootkit là kết quả của sự leo thang đặc quyền.","Mỗi kiểu sử dụng một cổng TCP khác nhau."],[2],"Kẻ tấn công sau khi leo thang lấy được quyền Admin/Root thì mới cài đặt Rootkit để che giấu và duy trì đặc quyền.",{0:"Ngược: rootkit không sinh ra leo thang; leo thang xảy ra trước rồi mới cài rootkit.",1:"Rootkit không tự nhân bản.",3:"Khác biệt không nằm ở 'cổng TCP'; đó là điểm so sánh sai."}],
+ ["Virus ghi đè 100 sector ổ cứng vào ngày 6 tháng 3 hằng năm thuộc loại nào?",["Logic bomb","Worm","Trojan","Zero day"],[0],"Được kích hoạt khi thỏa mãn một điều kiện thời gian/logic nhất định -> Bom logic.",{1:"Worm tự lây lan, không phải kích hoạt theo ngày cố định.",2:"Trojan ngụy trang chờ chạy, không kích hoạt theo mốc thời gian.",3:"Zero day là lỗ hổng chưa vá, không phải cơ chế hẹn giờ."}],
+ ["Phần mềm Stuxnet che giấu sự hiện diện, lập trình lại máy PLC và truyền bản sao qua USB/LAN. Điều nào áp dụng cho Stuxnet?",["Worm","Exploit","Trojan Horse","Adware"],[0],"Sự tự lây lan độc lập qua USB và mạng của Stuxnet khiến nó được phân loại chính là một Worm siêu phức tạp.",{1:"Exploit là đoạn mã khai thác lỗ hổng, không mô tả khả năng tự lây của Stuxnet.",2:"Trojan cần người chạy; Stuxnet tự lây qua USB/LAN → worm.",3:"Adware hiện quảng cáo, không phải Stuxnet."}],
+ ["Tất cả các tệp bị đổi tên ngẫu nhiên và xuất hiện tài liệu yêu cầu thanh toán để giải mã. Mã độc nào?",["Ransomware","Mã độc","Criminalware","Encryptionware"],[0],"Mã độc tống tiền bằng cách mã hóa dữ liệu.",{1:"'Mã độc' là thuật ngữ quá chung, không chỉ rõ hành vi tống tiền mã hóa.",2:"'Criminalware' mơ hồ, không phải tên chuẩn cho loại đòi tiền chuộc.",3:"'Encryptionware' không phải thuật ngữ chuẩn cho ransomware."}],
+ ["Công cụ nào KHÔNG nên đề xuất cài đặt trên máy tính để trực tiếp phòng chống mã độc?",["VPN","Antivirus","Deep Freeze","Shadow Defender"],[0],"VPN (Virtual Private Network) dùng bảo vệ đường truyền, không phải phần mềm chống mã độc trực tiếp trên máy.",{1:"Antivirus chính là công cụ phòng chống mã độc trực tiếp → nên cài.",2:"Deep Freeze đóng băng hệ thống, hỗ trợ chống mã độc → hợp lý đề xuất.",3:"Shadow Defender tạo môi trường ảo bảo vệ → hợp lý đề xuất."}],
+ ["Đâu là hành vi KHÔNG an toàn gây ra nguy cơ lây nhiễm mã độc?",["Sử dụng thiết bị lưu trữ di động","Cập nhật phần mềm, các bản vá, cho hệ điều hành","Vô hiệu hóa, gỡ bỏ những dịch vụ không cần thiết","Vô hiệu hoá cơ chế tự động thực thi các tệp tin nhị phân"],[0],"Sử dụng USB từ nhiều nguồn không kiểm soát là nguyên nhân lây nhiễm rất phổ biến.",{1:"Cập nhật bản vá là hành vi AN TOÀN.",2:"Gỡ dịch vụ không cần thiết là hành vi an toàn (giảm bề mặt tấn công).",3:"Tắt tự động thực thi tệp nhị phân là hành vi an toàn."}],
+ ["Tấn công Man-In-The-Middle có thể xảy ra khi nào?",["Khi kẻ tấn công kiểm soát được một thiết bị router trên đường truyền.","Kẻ tấn công nằm ngay cùng vùng mạng của đối tượng mục tiêu.","Kẻ tấn công nằm trên cùng vùng mạng với bất kỳ một thiết bị định tuyến nào được sử dụng bởi nạn nhân mục tiêu","Tất cả các phương án trên"],[3],"MitM có thể thực hiện thông qua ARP Spoofing ở mạng nội bộ hoặc thỏa hiệp Router trên Internet.",{0:"Đúng nhưng chưa đủ - MitM còn xảy ra ở các trường hợp khác → đáp án là 'tất cả'.",1:"Đúng nhưng chưa đủ - chỉ là một trong các trường hợp.",2:"Đúng nhưng chưa đủ - chỉ là một trong các trường hợp."}],
+ ["Giải pháp áp dụng để phòng chống tấn công XSS cho website?",["Lọc dữ liệu đầu vào","Không mở các đường link từ những nguồn không đáng tin cậy","Cấu hình lại máy chủ Web","Thiết kế cơ sở dữ liệu an toàn"],[0],"Sanitize & Validate input (Lọc và chuẩn hóa dữ liệu đầu vào) là cốt lõi chặn XSS.",{1:"Không mở link lạ là phòng phía người dùng, không phải giải pháp kỹ thuật cho website.",2:"Cấu hình lại máy chủ web không trực tiếp chặn XSS bằng lọc đầu vào.",3:"Thiết kế CSDL an toàn liên quan SQLi hơn là XSS."}],
+ ["Tấn công nào sau đây có thể gây gián đoạn dịch vụ của hệ thống?",["Tràn bộ đệm","XSS","CRSF","Path Traveling"],[0],"Buffer Overflow (Tràn bộ đệm) có thể làm sập quy trình của ứng dụng/máy chủ gây gián đoạn (DoS).",{1:"XSS nhắm trình duyệt client, không trực tiếp gây gián đoạn dịch vụ server.",2:"CSRF lừa người dùng thực hiện hành động, không làm sập dịch vụ.",3:"'Path Traveling' (path traversal) đọc tệp trái phép, không nhất thiết gây gián đoạn."}],
+ ["Thông tin nào sau đây KHÔNG lý tưởng được sử dụng để làm định danh (duy nhất) cho người dùng?",["Tên","Số điện thoại","Số Chứng minh nhân dân","Email"],[0],"Định danh (Identification) yêu cầu tính duy nhất. Tên người dễ bị trùng lặp.",{1:"Số điện thoại tương đối duy nhất → dùng làm định danh được.",2:"Số CMND/CCCD là duy nhất → định danh tốt.",3:"Email là duy nhất → dùng làm định danh tốt."}],
+ ["Phương án xác thực người dùng đơn giản và giá thành rẻ nhất cho website bán hàng?",["Mật khẩu","Vân tay","Khuôn mặt","Địa chỉ IP"],[0],"Mật khẩu là cơ chế Something-you-know rẻ và dễ triển khai nhất.",{1:"Vân tay cần cảm biến sinh trắc, đắt và phức tạp hơn mật khẩu.",2:"Khuôn mặt cần camera & xử lý sinh trắc, không phải rẻ nhất.",3:"Địa chỉ IP không phải cơ chế xác thực người dùng đáng tin."}],
+ ["Giải pháp nào giúp hạn chế phương pháp tấn công vét cạn (brute-force)?",["Dùng các nhóm ký tự khác nhau trong mật khẩu như hoa, thường, số và ký tự đặc biệt","Loại bỏ các mật khẩu có trong từ điển","Bắt buộc đổi mật khẩu khi lần đầu tiên ghi nhận người dùng","Đưa ra sổ ghi lý lịch các MK"],[0],"Tăng độ phức tạp mật khẩu sẽ làm tăng không gian khóa, khiến Brute-force mất quá nhiều thời gian.",{1:"Loại bỏ mật khẩu trong từ điển chống tấn công TỪ ĐIỂN, không phải brute-force.",2:"Đổi mật khẩu lần đầu không làm tăng không gian khóa để chống vét cạn.",3:"Sổ ghi lý lịch mật khẩu (lịch sử) chống tái dùng, không chống vét cạn."}],
+ ["Giải pháp xác thực đa nhân tố nào được sử dụng phổ biến nhất cho xác thực qua mạng?",["Mật khẩu + mật khẩu một lần OTP","Mật khẩu + Smart card","Thẻ từ, smartcard, token + mã PIN","Mật khẩu + Vân tay"],[0],"Với các ứng dụng trên Internet/Web, kết hợp Mật khẩu với mã OTP (SMS/Authenticator) là khả thi nhất.",{1:"Smartcard cần đầu đọc thiết bị, bất tiện cho xác thực qua mạng phổ thông.",2:"Thẻ/smartcard/token + PIN khó triển khai rộng qua Internet.",3:"Vân tay cần cảm biến sinh trắc, không phổ biến bằng OTP qua mạng."}],
+ ["Mô hình kiểm soát truy cập nào mà chủ sở hữu dữ liệu có toàn quyền trên dữ liệu đó?",["DAC","MAC","RBAC","ABAC"],[0],"Discretionary Access Control (Tùy ý) cho phép người tạo ra tệp (Owner) tự quyết định chia sẻ cho ai.",{1:"MAC do quản trị trung tâm áp đặt, chủ dữ liệu KHÔNG toàn quyền.",2:"RBAC theo vai trò, không phải chủ sở hữu toàn quyền.",3:"ABAC theo thuộc tính, không phải chủ sở hữu toàn quyền."}],
+ ["Mô hình kiểm soát nào yêu cầu duyệt danh sách khi cần tìm các đối tượng có thể được truy cập bởi một CHỦ THỂ?",["ACL","CL","DAC","MAC"],[1],"Capability List (CL - Danh sách năng lực) lưu trữ theo chiều ngang (Chủ thể đang giữ những vé/quyền gì).",{0:"ACL lưu theo đối tượng (ai được truy cập đối tượng này), ngược với câu hỏi.",2:"DAC là mô hình kiểm soát, không phải cách biểu diễn danh sách theo chủ thể.",3:"MAC dùng nhãn, không phải danh sách năng lực theo chủ thể."}],
+ ["(Alice tạo file1, John tạo file2, Sally tạo file3...) Ai là người có quyền ĐỌC tất cả các file 1, 2, 3?",["Alice và John","Alice và Sally","Alice","John"],[0],"Dựa trên dữ liệu, Alice và John đều được chia sẻ hoặc tạo quyền để có thể Đọc cả 3 tệp.",{1:"Theo dữ liệu đề, Alice và Sally không cùng đọc đủ cả 3 tệp.",2:"Chỉ Alice là thiếu; John cũng có quyền đọc cả 3.",3:"Chỉ John là thiếu; Alice cũng có quyền đọc cả 3."}],
+ ["Trong mô hình MAC bảo mật tính bí mật, quy tắc nào cần tuân thủ?",["Đọc xuống và Ghi lên","Đọc lên và Ghi Xuống","Chỉ đọc ghi ở cùng mức nhãn an toàn","Chỉ đọc ghi ở mức nhãn an toàn thấp hơn"],[0],"Mô hình Bell-LaPadula: No read up (Không đọc lên), No write down (Không ghi xuống). Tức là Đọc xuống, Ghi lên.",{1:"Đọc lên/Ghi xuống là ngược, làm rò rỉ thông tin mật xuống mức thấp.",2:"Chỉ cùng mức không phải quy tắc bảo mật bí mật của Bell-LaPadula.",3:"'Chỉ mức thấp hơn' không đúng; ghi phải lên, đọc phải xuống."}],
+ ["Thiết bị mạng nào truyền dữ liệu giữa các mạng khác nhau bằng cách kiểm tra địa chỉ IP?",["Bộ định tuyến","Layer 2 Switch","Thiết bị cân bằng tải","NIC"],[0],"Bộ định tuyến (Router) làm việc ở Layer 3 (Network) và điều hướng dựa trên địa chỉ IP đích.",{1:"Layer 2 Switch chuyển khung theo MAC, không định tuyến theo IP.",2:"Cân bằng tải phân phối kết nối, không phải định tuyến liên mạng theo IP.",3:"NIC là card mạng của máy, không định tuyến giữa các mạng."}],
+ ["Khi thiết lập luật ACL cho bộ định tuyến, hướng dẫn nào là đúng?",["Quy tắc cuối cùng phải là quy tắc từ chối tất cả.","Không chặn lưu lượng dựa trên địa chỉ IP.","Quy tắc đầu tiên phải là quy tắc từ chối tất cả.","Không cho phép lưu lượng truy cập dựa trên địa chỉ IP."],[0],"Mọi ACL chuẩn đều có một luật Implicit Deny All (Từ chối tất cả ngầm định) nằm ở cuối cùng.",{1:"ACL chính là chặn/cho phép dựa trên IP → phát biểu này sai.",2:"Deny-all phải ở CUỐI (ngầm định), không phải đầu tiên.",3:"ACL có cho phép lọc dựa trên IP → phát biểu này sai."}],
+ ["Chặn lưu lượng dựa trên địa chỉ MAC thuộc lớp nào?",["Lớp 2","Lớp 1","Lớp 3","Lớp 4"],[0],"MAC Address làm việc tại tầng Data Link (Lớp 2 của mô hình OSI).",{1:"Lớp 1 (Physical) là tín hiệu vật lý, không xử lý địa chỉ MAC.",2:"Lớp 3 (Network) xử lý IP, không phải MAC.",3:"Lớp 4 (Transport) xử lý cổng/đoạn, không phải MAC."}],
+ ["Telnet được sử dụng cho mục đích nào?",["Thực hiện quản lý dòng lệnh từ xa dạng rõ","Thực hiện quản lý dòng lệnh được mã hóa từ xa","Xác minh bộ định tuyến trong đường truyền","Buộc truy xuất các bản cập nhật hệ điều hành"],[0],"Telnet là giao thức quản trị từ xa truyền thống gửi dữ liệu ở dạng văn bản rõ (cleartext).",{1:"Telnet KHÔNG mã hóa; mã hóa từ xa là SSH.",2:"Telnet không dùng để xác minh router.",3:"Telnet không ép truy xuất bản cập nhật HĐH."}],
+ ["Giao thức nào sau đây không có tính năng mã hóa an toàn?",["SMTP","FTPS","SFTP","HTTPS"],[0],"Bản thân SMTP gốc là cleartext, các giao thức còn lại đều bọc bằng SSL/TLS hoặc SSH.",{1:"FTPS bọc SSL/TLS → có mã hóa.",2:"SFTP chạy trên SSH → có mã hóa.",3:"HTTPS bọc TLS → có mã hóa."}],
+ ["Giải pháp nào cho phép nhân viên tại nhà truy cập an toàn vào mạng công ty?",["Point to Site VPN","Site to Site VPN","Point to Point VPN","Firewall"],[0],"Mô hình Client-to-Site (Point-to-Site) VPN dùng cho cá nhân kết nối vào mạng lưới doanh nghiệp.",{1:"Site-to-Site nối hai mạng văn phòng, không cho cá nhân từ nhà.",2:"Point-to-Point nối hai điểm cố định, không hợp cá nhân linh động.",3:"Firewall chỉ lọc lưu lượng, không tạo kênh truy cập từ xa."}],
+ ["Giao thức TCP/IP nào cung cấp giao diện quản trị dòng lệnh từ xa?",["Telnet","ARP","UDP","POP"],[0],"Telnet (hoặc SSH) là giao thức chuyên dùng quản trị dòng lệnh CLI từ xa.",{1:"ARP ánh xạ IP-MAC, không phải quản trị dòng lệnh từ xa.",2:"UDP là giao thức truyền tải, không phải giao diện quản trị.",3:"POP là giao thức nhận email, không phải quản trị dòng lệnh."}],
+ ["Những giao thức TCP/IP nào sử dụng mã hóa an toàn?",["SSH, SCP, FTPS","SSH, SCP, Telnet","HTTPS, FTP, SSH","SCP, DNS, SSH"],[0],"Cả SSH, SCP (dựa trên SSH) và FTPS (dựa trên SSL/TLS) đều mã hóa luồng dữ liệu.",{1:"Telnet KHÔNG mã hóa nên cụm này sai.",2:"FTP (thường) KHÔNG mã hóa nên cụm này sai.",3:"DNS (thường) KHÔNG mã hóa nên cụm này sai."}],
+ ["Mã hóa dữ liệu trên điện thoại nhắm đến tính chất nào của an toàn thông tin?",["Bí mật","Tính toàn vẹn","Sẵn sàng","Trách nhiệm"],[0],"Mã hóa đảm bảo Confidentiality (Tính bí mật) phòng khi thiết bị bị thất lạc.",{1:"Toàn vẹn lo dữ liệu không bị sửa; mã hóa nhằm giấu nội dung khi mất máy.",2:"Sẵn sàng lo truy cập được khi cần; không phải mục tiêu mã hóa.",3:"Trách nhiệm lo truy vết hành vi, không phải mục tiêu mã hóa."}],
+ ["Sao lưu đám mây áp dụng cho khái niệm an toàn nào?",["Sẵn sàng","Tính toàn vẹn","Bí mật","Trách nhiệm"],[0],"Backup đảm bảo dữ liệu không bị mất và có thể phục hồi (Tính Sẵn sàng - Availability).",{1:"Toàn vẹn lo dữ liệu không bị sửa; sao lưu nhằm khôi phục khi mất.",2:"Bí mật lo giấu nội dung; sao lưu không phục vụ mục tiêu này.",3:"Trách nhiệm lo truy vết; không phải mục đích của sao lưu."}],
+ ["Khẳng định nào đúng khi Alice ký số vào e-mail gửi cho Bob?",["Khóa riêng của Alice được sử dụng để tạo chữ ký số","Khóa công khai của Alice được sử dụng để xác minh chữ ký số","Khóa riêng của Bob được sử dụng để tạo chữ ký số","Khóa riêng của Bob được sử dụng để xác minh chữ ký số"],[1],"Lưu ý: Mặc dù khóa riêng của Alice DÙNG ĐỂ TẠO, nhưng câu này thường bẫy. Đáp án chính xác theo đề thi là: Khóa công khai của Alice dùng xác minh.",{0:"Phát biểu này đúng (tạo bằng khóa riêng Alice) nhưng câu hỏi/đề chọn phương án xác minh bằng khóa công khai Alice là đáp án chuẩn.",2:"Khóa riêng Bob không liên quan tới chữ ký do Alice tạo.",3:"Khóa riêng Bob không dùng để xác minh chữ ký của Alice."}],
+ ["Sắp xếp phương pháp xác thực theo thứ tự an toàn TĂNG DẦN?",["Tên người dùng và mật khẩu, thẻ thông minh, quét võng mạc","Quét võng mạc, mật khẩu, thẻ thông minh","Thẻ thông minh, quét võng mạc, mật khẩu","ACL, tên người dùng và mật khẩu, quét võng mạc"],[0],"Something You Know < Something You Have < Something You Are.",{1:"Sai thứ tự: võng mạc (mạnh nhất) không thể đứng đầu danh sách tăng dần.",2:"Sai thứ tự: thẻ và võng mạc bị đảo lộn.",3:"ACL không phải phương pháp xác thực; thứ tự không chuẩn."}],
+ ["Mô hình ghi nhãn dữ liệu với các phân loại bảo mật (Confidential, Secret...)?",["Kiểm soát truy cập bắt buộc","Kiểm soát truy cập tùy ý","Kiểm soát truy cập dựa trên vai trò","Kiểm soát truy cập thời gian trong ngày"],[0],"Kiểm soát truy cập bắt buộc (MAC) luôn sử dụng các nhãn bảo mật.",{1:"DAC để chủ sở hữu quyết định, không dùng nhãn phân loại bắt buộc.",2:"RBAC theo vai trò, không dùng nhãn Confidential/Secret.",3:"Kiểm soát theo thời gian chỉ giới hạn giờ, không phải nhãn phân loại."}],
+ ["Cấp quyền cho nhân viên vào tài nguyên thông qua một nhóm công việc chung dễ hơn cấp cá nhân. Dùng mô hình nào?",["Kiểm soát truy cập dựa trên vai trò","Kiểm soát truy cập tùy ý","Kiểm soát truy cập bắt buộc","Kiểm soát truy cập thời gian trong ngày"],[0],"RBAC phân quyền theo vai trò (Role) tương ứng với vị trí việc làm.",{1:"DAC cấp quyền lẻ tẻ theo chủ sở hữu, không gom theo nhóm công việc.",2:"MAC dùng nhãn bắt buộc, không phải gom quyền theo vai trò công việc.",3:"Kiểm soát theo thời gian chỉ giới hạn giờ truy cập."}],
+ ["Công nghệ nào đảm bảo tính toàn vẹn cho dữ liệu?",["MD5","RC4","AES","3DES"],[0],"MD5 là thuật toán băm tạo mã Hash kiểm tra toàn vẹn.",{1:"RC4 là mã hóa luồng → bí mật, không phải toàn vẹn.",2:"AES là mã hóa đối xứng → bí mật, không phải toàn vẹn.",3:"3DES là mã hóa đối xứng → bí mật, không phải toàn vẹn."}],
+ ["Thuật toán nào sử dụng hai khóa liên quan về mặt toán học để truyền dữ liệu an toàn?",["RSA","AES","3DES","Blowfish"],[0],"RSA là thuật toán bất đối xứng dùng cặp khóa Public và Private liên hệ toán học với nhau.",{1:"AES là mã đối xứng, dùng một khóa chung, không phải cặp hai khóa.",2:"3DES là mã đối xứng, không dùng cặp khóa toán học.",3:"Blowfish là mã đối xứng, không dùng cặp khóa public/private."}],
+ ["Sử dụng PKI để gửi thư MÃ HÓA cho Tùng, bạn sử dụng khóa nào?",["Khóa công khai của Tùng","Khóa riêng của Tùng","Khóa riêng của bạn","Khóa công khai của bạn"],[0],"Để mã hóa cho người khác đọc được, phải dùng Khóa công khai (Public Key) của chính họ.",{1:"Khóa riêng của Tùng chỉ Tùng giữ; bạn không có để mã hóa.",2:"Khóa riêng của bạn dùng để ký/giải mã thư bạn nhận, không phải mã hóa gửi cho Tùng.",3:"Khóa công khai của bạn để người khác gửi cho bạn, không dùng gửi cho Tùng."}],
+ ["Giải pháp tăng hiệu năng khi máy chủ web quá tải HTTP request?",["Cài đặt hai máy chủ và Cấu hình bộ cân bằng tải để phân phối kết nối","Nâng cấp dung lượng RAM cho máy chủ web","Đặt bộ định tuyến giữa máy chủ web và Internet","Kích hoạt SSL trên máy chủ web."],[0],"Load Balancer (Cân bằng tải) phân tán yêu cầu cho nhiều Node làm tăng hiệu suất rõ rệt.",{1:"Nâng RAM giúp một phần nhưng không phải giải pháp mở rộng tốt nhất khi quá tải request.",2:"Đặt router không giải quyết quá tải xử lý HTTP của máy chủ.",3:"Bật SSL còn làm tăng tải, không giảm quá tải request."}],
+ ["fe80::dca6:d048:cba6:bd06 thuộc kiểu địa chỉ nào?",["IPv6","IPv4","MAC","DMZ"],[0],"Địa chỉ có dấu ':' và số Hex dài là đặc trưng của IPv6.",{1:"IPv4 dạng x.x.x.x (số thập phân), không phải dạng hex có dấu ':'.",2:"MAC là địa chỉ phần cứng 48-bit dạng xx:xx:xx:xx:xx:xx, ngắn hơn.",3:"DMZ là vùng mạng, không phải kiểu địa chỉ."}],
+ ["Giao thức TCP/IP cung cấp giao diện quản trị dòng lệnh từ xa?",["Telnet","ARP","UDP","POP"],[0],"Câu hỏi lặp lại, đáp án là Telnet.",{1:"ARP ánh xạ IP-MAC, không phải quản trị dòng lệnh.",2:"UDP là giao thức truyền tải, không phải giao diện quản trị.",3:"POP nhận email, không phải quản trị dòng lệnh từ xa."}],
+ ["Điều nào sau đây đúng đối với HIDS?",["Nó cần được cài đặt trên từng máy","Có khả năng chặn các gói tin nghi ngờ đi vào mạng","Không thể theo dõi các kết nối mạng được mã hóa","Không phân tích các tệp nhật ký."],[0],"HIDS (Host-based IDS) phải cài đặt các tác nhân trên mỗi máy cần bảo vệ.",{1:"Chặn gói vào mạng là IPS/NIDS, không phải HIDS.",2:"HIDS trên host CÓ thể thấy dữ liệu sau giải mã → phát biểu này sai.",3:"HIDS chính là phân tích log; nói không phân tích là sai."}],
+ ["Điều nào sau đây đúng với NIDS?",["Phát hiện ra các gói tin độc hại","Loại bỏ các gói tin độc hại","Bảo vệ các máy trạm ngay cả khi bị mất kết nối khỏi mạng LAN","Cần cài đặt trên mỗi máy trạm"],[0],"NIDS đứng trên đường truyền để Phát hiện (Detect), không có khả năng tự động Loại bỏ (đó là việc của IPS).",{1:"Loại bỏ gói là IPS, NIDS chỉ phát hiện.",2:"NIDS dựa lưu lượng mạng; máy mất kết nối LAN thì không bảo vệ được.",3:"Cài trên mỗi máy trạm là HIDS, không phải NIDS."}],
+ ["Để theo dõi CHI TIẾT kết nối mạng trên CÁC MÁY BÊN TRONG mạng, nên dùng?",["NIDS","VPN","Tường lửa lọc gói","Proxy Server"],[0],"Hệ thống phát hiện xâm nhập mạng (NIDS) dùng để lắng nghe, phân tích chi tiết toàn bộ lưu lượng trong mạng nội bộ.",{1:"VPN mã hóa đường truyền, không phải để giám sát chi tiết lưu lượng nội bộ.",2:"Tường lửa lọc gói chỉ cho/chặn, không phân tích chi tiết để phát hiện xâm nhập.",3:"Proxy trung chuyển yêu cầu, không chuyên giám sát phát hiện xâm nhập."}],
+ ["Công nghệ nào có khả năng NGĂN CHẶN tấn công lên hệ thống?",["Tường lửa","HIDS","NIDS","Máy chủ Proxy"],[0],"Tường lửa (Firewall) hoặc IPS có chức năng trực tiếp Block/Ngăn chặn các luồng kết nối.",{1:"HIDS chỉ phát hiện trên host, không chủ động ngăn chặn.",2:"NIDS chỉ phát hiện, không ngăn chặn.",3:"Proxy trung chuyển, không phải để ngăn chặn tấn công."}],
+ ["Giao thức trao đổi khóa chủ yếu được sử dụng bởi TLS truyền thống?",["RSA","ECC","ECDHE","PKI"],[0],"Trong chuẩn TLS truyền thống (v1.2 trở xuống), RSA đóng vai trò chủ chốt để bọc và gửi session key.",{1:"ECC là mã đường cong elliptic, không phải cơ chế trao khóa chủ đạo của TLS truyền thống.",2:"ECDHE là trao khóa hiện đại (forward secrecy), không phải 'TLS truyền thống'.",3:"PKI là hạ tầng chứng thực, không phải thuật toán trao đổi khóa cụ thể."}],
+ ["Điều nào sau đây đúng với hệ mật khóa bí mật (Mật mã đối xứng)?",["Khóa bí mật được sử dụng cho cả mã hóa và giải mã","Khóa bí mật được sử dụng cho mã hóa","Khóa bí mật được sử dụng cho giải mã","Khóa bí mật được sử dụng để trao đổi khóa"],[0],"Symmetric Cryptography dùng chung một khóa (Shared Secret Key) cho cả 2 chiều thao tác.",{1:"Đối xứng dùng khóa cho CẢ mã hóa và giải mã, không chỉ mã hóa.",2:"Đối xứng dùng khóa cho cả hai chiều, không chỉ giải mã.",3:"Trao đổi khóa là việc của bất đối xứng/giao thức khóa, không phải đặc tả này."}],
+ ["Công nghệ nào được sử dụng để mã hóa TỆP TIN LỚN?",["Mật mã đối xứng","Mật mã khóa công khai","RSA","Hàm băm"],[0],"Do tốc độ của Mã hóa đối xứng nhanh hơn bất đối xứng (như RSA) hàng ngàn lần.",{1:"Mã khóa công khai chậm, không dùng mã hóa tệp lớn.",2:"RSA (bất đối xứng) cực chậm với file lớn.",3:"Hàm băm không mã hóa được nội dung, chỉ tạo dấu vân tay."}],
+ ["Đâu là một thuật toán/cơ chế hàm băm?",["HMAC","3DES","ECC","Blowfish"],[0],"HMAC (Hash-based Message Authentication Code) sử dụng kết hợp một hàm băm và một khóa bí mật.",{1:"3DES là mã hóa đối xứng, không phải hàm băm.",2:"ECC là mã khóa công khai, không phải hàm băm.",3:"Blowfish là mã hóa đối xứng, không phải hàm băm."}],
+ ["Giao thức truyền file an toàn SCP được xây dựng dựa trên nền tảng của?",["SSH","SSL","TLS","FTP"],[0],"Secure Copy Protocol (SCP) chạy qua kênh truyền bảo mật SSH ở cổng 22.",{1:"SSL là tiền thân của TLS cho web, SCP không xây trên SSL.",2:"TLS bảo mật web/giao thức khác, SCP dựa trên SSH chứ không phải TLS.",3:"FTP không mã hóa; SCP dựa trên SSH an toàn."}],
+ ["Thuật toán nào sau đây giúp bảo vệ tính bí mật của thông điệp?",["Twofish","HMAC","Hàm băm","DSA"],[0],"Twofish là một thuật toán mã hóa đối xứng mạnh (giống AES) dùng để mã hóa tính bí mật.",{1:"HMAC đảm bảo toàn vẹn & xác thực, không phải bí mật.",2:"Hàm băm đảm bảo toàn vẹn, không giấu nội dung (không bí mật).",3:"DSA là chữ ký số (xác thực/chống chối bỏ), không mã hóa bí mật."}],
+ ["Bắt buộc mật khẩu dài ít nhất 8 ký tự, phức tạp. Là ứng dụng của quản lý gì?",["Thông tin xác thực","Phục hồi","Hết hạn","Vô hiệu hóa"],[0],"Credential Management (Quản lý thông tin xác thực) bao gồm chính sách cấu hình mật khẩu.",{1:"'Phục hồi' là khôi phục tài khoản, không phải đặt chính sách độ dài mật khẩu.",2:"'Hết hạn' là chu kỳ đổi mật khẩu, không phải quy định độ phức tạp.",3:"'Vô hiệu hóa' là khóa tài khoản, không phải chính sách độ dài mật khẩu."}],
+ ["Bộ định tuyến sử dụng loại kiểm soát nào để cho phép/từ chối lưu lượng?",["Kiểm soát truy cập dựa trên quy tắc","Kiểm soát truy cập bắt buộc","Kiểm soát truy cập tùy ý","Kiểm soát truy cập dựa trên vai trò"],[0],"Router sử dụng ACL (Access Control List) là tập hợp các bộ Rule cơ bản.",{1:"MAC dùng nhãn bắt buộc, không phải tập rule cho/chặn của router.",2:"DAC để chủ sở hữu quyết định, không phải cơ chế router dùng.",3:"RBAC theo vai trò, không phải cách router lọc lưu lượng."}],
+ ["Mô hình bảo mật phân quyền người dùng dựa trên PHÂN LOẠI DỮ LIỆU (Label)?",["MAC","DAC","PKI","RBAC"],[0],"MAC gán nhãn cho dữ liệu và thẩm quyền cho người dùng.",{1:"DAC để chủ sở hữu quyết định, không dùng nhãn phân loại.",2:"PKI là hạ tầng khóa công khai, không phải mô hình kiểm soát truy cập.",3:"RBAC theo vai trò, không dựa trên nhãn dữ liệu."}],
+ ["Người dùng tự chia sẻ thư mục của mình cho đồng nghiệp. Hệ thống gì?",["Kiểm soát truy cập tùy ý","Kiểm soát truy cập bắt buộc","Kiểm soát truy cập dựa trên vai trò","Kiểm soát truy cập thời gian trong ngày"],[0],"DAC cho phép Owner toàn quyền quyết định về đối tượng do họ sở hữu.",{1:"MAC do quản trị trung tâm áp đặt, người dùng không tự chia sẻ tùy ý.",2:"RBAC theo vai trò, không phải người dùng tự chia sẻ thư mục.",3:"Kiểm soát theo thời gian chỉ giới hạn giờ, không liên quan tự chia sẻ."}],
+ ["Cách cấp quyền truy cập mạng TỐT NHẤT cho nhân viên mới?",["Thêm tài khoản người dùng của nhân viên mới vào một nhóm có sẵn các quyền.","Cung cấp cho nhân viên mới tài khoản người dùng và các quyền cần thiết.","Cung cấp cho nhân viên mới quyền quản trị mạng.","Hỏi nhân viên mới những quyền mà cô ấy muốn."],[0],"Gắn vào một nhóm (RBAC) dễ quản trị lâu dài và tránh việc cấp sót/thừa quyền lẻ tẻ.",{1:"Cấp quyền lẻ tẻ khó quản trị và dễ sai sót hơn gắn vào nhóm.",2:"Cho quyền quản trị mạng cho nhân viên mới vi phạm đặc quyền tối thiểu.",3:"Hỏi nhân viên muốn quyền gì là sai nguyên tắc least privilege."}],
+ ["Công nghệ sử dụng một địa chỉ IP bên ngoài duy nhất để đại diện cho nhiều máy nội bộ?",["NAT","DHCP","IPSec","NIDS"],[0],"Network Address Translation (NAT) dịch nhiều IP Private ra 1 IP Public.",{1:"DHCP cấp phát IP động, không phải dịch nhiều IP nội bộ ra một IP ngoài.",2:"IPSec mã hóa/bảo vệ gói tin, không phải dịch địa chỉ.",3:"NIDS phát hiện xâm nhập, không phải dịch địa chỉ mạng."}],
+ ["Công nghệ cho phép PHÁT HIỆN và NGĂN CHẶN các tấn công?",["IPS","IDS","IPSec","DMZ"],[0],"Intrusion Prevention System (Hệ thống phòng chống xâm nhập) làm được cả phát hiện và chủ động chặn lại.",{1:"IDS chỉ PHÁT HIỆN, không ngăn chặn.",2:"IPSec mã hóa/bảo vệ truyền dẫn, không phải phát hiện + ngăn chặn tấn công.",3:"DMZ là vùng mạng đệm, không phải công nghệ phát hiện+ngăn chặn."}],
+ ["Máy chủ cơ sở dữ liệu có gói tin trao đổi ở dạng MÃ HÓA. Dùng công nghệ nào giám sát hành vi?",["HIDS","NIDS","Firewall","SSL"],[0],"Do gói tin trên mạng bị mã hóa nên NIDS bị mù. Bắt buộc dùng HIDS đặt ngay trong máy chủ sau khi dữ liệu đã được giải mã nội bộ.",{1:"NIDS bị 'mù' với gói mã hóa trên mạng → không giám sát được hành vi.",2:"Firewall chỉ lọc cho/chặn, không phân tích hành vi sau giải mã.",3:"SSL là giao thức mã hóa, không phải công cụ giám sát hành vi."}],
+ ["Đảm bảo email gửi ra KHÔNG CHỨA THÔNG TIN NHẠY CẢM. Công nghệ gì?",["DLP","Phần mềm Antivirus","NIDS","HIDS"],[0],"Data Loss Prevention (DLP) có khả năng quét và chặn tài liệu nội bộ/bí mật kinh doanh rò rỉ ra ngoài.",{1:"Antivirus chống mã độc, không quét chặn rò rỉ thông tin nhạy cảm.",2:"NIDS phát hiện xâm nhập mạng, không chuyên ngăn rò rỉ dữ liệu ra ngoài.",3:"HIDS giám sát một host, không chuyên ngăn email lộ thông tin nhạy cảm."}],
+ ["Phần mềm kiểm tra ứng dụng, TỆP NHẬT KÝ trên máy để phát hiện bất thường?",["HIDS","NIDS","Firewall cá nhân","Antivirus"],[0],"Host-based IDS quét sâu vào Registry và Log của hệ điều hành.",{1:"NIDS phân tích lưu lượng mạng, không kiểm tra log ứng dụng trên từng máy.",2:"Firewall cá nhân lọc kết nối, không phân tích log để phát hiện bất thường.",3:"Antivirus quét mã độc, không chuyên phân tích tệp nhật ký hệ thống."}],
+ ["Phần mềm giúp lọc bỏ các email rác không mong muốn?",["Anti-spam","Antivirus","Antispyware","Anti-adware"],[0],"Anti-spam chuyên biệt lọc thư rác.",{1:"Antivirus chống virus, không chuyên lọc email rác.",2:"Antispyware chống do thám, không lọc spam.",3:"Anti-adware chống quảng cáo, không lọc email rác."}],
+ ["Bảo vệ máy tính nhân viên khi đi du lịch và dùng Wifi công cộng?",["VPN","NIDS","Phần mềm tường lửa cá nhân","Thẻ không dây tương thích 802.11n"],[0],"VPN mã hóa toàn bộ luồng truyền dữ liệu, bất kể Wifi công cộng đó có bị gắn thiết bị nghe lén đi chăng nữa.",{1:"NIDS đặt trong mạng tổ chức, không bảo vệ máy khi dùng Wi-Fi công cộng bên ngoài.",2:"Tường lửa cá nhân lọc kết nối nhưng không mã hóa luồng trên Wi-Fi công cộng.",3:"Thẻ Wi-Fi 802.11n chỉ là phần cứng kết nối, không bảo mật đường truyền."}],
+ ["Bộ định tuyến không an toàn do sử dụng cấu hình mặc định. Bỏ qua nguyên tắc nào?",["Kiện toàn an toàn thiết bị","Quản lý bản vá ứng dụng","Xác thực đầu vào","Nguyên tắc đặc quyền tối thiểu"],[0],"Device Hardening (Kiện toàn/Gia cố thiết bị) bước đầu là phải xóa bỏ/thay đổi thông tin cấu hình mặc định từ nhà sản xuất.",{1:"Quản lý bản vá lo cập nhật lỗ hổng, không phải về cấu hình mặc định.",2:"Xác thực đầu vào liên quan ứng dụng web, không phải cấu hình thiết bị mặc định.",3:"Đặc quyền tối thiểu lo phạm vi quyền, không phải đổi cấu hình mặc định."}],
+ ["Có lưu lượng lạ tới TCP 53, nhiều lần thất bại chuyển vùng (Zone transfer). Tấn công nào?",["DNS poisoning","Cross-site scripting","ARP poisoning","MAC flooding"],[0],"Cổng 53 dùng cho DNS, Zone Transfer liên quan trực tiếp đến máy chủ tên miền.",{1:"XSS là lỗ hổng web, không liên quan TCP 53/zone transfer.",2:"ARP poisoning ở mạng nội bộ tầng 2, không phải truy vấn DNS.",3:"MAC flooding tấn công switch, không phải zone transfer DNS."}],
+ ["Vô hiệu hóa SSH và thay bằng Telnet. Bạn mắc lỗi gì?",["SSH nên được sử dụng thay vì Telnet.","Chỉ nên sử dụng mật khẩu mạnh với Telnet.","Telnet bảo mật phải được bật xác thực khóa công khai.","Cổng Telnet nên được thay đổi từ 23 thành 8080."],[0],"Telnet là giao thức không mã hóa, dùng SSH luôn luôn an toàn hơn nhiều.",{1:"Vấn đề không phải mật khẩu mạnh; Telnet vốn không mã hóa nên sai từ gốc.",2:"Telnet không có cơ chế 'xác thực khóa công khai' an toàn như SSH.",3:"Đổi cổng Telnet không làm nó an toàn; nó vẫn truyền dạng rõ."}],
+ ["Yếu tố nào giúp hạn chế tấn công mật khẩu bằng TỪ ĐIỂN?",["Độ phức tạp của mật khẩu","Độ dài của mật khẩu","Chu kỳ đặt lại mật khẩu","Lịch sử lưu trữ mật khẩu"],[0],"Tăng độ phức tạp (bắt buộc dùng số, kí tự đặc biệt) sẽ khiến các từ điển từ vựng thông thường không thể đoán ra.",{1:"Độ dài chống vét cạn tốt hơn; chống từ điển chủ yếu nhờ độ phức tạp/không nằm trong từ điển.",2:"Chu kỳ đặt lại mật khẩu không ngăn việc đoán bằng từ điển.",3:"Lịch sử mật khẩu chống tái dùng, không chống tấn công từ điển."}],
+ ["UAC Windows hiển thị lời nhắc xác nhận trước khi thay đổi cài đặt. Chống tấn công nào?",["Leo thang đặc quyền","Adware","Spyware","Worms"],[0],"Tương tự câu hỏi phần trên, UAC chống quá trình leo quyền lén lút (Privilege Escalation).",{1:"Adware hiện quảng cáo; UAC không sinh ra để chống cái này.",2:"Spyware do thám; UAC không trực tiếp chặn loại này.",3:"Worm tự lây lan; UAC không phải cơ chế chống sâu."}],
+ ["Mã độc chiếm quyền rồi liên kết các máy tính nhận lệnh từ xa. Thuật ngữ gì?",["Botnet","Exploit","Logic bomb","Backdoor"],[0],"Tạo mạng lưới máy tính Zombie nhận lệnh chung là Botnet.",{1:"Exploit là mã khai thác lỗ hổng, không phải mạng máy nhận lệnh.",2:"Logic bomb chờ điều kiện kích hoạt, không phải mạng nhận lệnh từ xa.",3:"Backdoor là cửa hậu cho một máy, không phải mạng nhiều máy điều khiển chung."}],
+ ["Cấu hình dịch vụ mạng Windows chạy với tài khoản quyền HẠN CHẾ. Để làm gì?",["Để ngăn chặn tin tặc nhận được các đặc quyền nâng cao do dịch vụ mạng bị xâm nhập.","Để ngăn chặn sâu máy tính xâm nhập vào mạng.","Dịch vụ mạng Windows sẽ không chạy với quyền quản trị.","Các dịch vụ mạng Windows phải chạy với quyền truy cập hạn chế."],[0],"Tuân thủ Least Privilege: Dịch vụ nếu bị hack thì Hacker chỉ có quyền hạn chế của User chạy nó, không phải quyền System.",{1:"Mục đích chính là hạn chế đặc quyền, không phải ngăn sâu xâm nhập mạng.",2:"Đây là phát biểu mô tả lại, không nêu được MỤC ĐÍCH (ngăn leo quyền khi bị xâm nhập).",3:"Đây cũng là phát biểu mô tả, không nêu được mục đích bảo mật cốt lõi."}],
+ ["Botnet thường được sử dụng làm công cụ trong kiểu tấn công nào?",["DDoS","Cross-site scripting","Leo thang đặc quyền","Rootkit"],[0],"Botnet tạo ra sức mạnh tập thể để phát động Từ chối dịch vụ phân tán (DDoS).",{1:"XSS là lỗ hổng web, không phải mục đích chính của botnet.",2:"Leo thang đặc quyền là bước chiếm quyền, không phải dùng botnet.",3:"Rootkit để ẩn mình, không phải kiểu tấn công botnet phát động."}],
+ ["Phát biểu đúng với Backdoors (Cửa hậu)?",["Chúng là mã độc.","Chúng cho phép điều khiển quyền truy cập của người dùng thông qua cổng 26.","Chúng có khả năng nhân bản","Chúng cung cấp quyền truy cập vào tài khoản root Windows."],[0],"Backdoor thường là các Module Malware (mã độc) được cấy vào sau khi khai thác thành công hệ thống.",{1:"Cổng 26 không phải đặc trưng của backdoor; chi tiết này bịa.",2:"Backdoor không nhất thiết tự nhân bản.",3:"Backdoor không chỉ giới hạn vào 'tài khoản root Windows'."}],
+ ["Biện pháp đối phó chống lại cuộc tấn công vét cạn (brute-force) vào mật khẩu?",["Khóa tài khoản hạn chế số lần thử mật khẩu","Vá lỗi hệ điều hành","Độ phức tạp của mật khẩu","Mật khẩu mạnh"],[0],"Khóa tài khoản (Account Lockout) chặn đứng việc tự động thử liên tục ngàn lần của Brute-force.",{1:"Vá lỗi HĐH chống khai thác lỗ hổng, không trực tiếp chặn thử mật khẩu liên tục.",2:"Độ phức tạp giúp nhưng khóa tài khoản mới chặn được việc thử lặp lại.",3:"Mật khẩu mạnh giúp nhưng không tự chặn số lần thử như account lockout."}],
+ ["Loại tấn công mật khẩu nào sử dụng file từ điển kết hợp với DẠNG HIỆU CHỈNH của từ trong đó (như thêm số ở đuôi)?",["Hybrid attack","Tấn công từ điển","Tấn công vét cạn","Tấn công hiệu chỉnh"],[0],"Tấn công kết hợp (Hybrid Attack) sử dụng một cuốn từ điển chuẩn và đính kèm thêm các quy luật sinh biến thể (vd: mậtkhẩu123).",{1:"Tấn công từ điển chỉ thử các từ có sẵn, không thêm biến thể hiệu chỉnh.",2:"Vét cạn thử mọi khả năng, không dựa trên từ điển + biến thể.",3:"'Tấn công hiệu chỉnh' không phải thuật ngữ chuẩn; đáp án đúng là Hybrid."}],
+];
+
+const DECKS = { 1: QUIZ_1, 2: QUIZ_2, 3: QUIZ_3 };
+const TITLES = { 1: 'Đề 1 — 50 câu', 2: 'Đề 2 — 60 câu', 3: 'Đề 3 — 86 câu' };
+const LETTERS = "ABCDEF";
+
+/* ====== BẢNG TỪ VIẾT TẮT ====== */
+// Mỗi viết tắt -> tên đầy đủ chèn vào lần xuất hiện đầu tiên trong mỗi đoạn text
+const ACRONYMS = {
+  "MAC": "Mandatory Access Control - Kiểm soát truy cập bắt buộc",
+  "DAC": "Discretionary Access Control - Kiểm soát truy cập tùy ý",
+  "RBAC": "Role-Based Access Control - Kiểm soát truy cập theo vai trò",
+  "ABAC": "Attribute-Based Access Control - Kiểm soát truy cập theo thuộc tính",
+  "RuBAC": "Rule-Based Access Control - Kiểm soát truy cập theo quy tắc",
+  "ACL": "Access Control List - Danh sách kiểm soát truy cập",
+  "CL": "Capability List - Danh sách năng lực",
+  "NIDS": "Network-based Intrusion Detection System - Hệ thống phát hiện xâm nhập mức mạng",
+  "HIDS": "Host-based Intrusion Detection System - Hệ thống phát hiện xâm nhập trên máy chủ",
+  "IDS": "Intrusion Detection System - Hệ thống phát hiện xâm nhập",
+  "IPS": "Intrusion Prevention System - Hệ thống ngăn chặn xâm nhập",
+  "NIPS": "Network-based Intrusion Prevention System - Hệ thống ngăn chặn xâm nhập mức mạng",
+  "DLP": "Data Loss Prevention - Phòng chống thất thoát dữ liệu",
+  "VPN": "Virtual Private Network - Mạng riêng ảo",
+  "DMZ": "Demilitarized Zone - Vùng mạng đệm",
+  "VLAN": "Virtual LAN - Mạng LAN ảo",
+  "LAN": "Local Area Network - Mạng nội bộ",
+  "NAT": "Network Address Translation - Biên dịch địa chỉ mạng",
+  "DHCP": "Dynamic Host Configuration Protocol - Giao thức cấp phát IP động",
+  "DNS": "Domain Name System - Hệ thống phân giải tên miền",
+  "ARP": "Address Resolution Protocol - Giao thức phân giải địa chỉ",
+  "NIC": "Network Interface Card - Card giao tiếp mạng",
+  "TCP": "Transmission Control Protocol - Giao thức điều khiển truyền vận",
+  "UDP": "User Datagram Protocol - Giao thức truyền không kết nối",
+  "IP": "Internet Protocol - Giao thức Internet",
+  "OSI": "Open Systems Interconnection - Mô hình kết nối hệ thống mở",
+  "HTTP": "HyperText Transfer Protocol - Giao thức truyền siêu văn bản",
+  "HTTPS": "HTTP Secure - HTTP có mã hóa",
+  "FTP": "File Transfer Protocol - Giao thức truyền tệp",
+  "FTPS": "FTP Secure - FTP qua SSL/TLS",
+  "SFTP": "SSH File Transfer Protocol - Truyền tệp qua SSH",
+  "SCP": "Secure Copy Protocol - Giao thức sao chép an toàn qua SSH",
+  "SSH": "Secure Shell - Giao thức quản trị từ xa có mã hóa",
+  "SSL": "Secure Sockets Layer - Lớp socket bảo mật",
+  "TLS": "Transport Layer Security - Bảo mật tầng truyền vận",
+  "SMTP": "Simple Mail Transfer Protocol - Giao thức gửi email",
+  "POP": "Post Office Protocol - Giao thức nhận email",
+  "POP3": "Post Office Protocol v3 - Giao thức nhận email phiên bản 3",
+  "IMAP": "Internet Message Access Protocol - Giao thức truy cập email",
+  "SNMP": "Simple Network Management Protocol - Giao thức quản trị mạng",
+  "TFTP": "Trivial File Transfer Protocol - Giao thức truyền tệp đơn giản",
+  "RDP": "Remote Desktop Protocol - Giao thức điều khiển màn hình từ xa",
+  "IPSec": "Internet Protocol Security - Bảo mật giao thức IP",
+  "PKI": "Public Key Infrastructure - Hạ tầng khóa công khai",
+  "RSA": "Rivest-Shamir-Adleman - Thuật toán mã hóa bất đối xứng",
+  "AES": "Advanced Encryption Standard - Chuẩn mã hóa nâng cao",
+  "DES": "Data Encryption Standard - Chuẩn mã hóa dữ liệu",
+  "ECC": "Elliptic Curve Cryptography - Mật mã đường cong elliptic",
+  "ECDHE": "Elliptic Curve Diffie-Hellman Ephemeral - Trao đổi khóa elliptic tạm thời",
+  "MD5": "Message Digest 5 - Hàm băm 128-bit",
+  "SHA": "Secure Hash Algorithm - Thuật toán băm an toàn",
+  "HMAC": "Hash-based Message Authentication Code - Mã xác thực thông điệp dựa trên hàm băm",
+  "DSA": "Digital Signature Algorithm - Thuật toán chữ ký số",
+  "RC4": "Rivest Cipher 4 - Mã hóa luồng",
+  "WEP": "Wired Equivalent Privacy - Chuẩn bảo mật Wi-Fi cũ",
+  "OTP": "One-Time Password - Mật khẩu dùng một lần",
+  "PIN": "Personal Identification Number - Mã số định danh cá nhân",
+  "XSS": "Cross-Site Scripting - Tấn công chèn mã kịch bản",
+  "CSRF": "Cross-Site Request Forgery - Giả mạo yêu cầu liên trang",
+  "CRSF": "Cross-Site Request Forgery - Giả mạo yêu cầu liên trang",
+  "SQL": "Structured Query Language - Ngôn ngữ truy vấn CSDL",
+  "UAC": "User Account Control - Kiểm soát tài khoản người dùng",
+  "C&C": "Command and Control - Máy chủ điều khiển từ xa",
+  "PLC": "Programmable Logic Controller - Bộ điều khiển logic lập trình",
+  "MBR": "Master Boot Record - Bản ghi khởi động chính",
+  "USB": "Universal Serial Bus - Chuẩn kết nối ngoại vi",
+  "RAM": "Random Access Memory - Bộ nhớ truy cập ngẫu nhiên",
+  "P2P": "Peer-to-Peer - Mạng ngang hàng",
+  "AAA": "Authentication, Authorization, Accounting - Xác thực, Cấp quyền, Kiểm toán",
+  "CIA": "Confidentiality, Integrity, Availability - Bí mật, Toàn vẹn, Sẵn sàng",
+  "KPA": "Known-Plaintext Attack - Tấn công biết trước bản rõ",
+  "ATM": "Automated Teller Machine - Máy rút tiền tự động",
+  "POS": "Point of Sale - Máy thanh toán tại điểm bán",
+  "CLI": "Command-Line Interface - Giao diện dòng lệnh",
+  "AXFR": "DNS Zone Transfer - Truyền toàn bộ vùng DNS"
+};
+// Chuỗi viết hoa KHÔNG phải viết tắt kỹ thuật (chữ tiếng Việt, tên riêng, mã đề) -> bỏ qua
+const ACRONYM_SKIP = new Set(["AVI","CSDL","ATTT","IT","OS","WEB","IV","DIP","CMND","CCCD","SMS","OR","AN","TO","NG","KH","KD","LTV","HC","NH","CH","TH","PH","HI","HO","LI","LO","CU","GI","BU","PS","PL","MK","SAI","TRONG","TIN","CHI","TI","OSI"]);
+// dài giảm dần để khớp 'C&C' trước 'C', tránh khớp lồng
+const ACRONYM_KEYS = Object.keys(ACRONYMS).sort((a,b)=>b.length-a.length);
+
+// Chèn (tên đầy đủ) vào LẦN ĐẦU mỗi viết tắt xuất hiện trong đoạn text thuần (chưa escape HTML)
+function expandAcronyms(text){
+  if(!text) return text;
+  const seen=new Set();
+  // tách theo ranh giới từ, giữ nguyên dấu cách & ký tự đặc biệt
+  // duyệt bằng regex: token gồm chữ-số-& ; phần còn lại giữ nguyên
+  return text.replace(/[A-Za-z0-9&]+/g, tok=>{
+    // chỉ xét token viết HOA toàn bộ (cho phép số), khớp đúng một acronym
+    if(seen.has(tok)) return tok;
+    if(ACRONYM_SKIP.has(tok)) return tok;
+    if(ACRONYMS[tok] && /^[A-Z][A-Z0-9&]*$/.test(tok)){
+      seen.add(tok);
+      return tok+' ('+ACRONYMS[tok]+')';
+    }
+    return tok;
+  });
+}
+
+/* ====== STATE ====== */
+let deckNum = 1;
+let baseQuiz = null;     // dữ liệu gốc của đề
+let currentQuiz = null;  // bản đang chạy (đã trộn/cắt nếu có)
+let selections = [];
+let flagged = [];
+let submitted = false;
+let opts = { mode: 'study', shuffleQ: false, shuffleO: false, instant: true, limit: 0 };
+let timerInt = null, startTs = 0;
+
+/* ====== HELPERS ====== */
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// gộp: mở rộng viết tắt rồi escape HTML (dùng cho mọi text từ đề)
+function esc(s){return escapeHtml(expandAcronyms(s));}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function setEq(set,arr){if(set.size!==arr.length)return false;return arr.every(x=>set.has(x));}
+
+function setMode(v){
+  opts.mode=v;
+  document.querySelectorAll('#seg-mode button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('sw-instant').closest('.toggle-row').style.opacity = v==='study'?'1':'.4';
+}
+function setLimit(v){
+  opts.limit=v;
+  document.querySelectorAll('#seg-limit button').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+}
+
+/* ====== STORAGE (điểm cao nhất) ====== */
+async function loadBests(){
+  for(const n of [1,2,3]){
+    try{
+      const r = await window.storage.get('best:'+n);
+      if(r && r.value){
+        const d = JSON.parse(r.value);
+        document.getElementById('best-'+n).textContent = `🏆 Cao nhất: ${d.correct}/${d.total} (${d.score}/10)`;
+      }
+    }catch(e){/* chưa có */}
+  }
+}
+async function saveBest(n, correct, total, score){
+  try{
+    let prev=null;
+    try{const r=await window.storage.get('best:'+n); if(r&&r.value)prev=JSON.parse(r.value);}catch(e){}
+    if(!prev || score>parseFloat(prev.score)){
+      await window.storage.set('best:'+n, JSON.stringify({correct,total,score}));
+      document.getElementById('best-'+n).textContent = `🏆 Cao nhất: ${correct}/${total} (${score}/10)`;
+    }
+  }catch(e){}
+}
+
+/* ====== BUILD QUIZ ====== */
+function buildRunnable(){
+  // áp dụng trộn câu + cắt giới hạn + trộn đáp án
+  let items = baseQuiz.map((it,origIdx)=>({it, origIdx}));
+  if(opts.shuffleQ) items = shuffle(items);
+  if(opts.limit>0) items = items.slice(0, opts.limit);
+  return items.map(({it})=>{
+    let [q,options,correct,expl,wrongExpl]=it;
+    wrongExpl = wrongExpl || {};
+    if(opts.shuffleO){
+      const idx = options.map((_,i)=>i);
+      const order = shuffle(idx);
+      const newOpts = order.map(i=>options[i]);
+      const newCorrect = correct.map(c=>order.indexOf(c));
+      // remap giải thích sai theo vị trí mới
+      const newWrong = {};
+      Object.keys(wrongExpl).forEach(oldIdx=>{
+        const newIdx = order.indexOf(+oldIdx);
+        newWrong[newIdx] = wrongExpl[oldIdx];
+      });
+      return [q,newOpts,newCorrect.sort((a,b)=>a-b),expl,newWrong];
+    }
+    return [q,options.slice(),correct.slice(),expl,Object.assign({},wrongExpl)];
+  });
+}
+
+function startQuiz(num){
+  deckNum=num;
+  // đọc trạng thái các công tắc tại thời điểm bắt đầu (trước đây thiếu nên trộn không chạy)
+  opts.shuffleQ = document.getElementById('sw-shuffleQ').checked;
+  opts.shuffleO = document.getElementById('sw-shuffleO').checked;
+  opts.instant  = document.getElementById('sw-instant').checked;
+  baseQuiz=DECKS[num];
+  currentQuiz=buildRunnable();
+  document.getElementById('quiz-title').textContent=TITLES[num]+(opts.limit?` · ${opts.limit} câu`:'');
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('flash').classList.add('hidden');
+  document.getElementById('quiz').classList.remove('hidden');
+  resetQuiz();
+}
+
+function backToMenu(){
+  stopTimer();
+  document.getElementById('quiz').classList.add('hidden');
+  document.getElementById('flash').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+  loadBests();
+  window.scrollTo(0,0);
+}
+
+function resetQuiz(){
+  submitted=false;
+  selections=currentQuiz.map(()=>new Set());
+  flagged=currentQuiz.map(()=>false);
+  searchTerm='';
+  const si=document.getElementById('search-input'); if(si) si.value='';
+  document.getElementById('search-clear').classList.remove('show');
+  document.getElementById('search-count').classList.remove('show');
+  document.getElementById('search-count').textContent='';
+  document.getElementById('search-empty').classList.add('hidden');
+  document.getElementById('result').classList.add('hidden');
+  document.getElementById('score').textContent='Chưa nộp';
+  document.getElementById('score').style.color='#555';
+  document.getElementById('grade-btn').textContent='Chấm điểm';
+  renderQuestions();
+  if(opts.mode==='exam'){startTimer();}else{stopTimer();document.getElementById('timer').textContent='';}
+  window.scrollTo(0,0);
+}
+
+/* ====== TIMER ====== */
+function startTimer(){
+  startTs=Date.now();
+  stopTimer();
+  timerInt=setInterval(()=>{
+    const s=Math.floor((Date.now()-startTs)/1000);
+    const m=String(Math.floor(s/60)).padStart(2,'0');
+    const ss=String(s%60).padStart(2,'0');
+    document.getElementById('timer').textContent='⏱ '+m+':'+ss;
+  },500);
+}
+function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}}
+
+/* ====== RENDER ====== */
+function renderQuestions(){
+  const root=document.getElementById('questions');
+  root.innerHTML='';
+  const showInstant = opts.mode==='study' && opts.instant;
+  currentQuiz.forEach((item,qi)=>{
+    const [q,options,correct]=item;
+    const multi=correct.length>1;
+    const card=document.createElement('div');
+    card.className='q'; card.id='q-'+qi;
+    let html=`<button class="flag-btn" data-qi="${qi}" onclick="toggleFlag(${qi})" title="Đánh dấu">🚩</button>`;
+    html+=`<div class="q-head"><span class="q-num">Câu ${qi+1}.</span>${esc(q)}${multi?'<span class="q-multi">(chọn 2)</span>':''}</div>`;
+    options.forEach((opt,oi)=>{
+      const type=multi?'checkbox':'radio';
+      html+=`<label class="opt" data-qi="${qi}" data-oi="${oi}">
+        <input type="${type}" name="q${qi}" value="${oi}">
+        <div><span class="letter">${LETTERS[oi]}.</span>${esc(opt)}</div>
+      </label>`;
+    });
+    html+=`<div class="expl" id="expl-${qi}"></div>`;
+    card.innerHTML=html;
+    root.appendChild(card);
+  });
+
+  root.querySelectorAll('.opt input').forEach(inp=>{
+    inp.addEventListener('change',e=>{
+      const lbl=e.target.closest('.opt');
+      const qi=+lbl.dataset.qi, oi=+lbl.dataset.oi;
+      const multi=currentQuiz[qi][2].length>1;
+      if(multi){ if(e.target.checked)selections[qi].add(oi); else selections[qi].delete(oi); }
+      else selections[qi]=new Set([oi]);
+      updateProgress();
+      if(showInstant) revealOne(qi);
+    });
+  });
+  updateProgress();
+  if(searchTerm) doSearch(searchTerm);
+}
+
+// dựng nội dung giải thích: gồm giải thích đáp án đúng + lý do sai cho phương án đã chọn
+function buildExplHtml(qi, prefix, correct, expl, chosen){
+  const ans=correct.map(i=>LETTERS[i]).join(', ');
+  let html=`${prefix}<b>Đáp án: ${ans}</b>`;
+  if(expl) html+='<br>'+esc(expl);
+  // lý do vì sao (các) phương án người dùng chọn lại sai
+  const wrongExpl=currentQuiz[qi][4]||{};
+  const right=new Set(correct);
+  const chosenWrong=[...chosen].filter(oi=>!right.has(oi)).sort((a,b)=>a-b);
+  if(chosenWrong.length){
+    const parts=chosenWrong.map(oi=>{
+      const why=wrongExpl[oi];
+      return `<b>${LETTERS[oi]}</b> sai: ${why?esc(why):'không phải đáp án đúng.'}`;
+    });
+    html+=`<div class="why-wrong">✗ Bạn chọn ${chosenWrong.map(oi=>LETTERS[oi]).join(', ')} — ${parts.join('<br>')}</div>`;
+  }
+  return html;
+}
+
+function revealOne(qi){
+  // hiện đáp án ngay cho 1 câu (chế độ ôn tập)
+  const [,,correct,expl]=currentQuiz[qi];
+  const right=new Set(correct);
+  const chosen=selections[qi];
+  // với câu chọn nhiều, chỉ chấm khi đã chọn đủ
+  if(correct.length>1 && chosen.size<correct.length) return;
+  const ok=setEq(chosen,correct);
+  document.querySelectorAll(`.opt[data-qi="${qi}"]`).forEach(lbl=>{
+    const oi=+lbl.dataset.oi;
+    lbl.classList.remove('correct','wrong');
+    if(right.has(oi))lbl.classList.add('correct');
+    else if(chosen.has(oi))lbl.classList.add('wrong');
+  });
+  const exp=document.getElementById('expl-'+qi);
+  exp.className='expl show '+(ok?'ok':'err');
+  exp.innerHTML=buildExplHtml(qi, ok?'✓ Đúng. ':'✗ Sai. ', correct, expl, chosen);
+}
+
+function toggleFlag(qi){
+  flagged[qi]=!flagged[qi];
+  document.getElementById('q-'+qi).classList.toggle('flagged',flagged[qi]);
+  document.querySelector(`.flag-btn[data-qi="${qi}"]`).classList.toggle('on',flagged[qi]);
+}
+
+function updateProgress(){
+  const done=selections.filter(s=>s.size>0).length;
+  const n=currentQuiz.length;
+  document.getElementById('progress').textContent=`${done}/${n}`;
+  document.getElementById('pbar-fill').style.width=(done/n*100)+'%';
+}
+
+/* ====== SEARCH (tìm theo chữ) ====== */
+let searchTerm='';
+function normalize(s){
+  // bỏ dấu tiếng Việt để tìm gần đúng: "ma doc" khớp "mã độc"
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
+}
+function highlight(html, term){
+  if(!term) return html;
+  // html đã được escape; chèn <mark> quanh đoạn khớp, không phân biệt dấu
+  const plain=html; const np=normalize(plain); const nt=normalize(term);
+  let out='', last=0, idx;
+  while((idx=np.indexOf(nt,last))!==-1){
+    out+=plain.slice(last,idx)+'<mark>'+plain.slice(idx,idx+term.length)+'</mark>';
+    last=idx+term.length;
+  }
+  out+=plain.slice(last);
+  return out;
+}
+function doSearch(val){
+  searchTerm=val.trim();
+  const term=searchTerm;
+  document.getElementById('search-clear').classList.toggle('show', !!term);
+  const nt=normalize(term);
+  let matches=0;
+  currentQuiz.forEach((item,qi)=>{
+    const [q,options]=item;
+    const card=document.getElementById('q-'+qi);
+    if(!card) return;
+    const haystack=normalize(q+' '+options.join(' '));
+    const hit = !term || haystack.includes(nt);
+    card.classList.toggle('search-hide', !hit);
+    if(hit) matches++;
+    // cập nhật highlight trong câu hỏi + đáp án
+    const head=card.querySelector('.q-head');
+    const multi=item[2].length>1;
+    head.innerHTML=`<span class="q-num">Câu ${qi+1}.</span>${highlight(esc(q),term)}${multi?'<span class="q-multi">(chọn 2)</span>':''}`;
+    card.querySelectorAll('.opt').forEach(lbl=>{
+      const oi=+lbl.dataset.oi;
+      const div=lbl.querySelector('div');
+      div.innerHTML=`<span class="letter">${LETTERS[oi]}.</span>${highlight(esc(options[oi]),term)}`;
+    });
+  });
+  const cnt=document.getElementById('search-count');
+  const empty=document.getElementById('search-empty');
+  if(term){
+    cnt.classList.add('show');
+    cnt.textContent=`Tìm thấy ${matches} câu khớp "${term}"`;
+    empty.classList.toggle('hidden', matches>0);
+  }else{
+    cnt.classList.remove('show'); cnt.textContent='';
+    empty.classList.add('hidden');
+  }
+}
+function clearSearch(){
+  const inp=document.getElementById('search-input');
+  inp.value=''; inp.focus();
+  doSearch('');
+}
+
+/* ====== NAV ====== */
+function openNav(){buildNav();document.getElementById('nav-sheet').classList.add('show');}
+function closeNav(){document.getElementById('nav-sheet').classList.remove('show');}
+function buildNav(){
+  const grid=document.getElementById('nav-grid');
+  grid.innerHTML='';
+  currentQuiz.forEach((item,qi)=>{
+    const cell=document.createElement('button');
+    cell.className='nav-cell';
+    cell.textContent=qi+1;
+    if(submitted){
+      if(setEq(selections[qi],item[2]))cell.classList.add('right');
+      else cell.classList.add('bad');
+    }else if(selections[qi].size>0){cell.classList.add('answered');}
+    if(flagged[qi])cell.classList.add('flagged');
+    cell.onclick=()=>{closeNav();document.getElementById('q-'+qi).scrollIntoView({behavior:'smooth',block:'start'});};
+    grid.appendChild(cell);
+  });
+}
+
+/* ====== GRADE ====== */
+function grade(){
+  submitted=true;
+  stopTimer();
+  let correctCount=0;
+  currentQuiz.forEach((item,qi)=>{
+    const [,,correct,expl]=item;
+    const right=new Set(correct);
+    const chosen=selections[qi];
+    const ok=setEq(chosen,correct);
+    if(ok)correctCount++;
+    document.querySelectorAll(`.opt[data-qi="${qi}"]`).forEach(lbl=>{
+      const oi=+lbl.dataset.oi;
+      lbl.classList.remove('correct','wrong');
+      if(right.has(oi))lbl.classList.add('correct');
+      else if(chosen.has(oi))lbl.classList.add('wrong');
+      lbl.querySelector('input').disabled=true;
+    });
+    const exp=document.getElementById('expl-'+qi);
+    let prefix='',cls='ok';
+    if(ok)prefix='✓ ';
+    else if(chosen.size===0){prefix='• Chưa chọn. ';cls='miss';}
+    else {prefix='✗ Sai. ';cls='err';}
+    exp.className='expl show '+cls;
+    exp.innerHTML=buildExplHtml(qi, prefix, correct, expl, chosen);
+  });
+
+  const n=currentQuiz.length;
+  const score10=(correctCount*10/n).toFixed(2);
+  document.getElementById('score').textContent=`${correctCount}/${n} · ${score10}/10`;
+  document.getElementById('score').style.color='#1a1a1a';
+
+  // chỉ lưu best khi làm full đề (không trộn cắt) để công bằng
+  if(opts.limit===0) saveBest(deckNum, correctCount, n, score10);
+
+  const result=document.getElementById('result');
+  const pct=correctCount/n;
+  let verdict;
+  if(pct>=0.9)verdict='Quá đỉnh! 🎯';
+  else if(pct>=0.7)verdict='Ngon, qua môn thoải mái.';
+  else if(pct>=0.5)verdict='Tạm ổn, ôn thêm chút.';
+  else verdict='Cày lại đi bro.';
+  const wrongCount=n-correctCount;
+  let timeNote='';
+  if(opts.mode==='exam'){
+    const s=Math.floor((Date.now()-startTs)/1000);
+    timeNote=` · ⏱ ${Math.floor(s/60)}p${String(s%60).padStart(2,'0')}s`;
+  }
+  result.innerHTML=`<div class="num">${correctCount}/${n} câu đúng — ${score10}/10 điểm${timeNote}</div>
+    <div class="msg">${verdict} Kéo xuống xem câu xanh / đỏ kèm giải thích.</div>
+    <div class="result-actions">
+      ${wrongCount>0?`<button class="btn btn-primary" onclick="retryWrong()">🔁 Làm lại ${wrongCount} câu sai</button>`:''}
+      <button class="btn btn-ghost" onclick="openNav()">⊞ Bản đồ kết quả</button>
+      <button class="btn btn-secondary" onclick="resetQuiz()">Làm lại từ đầu</button>
+    </div>`;
+  result.classList.remove('hidden');
+  document.getElementById('grade-btn').textContent='Đã chấm ✓';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function retryWrong(){
+  // tạo đề mới chỉ gồm các câu đã làm sai
+  const wrong=[];
+  currentQuiz.forEach((item,qi)=>{ if(!setEq(selections[qi],item[2])) wrong.push(item); });
+  if(!wrong.length)return;
+  currentQuiz=wrong;
+  document.getElementById('quiz-title').textContent=TITLES[deckNum]+` · ôn ${wrong.length} câu sai`;
+  resetQuiz();
+}
+
+/* ====== FLASHCARDS ====== */
+let fcDeck=[], fcIdx=0, fcFlipped=false;
+function startFlashcards(){
+  // chọn đề cho flashcard: dùng đề đang chọn gần nhất, mặc định 1
+  fcDeck=DECKS[deckNum].slice();
+  fcIdx=0; fcFlipped=false;
+  document.getElementById('fc-title').textContent='Flashcard — '+TITLES[deckNum];
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('quiz').classList.add('hidden');
+  document.getElementById('flash').classList.remove('hidden');
+  renderCard();
+  window.scrollTo(0,0);
+}
+function renderCard(){
+  const [q,options,correct,expl]=fcDeck[fcIdx];
+  document.getElementById('fc-q').textContent=`Câu ${fcIdx+1}. ${expandAcronyms(q)}`;
+  const ans=correct.map(i=>LETTERS[i]+'. '+expandAcronyms(options[i])).join('  |  ');
+  document.getElementById('fc-a').textContent=ans;
+  document.getElementById('fc-ex').textContent=expandAcronyms(expl||'');
+  document.getElementById('fc-pos').textContent=`${fcIdx+1} / ${fcDeck.length}`;
+  fcFlipped=false;
+  document.getElementById('fc-back').classList.add('hidden');
+  document.getElementById('fc-hint').textContent='Chạm để lật thẻ';
+}
+function flipCard(){
+  fcFlipped=!fcFlipped;
+  document.getElementById('fc-back').classList.toggle('hidden',!fcFlipped);
+  document.getElementById('fc-hint').textContent=fcFlipped?'Chạm để ẩn đáp án':'Chạm để lật thẻ';
+}
+function fcNext(){fcIdx=(fcIdx+1)%fcDeck.length;renderCard();}
+function fcPrev(){fcIdx=(fcIdx-1+fcDeck.length)%fcDeck.length;renderCard();}
+function fcShuffle(){fcDeck=shuffle(fcDeck);fcIdx=0;renderCard();}
+
+/* ====== KEYBOARD (desktop) ====== */
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('flash').classList.contains('hidden')){
+    if(e.key==='ArrowRight')fcNext();
+    else if(e.key==='ArrowLeft')fcPrev();
+    else if(e.key===' '){e.preventDefault();flipCard();}
+  }
+});
+
+/* init */
+setMode('study');
+loadBests();
+/* ====== CHỤP CÂU ĐÁNH DẤU → CLIPBOARD ====== */
+(function(){
+  const st=document.createElement('style');
+  st.textContent=`
+    .cap-toggle{position:fixed;right:14px;bottom:122px;z-index:11;background:#1a4f8b;color:#fff;border:none;width:46px;height:46px;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.2);}
+    .cap-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:#1a1a1a;color:#fff;padding:11px 18px;border-radius:10px;font-size:13.5px;max-width:90%;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:50;}
+    .cap-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  `;
+  document.head.appendChild(st);
+
+  const toast=document.createElement('div');
+  toast.className='cap-toast';
+  document.body.appendChild(toast);
+  let toastT=null;
+  window.showToast=function(msg){
+    toast.textContent=msg; toast.classList.add('show');
+    clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove('show'),2800);
+  };
+
+  const FONT={
+    head:'700 22px -apple-system,"Segoe UI",Roboto,sans-serif',
+    q:'600 17px -apple-system,"Segoe UI",Roboto,sans-serif',
+    opt:'15px -apple-system,"Segoe UI",Roboto,sans-serif',
+    optB:'700 15px -apple-system,"Segoe UI",Roboto,sans-serif',
+    ex:'italic 14px -apple-system,"Segoe UI",Roboto,sans-serif',
+  };
+  const COL={bg:'#fff',ink:'#1a1a1a',ok:'#2b8a3e',expl:'#555',line:'#e2e0d8',head:'#3b6d11'};
+  const mc=document.createElement('canvas').getContext('2d');
+
+  function wrap(text,font,maxW){
+    mc.font=font;
+    const words=String(text).split(/\s+/); const lines=[]; let line='';
+    for(const w of words){
+      const t=line?line+' '+w:w;
+      if(mc.measureText(t).width>maxW&&line){lines.push(line);line=w;} else line=t;
+    }
+    if(line)lines.push(line);
+    return lines;
+  }
+
+  function drawCanvas(idxs){
+    const W=820,PAD=30,CW=W-PAD*2,IND=18;
+    const LH={head:32,q:25,opt:23,ex:21};
+    const ops=[]; let y=PAD;
+    ops.push({t:'head',s:`📌 ${idxs.length} câu đã đánh dấu — ${TITLES[deckNum]}`,y}); y+=LH.head;
+    ops.push({t:'rule',y:y-8}); y+=8;
+    idxs.forEach((qi,n)=>{
+      const [q,options,correct,expl]=currentQuiz[qi];
+      wrap(`Câu ${qi+1}. ${q}`,FONT.q,CW).forEach(l=>{ops.push({t:'q',s:l,y});y+=LH.q;});
+      y+=4;
+      options.forEach((opt,oi)=>{
+        const isC=correct.includes(oi);
+        wrap(`${isC?'✓ ':''}${LETTERS[oi]}. ${opt}`,isC?FONT.optB:FONT.opt,CW-IND)
+          .forEach(l=>{ops.push({t:'opt',s:l,y,ok:isC});y+=LH.opt;});
+      });
+      y+=3;
+      ops.push({t:'ans',s:`→ Đáp án đúng: ${correct.map(i=>LETTERS[i]).join(', ')}`,y}); y+=LH.opt;
+      if(expl) wrap(expl,FONT.ex,CW).forEach(l=>{ops.push({t:'ex',s:l,y});y+=LH.ex;});
+      y+=16;
+      if(n<idxs.length-1) ops.push({t:'sep',y:y-9});
+    });
+    const H=y+PAD-10, dpr=2;
+    const cv=document.createElement('canvas');
+    cv.width=W*dpr; cv.height=H*dpr;
+    const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+    ctx.fillStyle=COL.bg; ctx.fillRect(0,0,W,H);
+    ops.forEach(o=>{
+      if(o.t==='head'){ctx.font=FONT.head;ctx.fillStyle=COL.head;ctx.fillText(o.s,PAD,o.y+20);}
+      else if(o.t==='rule'){ctx.strokeStyle=COL.head;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(PAD,o.y);ctx.lineTo(W-PAD,o.y);ctx.stroke();}
+      else if(o.t==='q'){ctx.font=FONT.q;ctx.fillStyle=COL.ink;ctx.fillText(o.s,PAD,o.y+17);}
+      else if(o.t==='opt'){ctx.font=o.ok?FONT.optB:FONT.opt;ctx.fillStyle=o.ok?COL.ok:COL.ink;ctx.fillText(o.s,PAD+IND,o.y+15);}
+      else if(o.t==='ans'){ctx.font=FONT.optB;ctx.fillStyle=COL.ok;ctx.fillText(o.s,PAD,o.y+15);}
+      else if(o.t==='ex'){ctx.font=FONT.ex;ctx.fillStyle=COL.expl;ctx.fillText(o.s,PAD,o.y+14);}
+      else if(o.t==='sep'){ctx.strokeStyle=COL.line;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(PAD,o.y);ctx.lineTo(W-PAD,o.y);ctx.stroke();}
+    });
+    return cv;
+  }
+
+  window.captureFlagged=async function(){
+    if(typeof flagged==='undefined'||!flagged){showToast('Mở một đề trước đã.');return;}
+    const idxs=[]; flagged.forEach((f,i)=>{if(f)idxs.push(i);});
+    if(!idxs.length){showToast('⚠️ Chưa đánh dấu câu nào. Bấm 🚩 ở góc mỗi câu trước.');return;}
+    const cv=drawCanvas(idxs);
+    const toBlob=()=>new Promise(r=>cv.toBlob(r,'image/png'));
+    try{
+      await navigator.clipboard.write([new ClipboardItem({'image/png':toBlob()})]);
+      showToast(`✓ Đã copy ${idxs.length} câu kèm đáp án vào clipboard.`);
+    }catch(err){
+      try{
+        const blob=await toBlob();
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob); a.download=`danh-dau-de${deckNum}.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+        showToast('Trình duyệt chặn copy ảnh — đã tải PNG về máy.');
+      }catch(e2){showToast('Không tạo được ảnh: '+e2.message);}
+    }
+  };
+
+  const btn=document.createElement('button');
+  btn.className='cap-toggle';
+  btn.title='Chụp các câu đã đánh dấu (kèm đáp án) → clipboard';
+  btn.textContent='📸';
+  btn.onclick=window.captureFlagged;
+  document.getElementById('quiz').appendChild(btn);
+})();
+</script>
+</body>
+</html>

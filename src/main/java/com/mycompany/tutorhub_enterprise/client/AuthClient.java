@@ -54,6 +54,46 @@ public final class AuthClient {
         return send(AuthProtocol.VERIFY_PHONE_OTP, AuthRequest.verifyPhone(phone, otp));
     }
 
+    public AuthResponse socialLogin(String provider, String authorizationCode, String codeVerifier, String redirectUri, String nonce) throws Exception {
+        return send(AuthProtocol.AUTH_SOCIAL_LOGIN, AuthRequest.socialLogin(provider, authorizationCode, codeVerifier, redirectUri, nonce));
+    }
+
+    public AuthResponse facebookStart() throws Exception {
+        return send(AuthProtocol.AUTH_FACEBOOK_START, AuthRequest.facebookStart());
+    }
+
+    public AuthResponse facebookPoll(String sessionId) throws Exception {
+        return send(AuthProtocol.AUTH_FACEBOOK_POLL, AuthRequest.facebookPoll(sessionId));
+    }
+
+    public AuthResponse logout(String sessionId, String accessToken) throws Exception {
+        return send(AuthProtocol.AUTH_LOGOUT, AuthRequest.logout(sessionId, accessToken));
+    }
+
+    public void sendCalendarEventInviteAsync(String jsonPayload) {
+        try {
+            if (!network.isConnected()) {
+                network.connect("localhost", 8888);
+            }
+            network.sendPacket(new Packet(AuthProtocol.CALENDAR_SEND_EVENT_INVITE, jsonPayload));
+        } catch (Exception e) {
+            System.err.println("Failed to send calendar event invite async: " + e.getMessage());
+        }
+    }
+
+    public void sendCalendarPollInviteAsync(String jsonPayload) {
+        try {
+            if (!network.isConnected()) {
+                network.connect("localhost", 8888);
+            }
+            network.sendPacket(new Packet(AuthProtocol.CALENDAR_SEND_POLL_INVITE, jsonPayload));
+        } catch (Exception e) {
+            System.err.println("Failed to send calendar poll invite async: " + e.getMessage());
+        }
+    }
+
+
+
     private AuthResponse send(String action, AuthRequest request) throws Exception {
         if (!network.isConnected()) {
             network.connect("localhost", 8888);

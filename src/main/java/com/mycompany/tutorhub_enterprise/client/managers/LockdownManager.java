@@ -128,7 +128,7 @@ public class LockdownManager {
         this.rustProcess = pb.start();
     }
 
-    public Process spawnChildOnSecureDesktop(Path exePath, String javaExePath, String jarPath, String contextPath, String outputPath, String keyB64) throws Exception {
+    public Process spawnChildOnSecureDesktop(Path exePath, String javaExePath, String jarPath, String contextPath, String outputPath, String keyB64, String appRoot) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
             exePath.toAbsolutePath().toString(),
             "--spawn-child",
@@ -136,7 +136,8 @@ public class LockdownManager {
             "--jar", jarPath,
             "--context", contextPath,
             "--output", outputPath,
-            "--key", keyB64
+            "--key", keyB64,
+            "--app-root", appRoot
         );
         pb.redirectErrorStream(true);
         this.rustProcess = pb.start();

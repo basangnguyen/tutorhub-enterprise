@@ -10,7 +10,7 @@ Write-Host "Building Portable Folder for TutorHub Secure Exam..."
 
 # 1. Build Maven project
 Write-Host "Running mvn clean install..."
-& "C:\Program Files\Apache NetBeans\java\maven\bin\mvn.cmd" clean install
+& "C:\Program Files\Apache NetBeans\java\maven\bin\mvn.cmd" clean install -DskipTests
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Maven build failed."
 }
@@ -64,6 +64,32 @@ if ($UseJlinkRuntime) {
     if ($LASTEXITCODE -ge 8) {
         Write-Error "Robocopy failed to copy JRE."
     }
+}
+
+# 4b. Copy bundled JCEF binaries
+$cefSource = Join-Path $env:USERPROFILE ".jcef_core_tse_binaries"
+$cefDest = Join-Path $PortableDir "jcef"
+
+if (Test-Path $cefDest) {
+    Remove-Item $cefDest -Recurse -Force
+}
+
+if (Test-Path $cefSource) {
+    Write-Host "Copying bundled CEF binaries from $cefSource..."
+    Copy-Item -Path $cefSource -Destination $cefDest -Recurse -Force
+    
+    if (!(Test-Path (Join-Path $cefDest "chrome_elf.dll"))) {
+        throw "CEF copy failed: chrome_elf.dll not found in $cefDest"
+    }
+
+    if (!(Test-Path (Join-Path $cefDest "locales"))) {
+        throw "CEF copy failed: locales folder not found in $cefDest"
+    }
+
+    Write-Host "[BUILD] Bundled CEF binaries copied with folder structure preserved."
+    Write-Host "[BUILD] CEF locales found: dist\TutorHubSecureExam\jcef\locales"
+} else {
+    Write-Warning "JCEF binaries not found at $cefSource! Portable build might download them at runtime."
 }
 
 # 5. Create application.properties

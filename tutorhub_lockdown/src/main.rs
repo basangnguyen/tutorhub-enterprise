@@ -212,7 +212,7 @@ fn handle_lab_tse_child_test() -> Result<(), LockdownError> {
     Ok(())
 }
 
-fn handle_spawn_child(java_exe: &str, jar_path: &str, context_path: &str, output_path: &str, key_b64: &str) -> Result<(), LockdownError> {
+fn handle_spawn_child(java_exe: &str, jar_path: &str, context_path: &str, output_path: &str, key_b64: &str, app_root: &str) -> Result<(), LockdownError> {
     log::info!("Starting Step 2I.7.5 Secure Desktop TSE Child Spawn");
     
     // Check file existence
@@ -247,7 +247,11 @@ fn handle_spawn_child(java_exe: &str, jar_path: &str, context_path: &str, output
 
     log::info!("CreateProcessW starting Java TSEExamChildClient...");
     
-    let mut args = format!("\"{}\" -cp \"{}\" com.mycompany.tutorhub_enterprise.client.exam.ui.TSEExamChildClient --context \"{}\" --output \"{}\"", java_exe, jar_path, context_path, output_path);
+    let mut args = format!("\"{}\"", java_exe);
+    if !app_root.is_empty() {
+        args.push_str(&format!(" -Dtutorhub.app.root=\"{}\"", app_root));
+    }
+    args.push_str(&format!(" -cp \"{}\" com.mycompany.tutorhub_enterprise.client.exam.ui.TSEExamChildClient --context \"{}\" --output \"{}\"", jar_path, context_path, output_path));
     if !key_b64.is_empty() {
         args.push_str(&format!(" --key \"{}\"", key_b64));
     }
@@ -261,7 +265,7 @@ fn handle_spawn_child(java_exe: &str, jar_path: &str, context_path: &str, output
             log::info!("CreateProcessW success");
             log::info!("Child PID: {}", pid);
             
-            log::info!("Waiting for child process to exit (timeout 180s)...");
+            log::info!("Waiting for child process to exit...");
             unsafe {
                 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ALL_ACCESS, WaitForSingleObject, GetExitCodeProcess};
                 use windows::Win32::Foundation::{CloseHandle, WAIT_TIMEOUT, WAIT_OBJECT_0};
@@ -371,6 +375,7 @@ fn main() -> Result<(), LockdownError> {
         let mut context_path = String::new();
         let mut output_path = String::new();
         let mut key_b64 = String::new();
+        let mut app_root = String::new();
         
         if let Some(c_idx) = args.iter().position(|a| a == "--java-exe") {
             if c_idx + 1 < args.len() { java_exe = args[c_idx + 1].clone(); }
@@ -387,13 +392,16 @@ fn main() -> Result<(), LockdownError> {
         if let Some(k_idx) = args.iter().position(|a| a == "--key") {
             if k_idx + 1 < args.len() { key_b64 = args[k_idx + 1].clone(); }
         }
+        if let Some(a_idx) = args.iter().position(|a| a == "--app-root") {
+            if a_idx + 1 < args.len() { app_root = args[a_idx + 1].clone(); }
+        }
         
         if java_exe.is_empty() || jar_path.is_empty() || context_path.is_empty() || output_path.is_empty() {
             log::error!("Missing arguments for --spawn-child. Need --java-exe, --jar, --context, --output");
             return Err(LockdownError::ConfigParseFailed("Missing paths".to_string()));
         }
         
-        return handle_spawn_child(&java_exe, &jar_path, &context_path, &output_path, &key_b64);
+        return handle_spawn_child(&java_exe, &jar_path, &context_path, &output_path, &key_b64, &app_root);
     }
 
     if session_id.is_empty() || config_b64.is_empty() {

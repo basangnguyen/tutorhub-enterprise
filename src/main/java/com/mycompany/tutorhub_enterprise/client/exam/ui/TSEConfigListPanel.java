@@ -31,7 +31,20 @@ public class TSEConfigListPanel extends KioskBgPanel {
 
         add(buildTopBar(), BorderLayout.NORTH);
         add(buildCenterCard(service, context, onSelect), BorderLayout.CENTER);
-        add(TSELoginPanel.buildTaskbarStatic(onExit), BorderLayout.SOUTH);
+        
+        ExamFooterStatusBar footer = new ExamFooterStatusBar("VIE",
+            btn -> TSEInputModeManager.getInstance().toggleMode(),
+            (source, comp) -> {
+                System.out.println("[TSE_PARENT_FOOTER] Quick Settings requested from CONFIG source=" + source);
+                TSEParentHtmlQuickSettingsPopup.showPopup(comp, "CONFIG");
+            },
+            onExit
+        );
+        System.out.println("[TSE_PARENT_FOOTER] Footer attached to CONFIG card.");
+        TSEInputModeManager.getInstance().addModeChangeListener(() -> {
+            footer.setLanguageLabel(TSEInputModeManager.getInstance().getFooterLabel());
+        });
+        add(footer, BorderLayout.SOUTH);
 
         // Attach Swing Adapter for Vietnamese input (Opt-in)
         SwingUtilities.invokeLater(() -> TSEInputSwingAdapter.installForOptIn(this));
@@ -43,10 +56,12 @@ public class TSEConfigListPanel extends KioskBgPanel {
         bar.setOpaque(false);
         bar.add(TSELoginPanel.iconBtn("images/exam/icons/refresh-cw.svg", 22), "cell 0 0");
 
-        JPanel right = new JPanel(new MigLayout("insets 0, gap 10"));
+        JPanel right = new JPanel(new MigLayout("insets 0, gap 0"));
         right.setOpaque(false);
-        right.add(TSELoginPanel.iconBtn("images/exam/icons/circle-help.svg", 18));
-        right.add(TSELoginPanel.iconBtn("images/exam/icons/sun.svg", 18));
+        JButton btnHelp = TSELoginPanel.iconBtn("images/exam/icons/circle-help.svg", 18);
+        btnHelp.setToolTipText("Thông tin ứng dụng");
+        btnHelp.addActionListener(e -> TSEAboutDialog.showDialog(this, "Danh sách cấu hình thi"));
+        right.add(btnHelp);
         bar.add(right, "cell 1 0");
         return bar;
     }
@@ -254,5 +269,9 @@ public class TSEConfigListPanel extends KioskBgPanel {
         container.add(btnPanel, BorderLayout.SOUTH);
         
         return container;
+    }
+
+    private void showQuickSettingsSwingPopup(JComponent anchor) {
+        // Obsolete, now using JCEF Popup
     }
 }

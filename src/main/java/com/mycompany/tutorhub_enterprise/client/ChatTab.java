@@ -145,24 +145,14 @@ public class ChatTab extends JPanel {
     }
     
     public String uploadToS3Backblaze(File file) {
-        String bucketName = getConfig("TUTORHUB_B2_BUCKET", "tutorhub.b2.bucket", "");
-        String endpoint = getConfig("TUTORHUB_B2_ENDPOINT", "tutorhub.b2.endpoint", "https://s3.us-west-004.backblazeb2.com");
-        String region = getConfig("TUTORHUB_B2_REGION", "tutorhub.b2.region", "us-west-004");
-        String publicBaseUrl = getConfig("TUTORHUB_B2_PUBLIC_BASE_URL", "tutorhub.b2.publicBaseUrl", "");
-        String accessKey = getConfig("TUTORHUB_B2_ACCESS_KEY", "tutorhub.b2.accessKey", "");
-        String secretKey = getConfig("TUTORHUB_B2_SECRET_KEY", "tutorhub.b2.secretKey", "");
+        String bucketName = com.mycompany.tutorhub_enterprise.utils.B2Helper.getBucketName();
+        String publicBaseUrl = com.mycompany.tutorhub_enterprise.utils.B2Helper.getPublicBaseUrl();
         
         try {
-            if (isBlank(bucketName) || isBlank(accessKey) || isBlank(secretKey) || isBlank(publicBaseUrl)) {
+            if (!com.mycompany.tutorhub_enterprise.utils.B2Helper.isConfigured()) {
                 throw new IllegalStateException("Missing Backblaze B2 config. Set TUTORHUB_B2_BUCKET, TUTORHUB_B2_ACCESS_KEY, TUTORHUB_B2_SECRET_KEY and TUTORHUB_B2_PUBLIC_BASE_URL.");
             }
-            software.amazon.awssdk.services.s3.S3Client s3 = software.amazon.awssdk.services.s3.S3Client.builder()
-                .endpointOverride(java.net.URI.create(endpoint))
-                .region(software.amazon.awssdk.regions.Region.of(region))
-                .credentialsProvider(software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(
-                    software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(accessKey, secretKey)
-                ))
-                .build();
+            software.amazon.awssdk.services.s3.S3Client s3 = com.mycompany.tutorhub_enterprise.utils.B2Helper.getS3Client();
                 
             String fileName = "chat/" + System.currentTimeMillis() + "_" + file.getName().replaceAll("[^a-zA-Z0-9.-]", "_");
             long fileSize = file.length();
@@ -250,17 +240,7 @@ public class ChatTab extends JPanel {
         }
     }
 
-    private static String getConfig(String envName, String propertyName, String defaultValue) {
-        String propertyValue = System.getProperty(propertyName);
-        if (!isBlank(propertyValue)) {
-            return propertyValue.trim();
-        }
-        String envValue = System.getenv(envName);
-        if (!isBlank(envValue)) {
-            return envValue.trim();
-        }
-        return defaultValue;
-    }
+
 
     private static boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
@@ -362,7 +342,7 @@ public class ChatTab extends JPanel {
         this.txtGlobalSearch = searchInput;
         this.globalSearchContainer = searchContainer;
 
-        txtGlobalSearch.putClientProperty("JTextField.placeholderText", "Tìm theo tên, email hoặc tin nhắn...");
+        txtGlobalSearch.putClientProperty("JTextField.placeholderText", "Tìm kiếm Biểu tượng");
 
         txtGlobalSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { handleTyping(); }

@@ -357,7 +357,7 @@ public class NativeReelPlayer extends JDialog {
         actionPanel.setOpaque(false);
         actionPanel.setBorder(new EmptyBorder(16, 0, 16, 0));
         
-        actionPanel.add(createRightActionBtn("phat.png", "Phát", false));
+        actionPanel.add(createRightActionBtn("bomb-product-video-svgrepo-com.svg", "Phát", false));
         actionPanel.add(Box.createVerticalStrut(24));
         actionPanel.add(createRightActionBtn("camera.svg", "Ảnh", false));
         actionPanel.add(Box.createVerticalStrut(32));

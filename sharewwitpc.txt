@@ -1,0 +1,456 @@
+Claude, hãy làm **Phase Exam Architecture Research: Nghiên cứu SEB và thiết kế luồng vận hành kỳ thi chuyên nghiệp cho TutorHub Secure Exam**.
+
+Hiện tại hệ thống TutorHub Secure Exam mới tạo được **Kỳ thi**, nhưng chưa có chức năng **tạo câu hỏi, tạo đề thi, gán đề vào kỳ thi, gửi đề sang ứng dụng làm bài, lưu bài làm và chấm điểm**.
+
+Nhiệm vụ của bạn là nghiên cứu thật kỹ mã nguồn hiện tại của dự án và mã nguồn tham khảo của Safe Exam Browser/SEB để hiểu mô hình vận hành một kỳ thi an toàn, sau đó xây dựng **bản kế hoạch kiến trúc chi tiết** cho hệ thống TutorHub.
+
+Không code ngay.
+Không sửa UI.
+Không sửa Rust.
+Không sửa Final Submit.
+Không commit.
+Chỉ nghiên cứu, phân tích, đề xuất kiến trúc và kế hoạch triển khai.
+
+## 1. Đường dẫn dự án
+
+Project chính:
+
+```text
+D:\Ban_sao_du_an
+```
+
+SEB reference nếu có:
+
+```text
+D:\Ban_sao_du_an\seb-reference
+```
+
+Portable app:
+
+```text
+D:\Ban_sao_du_an\dist\TutorHubSecureExam
+```
+
+## 2. Mục tiêu nghiên cứu
+
+Hãy nghiên cứu để trả lời đầy đủ các câu hỏi sau:
+
+```text
+1. Trong SEB, một kỳ thi được vận hành như thế nào?
+2. SEB có tự tạo câu hỏi không, hay chỉ là secure browser/lockdown client?
+3. Hệ thống LMS/server trong mô hình SEB thường chịu trách nhiệm gì?
+4. Câu hỏi được tạo ở đâu?
+5. Đề thi được tạo ở đâu?
+6. Kỳ thi được publish/gửi sang ứng dụng làm bài như thế nào?
+7. Ứng dụng client nhận đề thi bằng cách nào?
+8. Client render câu hỏi, lưu câu trả lời, autosave và submit như thế nào?
+9. Server nhận bài làm, giải mã/validate/chấm điểm như thế nào?
+10. TutorHub hiện tại đang thiếu những module nào?
+```
+
+Lưu ý quan trọng: Không nghiên cứu SEB để bypass bảo mật. Chỉ học kiến trúc vận hành thi an toàn, quy trình exam session, config, secure browser, server/LMS integration và submit flow.
+
+## 3. File/mã nguồn TutorHub cần audit
+
+Tìm và đọc các file liên quan đến:
+
+```text
+- tạo kỳ thi
+- danh sách kỳ thi
+- tham gia kỳ thi
+- exam ID
+- exam session
+- tải đề
+- render bài thi
+- autosave
+- final submit
+- submit_payload.enc
+- parent/child app
+- server API
+- database model
+```
+
+Gợi ý tìm bằng:
+
+```powershell
+cd D:\Ban_sao_du_an
+
+findstr /S /I /N "exam question answer submit payload attempt session" *.java *.js *.html *.sql *.md
+findstr /S /I /N "Tao Ky Thi Tạo Kỳ Thi Cau Hoi Câu Hỏi De Thi Đề Thi" *.java *.js *.html *.sql *.md
+```
+
+Audit kỹ các nhóm file nếu có:
+
+```text
+src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/
+src/main/java/com/mycompany/tutorhub_enterprise/
+src/main/resources/
+docs/
+```
+
+Đặc biệt xem:
+
+```text
+TSEProductionParentSubmitLabLauncher
+TSEExamChildClient
+TSELoginPanel
+TSEConfigListPanel
+TSEQuickSettingsManager
+các panel liên quan Exam
+các class liên quan submit/autosave/payload
+```
+
+## 4. SEB cần nghiên cứu gì?
+
+Trong SEB reference, hãy tìm các khái niệm sau:
+
+```text
+- exam configuration
+- start URL
+- config key
+- browser exam key
+- quit password / quit link
+- exam session
+- LMS integration
+- URL filtering
+- allowed resources
+- secure browser client responsibilities
+- server/LMS responsibilities
+```
+
+Cần phân biệt rõ:
+
+```text
+SEB client làm gì:
+- khóa môi trường
+- mở exam URL
+- hạn chế ứng dụng ngoài
+- enforce policy
+- gửi Browser Exam Key / Config Key nếu có
+- bảo vệ session
+
+LMS/server làm gì:
+- tạo câu hỏi
+- quản lý ngân hàng câu hỏi
+- tạo đề
+- publish kỳ thi
+- phân quyền thí sinh
+- lưu bài làm
+- chấm điểm
+- xuất báo cáo
+```
+
+## 5. Phân tích hiện trạng TutorHub
+
+Sau khi đọc source hiện tại, hãy lập bảng:
+
+```text
+Module hiện có | File/class | Đã làm được gì | Thiếu gì | Rủi ro
+```
+
+Tối thiểu phải đánh giá các module:
+
+```text
+1. Tạo kỳ thi
+2. Danh sách kỳ thi
+3. Tham gia kỳ thi
+4. Màn hình làm bài
+5. Autosave
+6. Final Submit
+7. Payload mã hóa
+8. Server/API
+9. Database
+10. Question bank
+11. Exam paper builder
+12. Grading
+13. Result/report
+14. Role giáo viên/học sinh/admin
+```
+
+## 6. Thiết kế luồng vận hành kỳ thi chuyên nghiệp
+
+Hãy đề xuất luồng chuẩn theo mô hình sau:
+
+```text
+Giáo viên/Admin
+    ↓
+Tạo ngân hàng câu hỏi
+    ↓
+Tạo đề thi / exam paper
+    ↓
+Gán đề vào kỳ thi
+    ↓
+Publish kỳ thi
+    ↓
+Học sinh đăng nhập
+    ↓
+Chọn kỳ thi
+    ↓
+Secure Exam app tải exam package
+    ↓
+Client render câu hỏi
+    ↓
+Autosave câu trả lời
+    ↓
+Final Submit
+    ↓
+Server nhận payload
+    ↓
+Validate / chấm điểm
+    ↓
+Trả kết quả / báo cáo
+```
+
+Với mỗi bước, phải mô tả:
+
+```text
+- Người thao tác là ai
+- UI cần có gì
+- API cần có gì
+- Database cần lưu gì
+- Client cần xử lý gì
+- Security cần kiểm tra gì
+- Log cần ghi gì
+```
+
+## 7. Đề xuất database schema
+
+Thiết kế schema đề xuất, tối thiểu gồm:
+
+```text
+users
+exams
+question_banks
+questions
+question_options
+exam_papers
+exam_paper_questions
+exam_sessions
+exam_attempts
+exam_answers
+exam_submissions
+exam_results
+audit_logs
+```
+
+Với mỗi bảng, mô tả:
+
+```text
+- Mục đích
+- Field chính
+- Quan hệ với bảng khác
+- Index cần có
+- Trạng thái cần quản lý
+```
+
+Ví dụ trạng thái:
+
+```text
+exam.status = DRAFT / PUBLISHED / ACTIVE / CLOSED / ARCHIVED
+attempt.status = NOT_STARTED / IN_PROGRESS / SUBMITTED / AUTO_SUBMITTED / INVALID
+question.type = SINGLE_CHOICE / MULTIPLE_CHOICE / TRUE_FALSE / ESSAY / SHORT_ANSWER
+```
+
+## 8. Đề xuất API/backend
+
+Thiết kế API tối thiểu:
+
+```text
+POST /api/exams
+GET /api/exams
+GET /api/exams/{id}
+POST /api/question-banks
+POST /api/questions
+GET /api/question-banks/{id}/questions
+POST /api/exam-papers
+POST /api/exams/{id}/publish
+POST /api/exams/{id}/start
+GET /api/exams/{id}/package
+POST /api/attempts/{id}/autosave
+POST /api/attempts/{id}/submit
+GET /api/exams/{id}/results
+```
+
+Với mỗi API, mô tả:
+
+```text
+- Request body
+- Response body
+- Ai được gọi
+- Validate gì
+- Security/rate limit
+- Log/audit gì
+```
+
+## 9. Thiết kế Exam Package gửi sang client
+
+Đề xuất cấu trúc package client nhận được:
+
+```json
+{
+  "examId": 3,
+  "attemptId": "...",
+  "title": "...",
+  "durationMinutes": 60,
+  "startedAt": "...",
+  "expiresAt": "...",
+  "questions": [],
+  "policy": {},
+  "signature": "...",
+  "packageHash": "..."
+}
+```
+
+Yêu cầu phân tích:
+
+```text
+- Có nên ký số package không?
+- Có nên hash câu hỏi không?
+- Có nên mã hóa local cache không?
+- Client lưu cache ở đâu?
+- Nếu mất mạng thì autosave thế nào?
+- Nếu reconnect thì đồng bộ thế nào?
+```
+
+## 10. Thiết kế UI cần bổ sung
+
+Hiện tại chỉ có “Tạo Kỳ Thi”. Hãy đề xuất UI theo thứ tự triển khai:
+
+```text
+1. Question Bank Management
+2. Create Question Dialog
+3. Question List
+4. Exam Paper Builder
+5. Assign Questions to Exam
+6. Publish Exam
+7. Student Join Exam
+8. Exam Taking UI
+9. Review Answers
+10. Result Dashboard
+```
+
+Với mỗi UI, mô tả:
+
+```text
+- Màn hình nằm ở đâu
+- Thành phần giao diện
+- Button/action
+- API gọi xuống backend
+- Validation
+```
+
+## 11. Thiết kế client làm bài
+
+Mô tả chi tiết client Secure Exam cần làm:
+
+```text
+1. Nhận examId/attemptId
+2. Gọi server lấy exam package
+3. Verify package
+4. Render câu hỏi
+5. Lưu answer state
+6. Autosave định kỳ
+7. Safe Refresh giữ câu trả lời
+8. Submit cuối
+9. Ghi submit_payload.enc
+10. Parent nhận payload
+11. Server nhận và xử lý
+```
+
+Phải đảm bảo không làm hỏng luồng Final Submit hiện tại.
+
+## 12. Security checklist
+
+Đề xuất checklist bảo mật:
+
+```text
+- Không cho sửa câu hỏi sau khi publish nếu đã có attempt
+- Mỗi học sinh chỉ có attempt hợp lệ
+- Attempt token ký hoặc mã hóa
+- Exam package có hash/signature
+- Submit payload có attemptId/examId/userId/timestamp
+- Autosave không ghi đè submit cuối
+- Server chống submit trùng
+- Audit log mọi hành động giáo viên/học sinh
+- Không log nội dung bài làm nhạy cảm vào terminal
+- Không lưu plaintext payload nếu không cần
+```
+
+## 13. Kế hoạch triển khai theo phase
+
+Xây dựng roadmap thật chi tiết, chia phase nhỏ, ví dụ:
+
+```text
+Phase A: Research & schema design
+Phase B: Question Bank CRUD
+Phase C: Create Question UI
+Phase D: Exam Paper Builder
+Phase E: Assign Paper to Exam
+Phase F: Publish Exam
+Phase G: Student Start Attempt
+Phase H: Exam Package API
+Phase I: Client Render Questions
+Phase J: Autosave
+Phase K: Final Submit integration
+Phase L: Grading
+Phase M: Result Dashboard
+Phase N: Audit & hardening
+```
+
+Với mỗi phase, ghi:
+
+```text
+- Mục tiêu
+- File dự kiến sửa
+- API/db cần thêm
+- Test cần chạy
+- Rủi ro
+- Điều kiện được chuyển phase
+```
+
+## 14. Tạo tài liệu bắt buộc
+
+Tạo file:
+
+```text
+docs/tse_exam_operation_architecture_research.md
+```
+
+Nội dung gồm:
+
+```text
+1. Tóm tắt nghiên cứu SEB
+2. SEB làm gì và không làm gì
+3. TutorHub hiện đang có gì
+4. TutorHub đang thiếu gì
+5. Luồng vận hành kỳ thi đề xuất
+6. Database schema đề xuất
+7. API đề xuất
+8. Exam package đề xuất
+9. UI cần bổ sung
+10. Client exam-taking flow
+11. Security checklist
+12. Roadmap triển khai theo phase
+13. Rủi ro và khuyến nghị
+```
+
+## 15. Báo cáo lại
+
+Báo cáo theo mẫu:
+
+```text
+1. Đã nghiên cứu SEB reference chưa?
+2. SEB có tạo câu hỏi không, hay LMS/server tạo?
+3. TutorHub hiện tại thiếu module nào để tạo câu hỏi/tạo đề?
+4. Đề xuất schema gồm những bảng nào?
+5. Đề xuất API chính gồm những endpoint nào?
+6. Exam package nên có cấu trúc gì?
+7. Client sẽ nhận đề và submit bài như thế nào?
+8. Roadmap triển khai gồm bao nhiêu phase?
+9. Phase tiếp theo nên làm ngay là gì?
+10. Đã tạo docs/tse_exam_operation_architecture_research.md chưa?
+11. Có sửa code không?
+12. git status
+```
+
+Nhắc lại: chỉ nghiên cứu và lập kế hoạch, không code, không commit.

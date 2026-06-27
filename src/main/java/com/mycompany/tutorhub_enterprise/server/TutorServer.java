@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
 
 public class TutorServer extends WebSocketServer {
     // Đọc Port từ Đám mây (Biến môi trường), nếu không có thì dùng cổng 7860
-    private static final int PORT = System.getenv("PORT") != null ? Integer.parseInt(System.getenv("PORT")) : 7860;
+    private static final int PORT = Integer.parseInt(ServerConfig.get("TUTORHUB_WS_INTERNAL_PORT", "tutorhub.ws.internal.port", null, System.getenv("PORT") != null ? System.getenv("PORT") : "7860"));
     private static final ExecutorService threadPool = Executors.newFixedThreadPool(500);
 
     public TutorServer(InetSocketAddress address) {
@@ -99,5 +99,44 @@ public class TutorServer extends WebSocketServer {
         com.mycompany.tutorhub_enterprise.server.db.ExamDatabaseManager.initialize();
         server.start();
         System.out.println("[SERVER] Đang khởi động...");
+        
+        try {
+            String clientId = SocialAuthConfig.getGoogleClientId();
+            System.out.println("[OAUTH CONFIG] Google Client ID loaded: true");
+        } catch (Exception e) {
+            System.out.println("[OAUTH CONFIG] Google Client ID loaded: false");
+        }
+        
+        try {
+            String clientSecret = SocialAuthConfig.getGoogleClientSecret();
+            System.out.println("[OAUTH CONFIG] Google Client Secret loaded: true");
+        } catch (Exception e) {
+            System.out.println("[OAUTH CONFIG] Google Client Secret loaded: false");
+        }
+        
+        try {
+            String fbAppId = SocialAuthConfig.getFacebookAppId();
+            System.out.println("[OAUTH CONFIG] Facebook App ID loaded: true");
+        } catch (Exception e) {
+            System.out.println("[OAUTH CONFIG] Facebook App ID loaded: false");
+        }
+
+        try {
+            String fbSecret = SocialAuthConfig.getFacebookAppSecret();
+            System.out.println("[OAUTH CONFIG] Facebook App Secret loaded: true");
+        } catch (Exception e) {
+            System.out.println("[OAUTH CONFIG] Facebook App Secret loaded: false");
+        }
+        
+        String redirectPort = ServerConfig.get("TUTORHUB_GOOGLE_REDIRECT_PORT", "tutorhub.google.redirect.port", "google.redirect.port", "8889");
+        System.out.println("[OAUTH CONFIG] Redirect Port: " + redirectPort);
+
+        try {
+            int fbPort = SocialAuthConfig.getFacebookOAuthHttpPort();
+            com.mycompany.tutorhub_enterprise.server.oauth.FacebookOAuthCallbackServer fbServer = new com.mycompany.tutorhub_enterprise.server.oauth.FacebookOAuthCallbackServer(fbPort);
+            fbServer.start();
+        } catch (Exception e) {
+            System.err.println("[OAUTH CONFIG ERROR] Không thể khởi động Facebook Callback Server: " + e.getMessage());
+        }
     }
 }

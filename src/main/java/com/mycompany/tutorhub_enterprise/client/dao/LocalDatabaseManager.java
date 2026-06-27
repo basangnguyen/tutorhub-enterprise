@@ -28,6 +28,7 @@ public class LocalDatabaseManager {
 
     private void initDatabase() {
         try {
+            Class.forName("org.sqlite.JDBC");
             // Lấy thư mục AppData hoặc home
             String appData = System.getenv("APPDATA");
             if (appData == null) {
@@ -78,7 +79,7 @@ public class LocalDatabaseManager {
             addColumnIfMissing("messages", "clientMessageId", "TEXT");
             addColumnIfMissing("messages", "serverMessageId", "INTEGER DEFAULT 0");
             addColumnIfMissing("messages", "isRead", "INTEGER DEFAULT 0");
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

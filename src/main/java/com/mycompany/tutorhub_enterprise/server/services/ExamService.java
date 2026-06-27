@@ -29,7 +29,17 @@ public class ExamService {
     }
 
     public static Packet handleGetExams(int userId) {
-        List<Exam> exams = ExamDAO.getExamsByCreator(userId);
+        String role = ExamDAO.getUserRole(userId);
+        System.out.println("[GET_EXAMS] userId=" + userId + ", role=" + role);
+        List<Exam> exams;
+        if ("STUDENT".equalsIgnoreCase(role)) {
+            System.out.println("[GET_EXAMS] queryMode=STUDENT");
+            exams = ExamDAO.getExamsForStudent();
+        } else {
+            System.out.println("[GET_EXAMS] queryMode=TUTOR");
+            exams = ExamDAO.getExamsByCreator(userId);
+        }
+        System.out.println("[GET_EXAMS] count=" + exams.size());
         return new Packet("EXAM_LIST", exams);
     }
 

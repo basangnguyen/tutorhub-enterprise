@@ -141,6 +141,98 @@ public class DatabaseManager {
             st.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_message_id TEXT");
             st.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_message_id ON messages(conversation_id, sender_id, client_message_id) WHERE client_message_id IS NOT NULL AND client_message_id <> ''");
             
+            // --- SOCIAL AUTH TABLES ---
+            st.execute("CREATE TABLE IF NOT EXISTS auth_identities (" +
+                    "id SERIAL PRIMARY KEY, " +
+                    "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, " +
+                    "provider VARCHAR(20) NOT NULL, " +
+                    "provider_user_id VARCHAR(255) NOT NULL, " +
+                    "email VARCHAR(255), " +
+                    "email_verified BOOLEAN DEFAULT FALSE, " +
+                    "display_name VARCHAR(255), " +
+                    "avatar_url TEXT, " +
+                    "raw_profile JSONB, " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "UNIQUE(provider, provider_user_id))");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_auth_identities_user_id ON auth_identities(user_id)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_auth_identities_email ON auth_identities(provider, email)");
+
+            st.execute("CREATE TABLE IF NOT EXISTS login_audit_logs (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "user_id INTEGER, " +
+                    "provider VARCHAR(20), " +
+                    "ip_address VARCHAR(50), " +
+                    "success BOOLEAN, " +
+                    "failure_reason TEXT, " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+            st.execute("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL");
+
+            st.execute("CREATE TABLE IF NOT EXISTS auth_sessions (" +
+                    "id VARCHAR(64) PRIMARY KEY, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "access_token_hash VARCHAR(255), " +
+                    "refresh_token_hash VARCHAR(255), " +
+                    "device_id VARCHAR(128), " +
+                    "device_name VARCHAR(255), " +
+                    "app_version VARCHAR(64), " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "expires_at TIMESTAMP, " +
+                    "revoked_at TIMESTAMP)");
+
+
+            // --- LOCKET CORE TABLES ---
+            st.execute("CREATE TABLE IF NOT EXISTS locket_posts (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "class_id INTEGER, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "image_url TEXT NOT NULL, " +
+                    "thumbnail_url TEXT, " +
+                    "caption TEXT, " +
+                    "media_type VARCHAR(20) NOT NULL DEFAULT 'image', " +
+                    "like_count INTEGER NOT NULL DEFAULT 0, " +
+                    "comment_count INTEGER NOT NULL DEFAULT 0, " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "deleted_at TIMESTAMP)");
+            
+            // Safe migration for existing DB
+            st.execute("DO $$\n" +
+                    "BEGIN\n" +
+                    "    IF EXISTS (\n" +
+                    "        SELECT 1\n" +
+                    "        FROM information_schema.columns\n" +
+                    "        WHERE table_name = 'locket_posts'\n" +
+                    "          AND column_name = 'class_id'\n" +
+                    "          AND is_nullable = 'NO'\n" +
+                    "    ) THEN\n" +
+                    "        ALTER TABLE locket_posts ALTER COLUMN class_id DROP NOT NULL;\n" +
+                    "    END IF;\n" +
+                    "END $$;");
+
+            st.execute("CREATE TABLE IF NOT EXISTS locket_reactions (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "post_id BIGINT NOT NULL, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "reaction_type VARCHAR(20) NOT NULL DEFAULT 'HEART', " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "UNIQUE(post_id, user_id, reaction_type))");
+
+            st.execute("CREATE TABLE IF NOT EXISTS locket_comments (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "post_id BIGINT NOT NULL, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "content TEXT NOT NULL, " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "deleted_at TIMESTAMP)");
+
+            st.execute("CREATE INDEX IF NOT EXISTS idx_locket_posts_class_created ON locket_posts(class_id, created_at DESC)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_locket_reactions_post ON locket_reactions(post_id)");
+            st.execute("CREATE INDEX IF NOT EXISTS idx_locket_comments_post_created ON locket_comments(post_id, created_at ASC)");
+
             System.out.println("[DB] Đã kiểm tra và vá lỗi cấu trúc bảng thành công!");
         } catch (Exception e) {
             System.err.println("[DB ERROR] Database schema check failed: " + e.getMessage());
@@ -177,23 +269,37 @@ public class DatabaseManager {
     }
     
     public static int authenticateByEmail(String email, String inputPassword) {
-        String sql = "SELECT id, password_hash, role FROM users WHERE email = ?";
+        String sql = "SELECT id, password_hash, role, status FROM users WHERE email = ?";
+        String maskedEmail = AuthRateLimitService.maskIdentifier(email);
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, email); ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
                 String dbHash = rs.getString("password_hash");
+                String role = rs.getString("role");
+                String status = "UNKNOWN";
+                try { status = rs.getString("status"); } catch(Exception ignored) {}
+                
+                System.out.println("[AUTH_LOGIN] credential lookup completed identifier=" + maskedEmail + ", role=" + role + ", status=" + status);
+                
                 if (ServerConfig.isBlank(dbHash)) {
-                    System.err.println("[AUTH ERROR] User has empty password hash.");
+                    System.err.println("[AUTH ERROR] failureReason=Empty password hash");
                     return AUTH_INVALID_PASSWORD_HASH;
                 }
                 try {
-                    if (BCrypt.checkpw(inputPassword, dbHash)) { return rs.getInt("id"); }
+                    if (BCrypt.checkpw(inputPassword, dbHash)) { 
+                        System.out.println("[AUTH_LOGIN] credential verified");
+                        return rs.getInt("id"); 
+                    }
+                    System.out.println("[AUTH_LOGIN] credential verification failed");
                     return AUTH_FAILED;
                 } catch (IllegalArgumentException e) {
-                    System.err.println("[AUTH ERROR] User password hash is not BCrypt-compatible: " + e.getMessage());
+                    System.err.println("[AUTH ERROR] credential verification failed, invalid password hash");
                     return AUTH_INVALID_PASSWORD_HASH;
                 }
-            } else { return AUTH_FAILED; }
+            } else { 
+                System.out.println("[AUTH_LOGIN] credential verification failed identifier=" + maskedEmail);
+                return AUTH_FAILED; 
+            }
         } catch (SQLException e) {
             System.err.println("[DB ERROR] authenticateByEmail failed: " + e.getMessage());
             return AUTH_DATABASE_ERROR;
@@ -689,6 +795,102 @@ public class DatabaseManager {
             pst.executeUpdate();
         } catch (Exception e) {
             System.err.println("[DB LỖI] deleteLocket: " + e.getMessage());
+        }
+    }
+
+
+    // --- SOCIAL AUTH AND AUDIT METHODS ---
+
+    public static void insertLoginAuditLog(int userId, String provider, boolean success, String failureReason) {
+        String sql = "INSERT INTO login_audit_logs (user_id, provider, ip_address, success, failure_reason) VALUES (?, ?, ?, ?, ?)";
+        try (java.sql.Connection conn = getConnection(); java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            if (userId > 0) {
+                pstmt.setInt(1, userId);
+            } else {
+                pstmt.setNull(1, java.sql.Types.INTEGER);
+            }
+            pstmt.setString(2, provider);
+            pstmt.setString(3, "UNKNOWN"); // IP address not captured yet
+            pstmt.setBoolean(4, success);
+            pstmt.setString(5, failureReason);
+            pstmt.executeUpdate();
+        } catch (java.sql.SQLException e) {
+            System.err.println("[DB ERROR] insertLoginAuditLog failed: " + e.getMessage());
+        }
+    }
+
+    public static int findUserByProviderIdentity(String provider, String providerUserId) {
+        String sql = "SELECT user_id FROM auth_identities WHERE provider = ? AND provider_user_id = ?";
+        try (java.sql.Connection conn = getConnection(); java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, provider);
+            pstmt.setString(2, providerUserId);
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("user_id");
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("[DB ERROR] findUserByProviderIdentity failed: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static int findUserByEmail(String email) {
+        String sql = "SELECT id FROM users WHERE email = ?";
+        try (java.sql.Connection conn = getConnection(); java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, email);
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("[DB ERROR] findUserByEmail failed: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static int createSocialUser(String email, String displayName, String avatarUrl, String provider) {
+        String sql = "INSERT INTO users (email, full_name, role, status, avatar_url) VALUES (?, ?, 'STUDENT', 'ACTIVE', ?) RETURNING id";
+        try (java.sql.Connection conn = getConnection(); java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, email);
+            pstmt.setString(2, displayName != null ? displayName : "User");
+            pstmt.setString(3, avatarUrl);
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("[DB ERROR] createSocialUser failed: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static void insertAuthIdentity(int userId, String provider, String providerUserId, String email, boolean emailVerified, String displayName, String rawProfile) {
+        String sql = "INSERT INTO auth_identities (user_id, provider, provider_user_id, email, email_verified, display_name, raw_profile) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb) ON CONFLICT (provider, provider_user_id) DO NOTHING";
+        try (java.sql.Connection conn = getConnection(); java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.setString(2, provider);
+            pstmt.setString(3, providerUserId);
+            pstmt.setString(4, email);
+            pstmt.setBoolean(5, emailVerified);
+            pstmt.setString(6, displayName);
+            pstmt.setString(7, rawProfile);
+            pstmt.executeUpdate();
+        } catch (java.sql.SQLException e) {
+            System.err.println("[DB ERROR] insertAuthIdentity failed: " + e.getMessage());
+        }
+    }
+
+    public static void updateLastSocialLogin(String provider, String providerUserId) {
+        String sql = "UPDATE auth_identities SET last_login_at = CURRENT_TIMESTAMP WHERE provider = ? AND provider_user_id = ?";
+        try (java.sql.Connection conn = getConnection(); java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, provider);
+            pstmt.setString(2, providerUserId);
+            pstmt.executeUpdate();
+        } catch (java.sql.SQLException e) {
+            System.err.println("[DB ERROR] updateLastSocialLogin failed: " + e.getMessage());
         }
     }
 }

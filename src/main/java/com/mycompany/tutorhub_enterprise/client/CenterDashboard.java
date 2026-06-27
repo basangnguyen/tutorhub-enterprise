@@ -331,7 +331,7 @@ public class CenterDashboard extends JFrame {
         menuList.setBackground(BG_WHITE);
         menuList.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        menuList.add(createSidebarMenu("Bảng tin lớp", "https://img.icons8.com/fluency-systems-regular/48/6B7280/home.png", false));
+        menuList.add(createSidebarMenu("Bảng tin", "https://img.icons8.com/fluency-systems-regular/48/6B7280/home.png", false));
         menuList.add(Box.createVerticalStrut(5));
         menuList.add(createSidebarMenu("Lớp đã lưu", "https://img.icons8.com/fluency-systems-regular/48/6B7280/bookmark-ribbon.png", false));
         menuList.add(Box.createVerticalStrut(20));
@@ -342,9 +342,9 @@ public class CenterDashboard extends JFrame {
         menuList.add(pQuanLy);
         menuList.add(Box.createVerticalStrut(10));
         
-        menuList.add(createSidebarMenu("Lớp của tôi", "https://img.icons8.com/fluency-systems-regular/48/6B7280/briefcase.png", false));
+        menuList.add(createSidebarMenu("Lớp học", "https://img.icons8.com/fluency-systems-regular/48/6B7280/briefcase.png", false));
         menuList.add(Box.createVerticalStrut(5));
-        menuList.add(createSidebarMenu("Lịch dạy", "https://img.icons8.com/fluency-systems-regular/48/6B7280/calendar.png", false));
+        menuList.add(createSidebarMenu("Lịch", "https://img.icons8.com/fluency-systems-regular/48/6B7280/calendar.png", false));
         menuList.add(Box.createVerticalStrut(20));
         
         JLabel lblCongCu = new JLabel("CÔNG CỤ"); lblCongCu.setFont(new Font("Segoe UI", Font.BOLD, 10)); lblCongCu.setForeground(TEXT_MUTED);
@@ -459,7 +459,7 @@ public class CenterDashboard extends JFrame {
         wrapper.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (text.equals("Tổng quan trung tâm") || text.equals("Bảng tin lớp")) {
+                if (text.equals("Tổng quan trung tâm") || text.equals("Bảng tin")) {
                     cardLayout.show(mainContentPanel, "DASHBOARD");
                 } else if (text.equals("Cài đặt")) {
                     cardLayout.show(mainContentPanel, "ADMIN_PROFILE");

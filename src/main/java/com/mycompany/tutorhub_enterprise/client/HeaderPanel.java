@@ -18,6 +18,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class HeaderPanel extends JPanel {
     
     public static class NotificationModel {
@@ -40,7 +44,7 @@ public class HeaderPanel extends JPanel {
     private static Map<String, ImageIcon> iconCache = new HashMap<>();
     private boolean hasCustomAvatar = false; 
 
-    private JTextField txtGlobalSearch;
+    private com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar globalSearchBar;
     private JPanel globalSearchContainer;
     
     private ActionBox chatBox;
@@ -57,57 +61,24 @@ public class HeaderPanel extends JPanel {
     public HeaderPanel(MainDashboard dashboard, String userName) {
         this.dashboard = dashboard;
         setLayout(new BorderLayout());
-        setBackground(Color.WHITE);
-        setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.decode("#E4DAFF")));
-        setPreferredSize(new Dimension(0, 76));
+        setOpaque(false);
+        setBorder(new EmptyBorder(0, 0, 0, 0));
+        setPreferredSize(new Dimension(0, 64));
 
-        // --- 1. THANH TÌM KIẾM TOÀN CỤC ---
-        JPanel searchWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 28, 15));
+        // --- 1. THANH TÌM KIẾM TOÀN CỤC (REACT WEB BANNER) ---
+        JPanel searchWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 40, 6));
         searchWrapper.setOpaque(false);
         
-        globalSearchContainer = new JPanel(new BorderLayout(10, 0)) {
-            private boolean isFocused = false;
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create(); g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(isFocused ? Color.WHITE : Color.decode("#F8FAFC")); 
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14); 
-                g2.setColor(isFocused ? Color.decode("#7C3AED") : new Color(0,0,0,0)); 
-                g2.setStroke(new BasicStroke(1.5f));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14); g2.dispose();
-            }
-            public void setFocused(boolean focus) { this.isFocused = focus; repaint(); }
-        };
+        globalSearchContainer = new JPanel(new BorderLayout());
         globalSearchContainer.setOpaque(false);
-        globalSearchContainer.setPreferredSize(new Dimension(380, 44)); 
-        globalSearchContainer.setBorder(new EmptyBorder(0, 16, 0, 12));
-
-        JLabel searchIcon = new JLabel();
-        setNetworkIcon(searchIcon, "https://img.icons8.com/fluency-systems-regular/48/9CA3AF/search.png", 18, 18);
-        globalSearchContainer.add(searchIcon, BorderLayout.WEST);
-
-        txtGlobalSearch = new JTextField();
-        txtGlobalSearch.setBorder(null); txtGlobalSearch.setOpaque(false);
-        txtGlobalSearch.setFont(new Font("Segoe UI", Font.PLAIN, 14)); 
-        txtGlobalSearch.setForeground(Color.decode("#0F172A"));
+        globalSearchContainer.setPreferredSize(new Dimension(460, 52)); 
         
-        JLabel lblShortcut = new JLabel("Ctrl K");
-        lblShortcut.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        lblShortcut.setForeground(Color.decode("#9CA3AF"));
-        lblShortcut.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1), new EmptyBorder(2, 6, 2, 6)));
-        JPanel rightSearchIcon = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 12));
-        rightSearchIcon.setOpaque(false); rightSearchIcon.add(lblShortcut);
-        globalSearchContainer.add(rightSearchIcon, BorderLayout.EAST);
-
-        txtGlobalSearch.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) { try { globalSearchContainer.getClass().getMethod("setFocused", boolean.class).invoke(globalSearchContainer, true); } catch(Exception e){} }
-            public void focusLost(java.awt.event.FocusEvent evt) { try { globalSearchContainer.getClass().getMethod("setFocused", boolean.class).invoke(globalSearchContainer, false); } catch(Exception e){} }
-        });
-        
-        globalSearchContainer.add(txtGlobalSearch, BorderLayout.CENTER);
+        globalSearchBar = new com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar();
+        globalSearchContainer.add(globalSearchBar, BorderLayout.CENTER);
         searchWrapper.add(globalSearchContainer);
 
         // --- 2. CÁC NÚT ĐIỀU KHIỂN BÊN PHẢI ---
-        JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 15));
+        JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         rightControls.setOpaque(false);
         /*
         JButton btnNewClass = new JButton("+ Đăng lớp mới");
@@ -192,7 +163,26 @@ public class HeaderPanel extends JPanel {
         logoutItem.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc chắn muốn đăng xuất?", "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
             if (confirm == JOptionPane.YES_OPTION) {
-                NetworkManager.getInstance().disconnect(); dashboard.dispose(); 
+                System.out.println("[LOGOUT] Cleaning session...");
+                
+                com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo = com.mycompany.tutorhub_enterprise.client.auth.ClientSessionManager.getSession();
+                if (sessionInfo != null) {
+                    new Thread(() -> {
+                        try {
+                            new AuthClient().logout(sessionInfo.getSessionId(), sessionInfo.getAccessToken());
+                        } catch (Exception ex) {
+                            System.err.println("[LOGOUT] Server revoke failed: " + ex.getMessage());
+                        }
+                    }).start();
+                }
+                com.mycompany.tutorhub_enterprise.client.auth.ClientSessionManager.clear();
+                
+                System.out.println("[LOGOUT] Stopping social login timers...");
+                com.mycompany.tutorhub_enterprise.client.oauth.FacebookLoginFlow.stop();
+                com.mycompany.tutorhub_enterprise.client.oauth.OAuthLoginFlow.stop();
+                System.out.println("[LOGOUT] Disconnecting websocket...");
+                System.out.println("[LOGOUT] Reset NetworkManager/AuthClient...");
+                NetworkManager.resetInstance(); dashboard.dispose(); 
                 SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
             }
         });
@@ -232,16 +222,29 @@ public class HeaderPanel extends JPanel {
         });
     }
 
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(Color.WHITE);
+        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+        g2.dispose();
+        super.paintComponent(g);
+    }
+
     // HÀM MỚI: Dùng để cập nhật trực tiếp con số trên Icon Chat từ bên ngoài
     public void updateChatBadge(int unreadCount) {
         SwingUtilities.invokeLater(() -> {
             if (chatBox != null) {
                 chatBox.setBadge(unreadCount);
             }
+            if (dashboard != null) {
+                dashboard.updateMessageTabBadge(unreadCount);
+            }
         });
     }
     
-    public JTextField getGlobalSearchInput() { return txtGlobalSearch; }
+    public JTextField getGlobalSearchInput() { return globalSearchBar.getField(); }
     public JPanel getGlobalSearchContainer() { return globalSearchContainer; }
     public void updateAvatar(Image img) { this.hasCustomAvatar = true; if (avatarPanel != null) { avatarPanel.setAvatar(img); } }
     public Image getAvatar() { return avatarPanel != null ? avatarPanel.getAvatarImage() : null; }
@@ -399,6 +402,7 @@ public class HeaderPanel extends JPanel {
             this.recentConversations = chatTabRef.getConversations();
             int unread = recentConversations.stream().mapToInt(c -> c.unreadCount).sum();
             if (chatBox != null) chatBox.setBadge(unread);
+            if (dashboard != null) dashboard.updateMessageTabBadge(unread);
         }
 
         JPopupMenu popup = new JPopupMenu();
@@ -589,6 +593,8 @@ public class HeaderPanel extends JPanel {
     // =========================================================================
     // HELPER CLASSES
     // =========================================================================
+
+    // Removed JavaSearchInterface since we don't use JS interop anymore
 
     class ActionBox extends JPanel {
         private int badgeCount = 0;

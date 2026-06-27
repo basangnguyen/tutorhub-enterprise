@@ -32,6 +32,14 @@ public class NetworkManager {
         return instance;
     }
 
+    public static void resetInstance() {
+        if (instance != null) {
+            instance.disconnect();
+            instance = null;
+            System.out.println("[LOGOUT] Reset NetworkManager");
+        }
+    }
+
     // Production can override this with -Dtutorhub.websocket.url=... or TUTORHUB_WS_URL.
     private static final String CLOUD_WEBSOCKET_URL = "wss://hocba299-3-tutorhub-core.hf.space";
     private static final String WS_URL_PROPERTY = "tutorhub.websocket.url";
@@ -61,12 +69,22 @@ public class NetworkManager {
         if (configuredUrl == null || configuredUrl.trim().isEmpty()) {
             configuredUrl = System.getenv(WS_URL_ENV);
         }
-        if (configuredUrl != null && !configuredUrl.trim().isEmpty()) {
-            return toWebSocketUri(configuredUrl.trim(), 7860);
+        if (configuredUrl == null || configuredUrl.trim().isEmpty()) {
+            try (java.io.InputStream is = getClass().getResourceAsStream("/client-public.properties")) {
+                if (is != null) {
+                    java.util.Properties props = new java.util.Properties();
+                    props.load(is);
+                    configuredUrl = props.getProperty("tutorhub.websocket.url");
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
         }
-
-        // Return local server uri instead of forcing cloud
-        return toWebSocketUri(host != null ? host : "localhost", 7860);
+        if (configuredUrl == null || configuredUrl.trim().isEmpty()) {
+            configuredUrl = "wss://hocba299-3-tutorhub-sync.hf.space";
+        }
+        System.out.println("[CLIENT CONFIG] WebSocket URL resolved = " + configuredUrl);
+        return toWebSocketUri(configuredUrl.trim(), 7860);
     }
 
 
@@ -144,14 +162,22 @@ public class NetworkManager {
     }
 
     private boolean matches(Packet packet, String expectedAction, String expectedRequestId) {
+        // If we have a specific requestId, match it first and ignore action (could be ERROR or SUCCESS)
+        if (expectedRequestId != null && !expectedRequestId.trim().isEmpty()) {
+            if (expectedRequestId.equals(packet.payload)) {
+                return true;
+            }
+            if (packet.data instanceof AuthResponse response && expectedRequestId.equals(response.getRequestId())) {
+                return true;
+            }
+            return false; // If requestId was specified but didn't match, reject
+        }
+        
+        // Fallback for requests without requestId (legacy)
         if (expectedAction != null && !expectedAction.equals(packet.action)) {
             return false;
         }
-        if (expectedRequestId == null || expectedRequestId.trim().isEmpty()) {
-            return true;
-        }
-        return packet.data instanceof AuthResponse response
-                && expectedRequestId.equals(response.getRequestId());
+        return true;
     }
 
     // Class nội bộ quản lý các sự kiện WebSocket

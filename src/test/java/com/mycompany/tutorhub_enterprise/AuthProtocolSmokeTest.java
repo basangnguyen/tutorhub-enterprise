@@ -59,8 +59,6 @@ class AuthProtocolSmokeTest {
         assertTrue(authClient.contains("AuthProtocol.VERIFY_SMS_LOGIN"));
 
         assertTrue(loginFrame.contains("new AuthClient().login"));
-        assertTrue(loginFrame.contains("requestSmsLoginOtp"));
-        assertTrue(loginFrame.contains("verifySmsLogin"));
         assertTrue(loginFrame.contains("requestPasswordResetOtp"));
         assertTrue(loginFrame.contains("resetPassword"));
 

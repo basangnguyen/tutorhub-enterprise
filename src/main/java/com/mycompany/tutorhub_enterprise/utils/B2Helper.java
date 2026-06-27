@@ -8,17 +8,29 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
+import com.mycompany.tutorhub_enterprise.server.ServerConfig;
+
 import java.net.URI;
 import java.time.Duration;
 
 public class B2Helper {
     private static S3Presigner presigner = null;
-    private static final String BUCKET_NAME = getConfig("TUTORHUB_B2_BUCKET", "tutorhub.b2.bucket", "tutorhub-videos-123");
-    private static final String ENDPOINT = getConfig("TUTORHUB_B2_ENDPOINT", "tutorhub.b2.endpoint", "https://s3.us-west-004.backblazeb2.com");
-    private static final String REGION = getConfig("TUTORHUB_B2_REGION", "tutorhub.b2.region", "us-west-004");
-    private static final String PUBLIC_BASE_URL = getConfig("TUTORHUB_B2_PUBLIC_BASE_URL", "tutorhub.b2.publicBaseUrl", "https://tutorhub-videos-123.s3.us-west-004.backblazeb2.com");
-    private static final String ACCESS_KEY = getConfig("TUTORHUB_B2_ACCESS_KEY", "tutorhub.b2.accessKey", "");
-    private static final String SECRET_KEY = getConfig("TUTORHUB_B2_SECRET_KEY", "tutorhub.b2.secretKey", "");
+    private static final String BUCKET_NAME = ServerConfig.get("TUTORHUB_B2_BUCKET", "tutorhub.b2.bucket", null, "tutorhub-videos-123");
+    private static final String ENDPOINT = ServerConfig.get("TUTORHUB_B2_ENDPOINT", "tutorhub.b2.endpoint", null, "https://s3.us-west-004.backblazeb2.com");
+    private static final String REGION = ServerConfig.get("TUTORHUB_B2_REGION", "tutorhub.b2.region", null, "us-west-004");
+    private static final String PUBLIC_BASE_URL = ServerConfig.get("TUTORHUB_B2_PUBLIC_BASE_URL", "tutorhub.b2.publicBaseUrl", null, "https://tutorhub-videos-123.s3.us-west-004.backblazeb2.com");
+    private static final String ACCESS_KEY = ServerConfig.get("TUTORHUB_B2_ACCESS_KEY", "tutorhub.b2.accessKey", null, "");
+    private static final String SECRET_KEY = ServerConfig.get("TUTORHUB_B2_SECRET_KEY", "tutorhub.b2.secretKey", null, "");
+
+    static {
+        System.out.println("[B2_CONFIG] Audit Config Loaded:");
+        System.out.println("[B2_CONFIG] - TUTORHUB_B2_BUCKET present: " + !isBlank(BUCKET_NAME));
+        System.out.println("[B2_CONFIG] - TUTORHUB_B2_ENDPOINT present: " + !isBlank(ENDPOINT));
+        System.out.println("[B2_CONFIG] - TUTORHUB_B2_REGION present: " + !isBlank(REGION));
+        System.out.println("[B2_CONFIG] - TUTORHUB_B2_ACCESS_KEY present: " + !isBlank(ACCESS_KEY));
+        System.out.println("[B2_CONFIG] - TUTORHUB_B2_SECRET_KEY present: " + !isBlank(SECRET_KEY));
+        System.out.println("[B2_CONFIG] Config source priority: 1. ENV -> 2. System Property -> 3. application.properties");
+    }
 
     public static synchronized S3Presigner getPresigner() {
         ensureConfigured();
@@ -65,6 +77,7 @@ public class B2Helper {
     public static String getPublicBaseUrl() {
         return PUBLIC_BASE_URL.replaceAll("/+$", "");
     }
+
 
     public static String uploadBase64Image(String base64Data, String extension) {
         try {
@@ -133,17 +146,6 @@ public class B2Helper {
         }
     }
 
-    private static String getConfig(String envName, String propertyName, String defaultValue) {
-        String propertyValue = System.getProperty(propertyName);
-        if (!isBlank(propertyValue)) {
-            return propertyValue.trim();
-        }
-        String envValue = System.getenv(envName);
-        if (!isBlank(envValue)) {
-            return envValue.trim();
-        }
-        return defaultValue;
-    }
 
     private static boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TutorHub Enterprise — Đăng nhập thành công</title>
+  <meta name="description" content="Bạn đã đăng nhập thành công vào TutorHub Enterprise." />
+  <link rel="stylesheet" href="auth-success.css" />
+</head>
+<body>
+
+  <!-- Decorative background: aurora wash + dot grid + soft blobs (purely visual, no logic) -->
+  <div class="bg-decor" aria-hidden="true">
+    <div class="bg-aurora"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-blob bg-blob--a"></div>
+    <div class="bg-blob bg-blob--b"></div>
+    <div class="bg-blob bg-blob--c"></div>
+  </div>
+
+  <!-- Ambient orbit + mouse-trail particles (id kept unchanged for compatibility) -->
+  <canvas id="petalCanvas"></canvas>
+  <!-- Dedicated fireworks burst layer (load + CTA hover/click) -->
+  <canvas id="fxCanvas"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="../images/logomoi.png" alt="TutorHub Logo" />
+      <span>TutorHub</span>
+      <small>Enterprise</small>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-download" onclick="tryCloseTab()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>Download</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="success-screen">
+    <div class="hero-stage">
+
+      <!-- Floating glass decorative cards (desktop only, purely decorative) -->
+      <div class="floating-card fc-1" aria-hidden="true">
+        <span class="fc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.6 4.8L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.2L12 2z"></path><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"></path></svg></span>
+        AI-powered tutoring
+      </div>
+      <div class="floating-card fc-2" aria-hidden="true">
+        <span class="fc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg></span>
+        Smart classroom
+      </div>
+      <div class="floating-card fc-3" aria-hidden="true">
+        <span class="fc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 7.5-7 9-4-1.5-7-4-7-9V6l7-3z"></path><polyline points="9.5 12 11.5 14 14.5 10.5"></polyline></svg></span>
+        Secure exam
+      </div>
+      <div class="floating-card fc-4" aria-hidden="true">
+        <span class="fc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"></path><circle cx="12" cy="16.2" r="0.3" fill="currentColor"></circle></svg></span>
+        QuizHub
+      </div>
+
+      <div class="logo-mark">
+        <div class="logo-glow"></div>
+        <div class="logo-ring"></div>
+        <span class="sparkle sparkle-1"></span>
+        <span class="sparkle sparkle-2"></span>
+        <span class="sparkle sparkle-3"></span>
+        <img src="../images/logomoi.png" alt="TutorHub Enterprise" />
+      </div>
+
+      <div class="success-check">
+        <svg viewBox="0 0 24 24"><polyline points="5 12 10 17 19 8"></polyline></svg>
+      </div>
+
+      <div class="glass-panel">
+
+        <span class="provider-label" id="providerLabel" style="display:none;">
+          <img id="providerIcon" src="" alt="" />
+          <span id="providerText">Đăng nhập thành công</span>
+        </span>
+
+        <h1>TutorHub Enterprise</h1>
+        <h2>Bạn đã đăng nhập thành công.</h2>
+        <p class="sub-en">You have successfully authenticated.</p>
+        <p>Bạn có thể quay lại ứng dụng TutorHub để tiếp tục.</p>
+
+        <div class="cta-row">
+          <button class="btn-primary" id="ctaOpenApp" onclick="tryCloseTab()">
+            Mở TutorHub
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          </button>
+
+          <button class="btn-secondary" id="ctaBackToLogin" onclick="goBackToLogin()">
+            Quay lại đăng nhập
+          </button>
+        </div>
+
+        <a class="link-secondary" href="javascript:void(0)" onclick="tryCloseTab()">
+          Nếu không tự chuyển, bấm vào đây
+        </a>
+
+        <div class="countdown" id="countdown">
+          Tự đóng sau <span id="countdownNum">5</span> giây...
+        </div>
+
+      </div><!-- /.glass-panel -->
+    </div><!-- /.hero-stage -->
+  </main>
+
+  <footer class="page-footer">
+    <span>© 2026 TutorHub Enterprise</span>
+    <span>·</span>
+    <a href="#">Điều khoản</a>
+    <span>·</span>
+    <a href="#">Quyền riêng tư</a>
+  </footer>
+
+  <script>
+    // Core navigation helpers — unchanged behavior, no backend/route/token logic.
+    function tryCloseTab() {
+      try { window.close(); } catch (e) {}
+    }
+    // "Quay lại đăng nhập" — generic client-side back navigation only
+    // (no new endpoint/route; falls back to tryCloseTab if no history).
+    function goBackToLogin() {
+      try {
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+      } catch (e) {}
+      tryCloseTab();
+    }
+  </script>
+  <script src="auth-success.js"></script>
+
+  <div class="contact-fabs">
+    <a href="https://www.facebook.com/basangg2903" target="_blank" class="fab fab-fb" title="Facebook">
+      <img src="/images/icon/facebook.svg" alt="Facebook">
+    </a>
+    <a href="https://zalo.me/0355938032" target="_blank" class="fab fab-zl" title="Zalo">
+      <img src="/images/icon/zalo-2.png" alt="Zalo">
+    </a>
+    <a href="https://www.instagram.com/basangg2903/" target="_blank" class="fab fab-ig" title="Instagram">
+      <img src="/images/icon/instagram.svg" alt="Instagram">
+    </a>
+  </div>
+
+  <script>
+    // Standalone support for remote servers (e.g., Facebook login via Cloudflare Worker).
+    // If __AUTH_PROVIDER is not injected by Java, read it from URL.
+    // Logic/condition kept exactly as before — only the rendered text/icon is upgraded.
+    if (typeof window.__AUTH_PROVIDER === 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const provider = urlParams.get('provider');
+      const el = document.getElementById('providerLabel');
+      const txt = document.getElementById('providerText');
+      const icon = document.getElementById('providerIcon');
+
+      if (provider) {
+        window.__AUTH_PROVIDER = provider;
+        if (el && txt) {
+          if (provider === 'google') {
+            txt.textContent = 'Đăng nhập bằng Google thành công';
+            if (icon) { icon.src = '/images/icon/google.svg'; icon.style.display = 'inline-block'; }
+            el.style.display = 'inline-flex';
+          } else if (provider === 'facebook') {
+            txt.textContent = 'Đăng nhập bằng Facebook thành công';
+            if (icon) { icon.src = '/images/icon/facebook.svg'; icon.style.display = 'inline-block'; }
+            el.style.display = 'inline-flex';
+          } else {
+            // Unrecognized provider value — show generic success text (cosmetic only)
+            txt.textContent = 'Đăng nhập thành công';
+            if (icon) icon.style.display = 'none';
+            el.style.display = 'inline-flex';
+          }
+        }
+      } else {
+        // No provider param at all — cosmetic default badge, no global state change
+        if (el && txt) {
+          txt.textContent = 'Đăng nhập thành công';
+          if (icon) icon.style.display = 'none';
+          el.style.display = 'inline-flex';
+        }
+      }
+    }
+  </script>
+</body>
+</html>

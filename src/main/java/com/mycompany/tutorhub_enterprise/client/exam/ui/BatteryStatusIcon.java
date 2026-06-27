@@ -27,7 +27,7 @@ import java.awt.geom.*;
 public class BatteryStatusIcon extends JComponent {
 
     // ── colour constants ──────────────────────────────────────────
-    private static final Color COL_OUTLINE = Color.decode("#334155");  // slate-700
+    private final Color colOutline;
     private static final Color COL_GREEN   = Color.decode("#22C55E");
     private static final Color COL_AMBER   = Color.decode("#F59E0B");
     private static final Color COL_RED     = Color.decode("#EF4444");
@@ -38,10 +38,15 @@ public class BatteryStatusIcon extends JComponent {
     private boolean isCharging     = false;
 
     // ── preferred size ────────────────────────────────────────────
-    private static final int PREF_W = 28;
-    private static final int PREF_H = 14;
+    private static final int PREF_W = 36;
+    private static final int PREF_H = 28;
 
     public BatteryStatusIcon() {
+        this(new Color(255, 255, 255, 180));
+    }
+
+    public BatteryStatusIcon(Color outlineColor) {
+        this.colOutline = outlineColor;
         setOpaque(false);
         setPreferredSize(new Dimension(PREF_W, PREF_H));
         setMinimumSize(new Dimension(PREF_W, PREF_H));
@@ -73,21 +78,26 @@ public class BatteryStatusIcon extends JComponent {
         int h = getHeight();
 
         // ── geometry ─────────────────────────────────────────────
-        // Body occupies (w - nubW) wide, full height with inset for outline
-        int nubW   = Math.max(2, w / 8);   // width of the + terminal nub
-        int nubH   = Math.max(3, h / 3);   // height of nub (centred vertically)
-        int bodyW  = w - nubW - 1;         // body width
-        int bodyH  = h;
-        int arc    = 3;                    // body corner arc
+        // Fix the battery icon to a standard size, e.g. 18x10, centered in the component
+        int drawW = 18;
+        int drawH = 10;
+        
+        // Center the drawing
+        float bx = (w - drawW) / 2f;
+        float by = (h - drawH) / 2f;
+        
+        int nubW   = 1;   // width of the + terminal nub
+        int nubH   = 3;   // height of nub (centred vertically)
+        int bodyW  = drawW - nubW;         // body width
+        int bodyH  = drawH;
+        int arc    = 2;                    // body corner arc
 
-        // body bounding rect (leave 0.5 px for stroke)
-        float bx = 0.5f;
-        float by = 0.5f;
-        float bw = bodyW - 1f;
-        float bh = bodyH - 1f;
+        // body bounding rect
+        float bw = bodyW;
+        float bh = bodyH;
 
         // inner fill area (1 px inset from stroke)
-        int pad    = 2;
+        int pad    = 1;
         float ix   = bx + pad;
         float iy   = by + pad;
         float iw   = bw - pad * 2;
@@ -102,7 +112,7 @@ public class BatteryStatusIcon extends JComponent {
                       : COL_RED;
 
         // ── draw body outline ─────────────────────────────────────
-        g2.setColor(COL_OUTLINE);
+        g2.setColor(colOutline);
         g2.setStroke(new BasicStroke(1.1f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g2.draw(new RoundRectangle2D.Float(bx, by, bw, bh, arc, arc));
 
@@ -110,7 +120,7 @@ public class BatteryStatusIcon extends JComponent {
         float nubX  = bx + bw;
         float nubY  = by + (bh - nubH) / 2f;
         g2.setStroke(new BasicStroke(1.0f));
-        g2.setColor(COL_OUTLINE);
+        g2.setColor(colOutline);
         g2.fill(new RoundRectangle2D.Float(nubX, nubY, nubW, nubH, 1, 1));
 
         // ── draw fill ─────────────────────────────────────────────

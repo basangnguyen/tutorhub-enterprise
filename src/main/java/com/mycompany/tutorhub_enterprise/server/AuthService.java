@@ -9,13 +9,21 @@ import java.util.Base64;
 
 public final class AuthService {
 
+    private static final String PASSWORD_LOGIN_FAILED_MESSAGE = "Email hoac mat khau khong dung. Vui long thu lai.";
+    private static final String PASSWORD_LOGIN_BLOCKED_MESSAGE = "Ban da thu qua nhieu lan. Vui long thu lai sau it phut.";
+
     private AuthService() {
     }
 
     public static LoginSession authenticateWithPassword(String email, String password) {
         String normalizedEmail = normalizeEmail(email);
         if (ServerConfig.isBlank(normalizedEmail) || ServerConfig.isBlank(password)) {
-            return LoginSession.failed("Email va mat khau khong duoc de trong.");
+            return LoginSession.failed(PASSWORD_LOGIN_FAILED_MESSAGE);
+        }
+
+        String rateLimitIdentifier = AuthRateLimitService.normalizeIdentifier(normalizedEmail);
+        if (!AuthRateLimitService.checkAllowed(rateLimitIdentifier)) {
+            return LoginSession.failed(PASSWORD_LOGIN_BLOCKED_MESSAGE);
         }
 
         int userId = DatabaseManager.authenticateByEmail(normalizedEmail, password);
@@ -23,13 +31,54 @@ public final class AuthService {
             return LoginSession.failed("Khong the ket noi database. Kiem tra cau hinh server.");
         }
         if (userId == DatabaseManager.AUTH_INVALID_PASSWORD_HASH) {
-            return LoginSession.failed("Du lieu mat khau cua tai khoan khong hop le. Hay dat lai mat khau.");
+            return recordPasswordLoginFailure(rateLimitIdentifier);
         }
         if (userId == DatabaseManager.AUTH_FAILED) {
-            return LoginSession.failed("Sai Email hoac mat khau.");
+            return recordPasswordLoginFailure(rateLimitIdentifier);
         }
 
-        return loadLoginSession(userId, normalizedEmail);
+        AuthRateLimitService.recordSuccess(rateLimitIdentifier);
+        LoginSession session = loadLoginSession(userId, normalizedEmail);
+        
+        // Generate Server Session (Phase S2)
+        com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo = SessionService.createSession(userId, "Unknown Device", "Unknown", "1.0");
+        if (sessionInfo != null) {
+            session = LoginSession.successWithSession(userId, normalizedEmail, session.getRole(), session.getAvatarBase64(), sessionInfo);
+        }
+        
+        return session;
+    }
+
+    private static LoginSession recordPasswordLoginFailure(String rateLimitIdentifier) {
+        AuthRateLimitService.recordFailure(rateLimitIdentifier);
+        if (!AuthRateLimitService.checkAllowed(rateLimitIdentifier)) {
+            return LoginSession.failed(PASSWORD_LOGIN_BLOCKED_MESSAGE);
+        }
+        return LoginSession.failed(PASSWORD_LOGIN_FAILED_MESSAGE);
+    }
+
+    public static LoginSession authenticateWithSocialProvider(String provider, String code, String codeVerifier, String redirectUri, String nonce) {
+        if ("GOOGLE".equalsIgnoreCase(provider)) {
+            try {
+                LoginSession session = SocialAuthService.processGoogleLogin(code, codeVerifier, redirectUri, nonce);
+                if (session != null && session.isSuccess()) {
+                    try {
+                        com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo = SessionService.createSession(session.getUserId(), "Unknown Device", "Unknown", "1.0");
+                        if (sessionInfo != null) {
+                            session = LoginSession.successWithSession(session.getUserId(), session.getIdentity(), session.getRole(), session.getAvatarBase64(), sessionInfo);
+                        } else {
+                            System.out.println("[SESSION] social session creation failed, continuing with dashboardPayload compatibility mode.");
+                        }
+                    } catch (Exception se) {
+                        System.out.println("[SESSION] social session creation failed, continuing with dashboardPayload compatibility mode.");
+                    }
+                }
+                return session;
+            } catch (Exception e) {
+                return LoginSession.failed(e.getMessage());
+            }
+        }
+        return LoginSession.failed("Provider khong duoc ho tro: " + provider);
     }
 
     public static AuthResult requestRegistrationOtp(String email) {
@@ -51,6 +100,11 @@ public final class AuthService {
             return AuthResult.fail("Thong tin dang ky khong hop le.");
         }
 
+        PasswordPolicyService.PasswordPolicyResult policy = PasswordPolicyService.validate(rawPassword, normalizedEmail);
+        if (!policy.isValid()) {
+            return AuthResult.fail(policy.getPublicMessage());
+        }
+
         OtpService.VerifyResult otpResult = OtpService.verify(normalizedEmail, OtpService.PURPOSE_REGISTER, otp);
         if (!otpResult.isSuccess()) {
             return AuthResult.fail("Ma OTP khong chinh xac hoac da het han.");
@@ -67,17 +121,32 @@ public final class AuthService {
         if (!isValidEmail(normalizedEmail)) {
             return AuthResult.fail("Email khong hop le.");
         }
+        
+        String genericMessage = "Neu tai khoan ton tai, ma xac thuc se duoc gui den email cua ban.";
+
         if (!DatabaseManager.isEmailExists(normalizedEmail)) {
-            return AuthResult.fail("Email nay chua duoc dang ky trong he thong.");
+            System.out.println("[AUTH_RESET] request processed with generic response");
+            return AuthResult.ok(genericMessage);
         }
 
-        return issueAndSendEmailOtp(normalizedEmail, OtpService.PURPOSE_RESET_PASSWORD, "Ma OTP khoi phuc da duoc gui den email.");
+        System.out.println("[AUTH_RESET] password reset requested");
+        AuthResult result = issueAndSendEmailOtp(normalizedEmail, OtpService.PURPOSE_RESET_PASSWORD, genericMessage);
+        
+        if (!result.isSuccess()) {
+            System.out.println("[AUTH_RESET] internal issue/send failed: " + result.getMessage());
+        }
+        return AuthResult.ok(genericMessage);
     }
 
     public static AuthResult verifyAndResetPassword(String email, String otp, String newPassword) {
         String normalizedEmail = normalizeEmail(email);
         if (!isValidEmail(normalizedEmail) || ServerConfig.isBlank(otp) || ServerConfig.isBlank(newPassword)) {
             return AuthResult.fail("Thong tin khoi phuc mat khau khong hop le.");
+        }
+
+        PasswordPolicyService.PasswordPolicyResult policy = PasswordPolicyService.validate(newPassword, normalizedEmail);
+        if (!policy.isValid()) {
+            return AuthResult.fail(policy.getPublicMessage());
         }
 
         OtpService.VerifyResult otpResult = OtpService.verify(normalizedEmail, OtpService.PURPOSE_RESET_PASSWORD, otp);
@@ -171,18 +240,18 @@ public final class AuthService {
         boolean sent = EmailService.sendOTP(email, issue.getCode());
         if (!sent) {
             OtpService.clear(email, purpose);
-            return AuthResult.fail("Khong the gui Email OTP. Vui long kiem tra cau hinh SMTP.");
+            return AuthResult.fail("Hien chua the gui ma xac thuc. Vui long thu lai sau.");
         }
 
         return AuthResult.ok(successMessage);
     }
 
-    private static LoginSession loadLoginSession(int userId, String identity) {
+    static LoginSession loadLoginSession(int userId, String identity) {
         String role = "TUTOR";
         String avatarBase64 = "NO_AVATAR";
 
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pst = conn.prepareStatement("SELECT role, avatar_url FROM users WHERE id = ?")) {
+             PreparedStatement pst = conn.prepareStatement("SELECT role, avatar_url, full_name FROM users WHERE id = ?")) {
             pst.setInt(1, userId);
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
@@ -193,10 +262,19 @@ public final class AuthService {
 
                 String avatarUrl = rs.getString("avatar_url");
                 if (!ServerConfig.isBlank(avatarUrl)) {
-                    File avatar = new File(avatarUrl);
-                    if (avatar.exists()) {
-                        avatarBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(avatar.toPath()));
+                    if (avatarUrl.startsWith("http")) {
+                        avatarBase64 = avatarUrl;
+                    } else {
+                        File avatar = new File(avatarUrl);
+                        if (avatar.exists()) {
+                            avatarBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(avatar.toPath()));
+                        }
                     }
+                }
+
+                String fetchedName = rs.getString("full_name");
+                if (fetchedName != null && !fetchedName.trim().isEmpty()) {
+                    identity = fetchedName.trim();
                 }
             }
         } catch (Exception ex) {
@@ -255,22 +333,28 @@ public final class AuthService {
         private final String identity;
         private final String role;
         private final String avatarBase64;
+        private final com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo;
 
-        private LoginSession(boolean success, String message, int userId, String identity, String role, String avatarBase64) {
+        private LoginSession(boolean success, String message, int userId, String identity, String role, String avatarBase64, com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo) {
             this.success = success;
             this.message = message;
             this.userId = userId;
             this.identity = identity;
             this.role = role;
             this.avatarBase64 = avatarBase64;
+            this.sessionInfo = sessionInfo;
         }
 
         public static LoginSession success(int userId, String identity, String role, String avatarBase64) {
-            return new LoginSession(true, "Dang nhap thanh cong.", userId, identity, role, avatarBase64);
+            return new LoginSession(true, "Dang nhap thanh cong.", userId, identity, role, avatarBase64, null);
+        }
+        
+        public static LoginSession successWithSession(int userId, String identity, String role, String avatarBase64, com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo) {
+            return new LoginSession(true, "Dang nhap thanh cong.", userId, identity, role, avatarBase64, sessionInfo);
         }
 
         public static LoginSession failed(String message) {
-            return new LoginSession(false, message, -1, "", "", "NO_AVATAR");
+            return new LoginSession(false, message, -1, "", "", "", null);
         }
 
         public boolean isSuccess() {
@@ -295,6 +379,10 @@ public final class AuthService {
 
         public String getAvatarBase64() {
             return avatarBase64;
+        }
+        
+        public com.mycompany.tutorhub_enterprise.models.auth.SessionInfo getSessionInfo() {
+            return sessionInfo;
         }
     }
 }
