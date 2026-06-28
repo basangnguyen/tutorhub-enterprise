@@ -4,12 +4,7 @@ package com.mycompany.tutorhub_enterprise.client.quizhub.importer;
 import com.google.gson.Gson;
 import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubDeck;
 import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubQuestion;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubDeckOptions;
 
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -49,57 +44,7 @@ public class QuizHubExcelImportService {
     // ==================== ĐƯỜNG 1: đọc file .xlsx bằng Apache POI ====================
 
     public QuizHubImportResult parse(Path excelFile) {
-        if (excelFile == null || !Files.isRegularFile(excelFile)) {
-            throw new QuizHubImportException("Không tìm thấy file Excel: " + excelFile);
-        }
-        QuizHubImportResult result = new QuizHubImportResult();
-        result.setSourceFileName(excelFile.getFileName().toString());
-
-        try (InputStream in = Files.newInputStream(excelFile);
-             Workbook workbook = new XSSFWorkbook(in)) {
-
-            Map<String, String> meta = readDeckMetaFromWorkbook(workbook);
-            applyDeckMeta(meta, result, stripExtension(excelFile.getFileName().toString()));
-
-            Sheet sheet = workbook.getSheet(SHEET_CAU_HOI);
-            if (sheet == null) {
-                throw new QuizHubImportException("File Excel thiếu sheet bắt buộc '" + SHEET_CAU_HOI + "'.");
-            }
-            DataFormatter fmt = new DataFormatter();
-            Map<String, Integer> col = mapHeaderToColumnIndex(sheet.getRow(0));
-            checkRequiredColumns(col);
-
-            List<QuizHubQuestion> valid = new ArrayList<>();
-            List<QuizHubRowError> errors = new ArrayList<>();
-
-            for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-                Row row = sheet.getRow(r);
-                int excelRowNumber = r + 1;
-                if (row == null || isRowBlank(row, fmt)) continue;
-
-                String[] rawOptions = new String[OPTION_COLUMNS.length];
-                for (int i = 0; i < OPTION_COLUMNS.length; i++) {
-                    rawOptions[i] = cellText(row, col.get(OPTION_COLUMNS[i]), fmt);
-                }
-                validateAndCollect(excelRowNumber,
-                        cellText(row, col.get("Cau_hoi"), fmt), rawOptions,
-                        cellText(row, col.get("Dap_an_dung"), fmt),
-                        cellText(row, col.get("Giai_thich"), fmt),
-                        cellText(row, col.get("Giai_thich_dap_an_sai"), fmt),
-                        cellText(row, col.get("Chu_de"), fmt),
-                        cellText(row, col.get("Do_kho"), fmt),
-                        cellText(row, col.get("Hinh_anh"), fmt),
-                        valid, errors);
-            }
-            result.setValidQuestions(valid);
-            result.setErrors(errors);
-            return result;
-
-        } catch (QuizHubImportException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new QuizHubImportException("Không đọc được file Excel: " + e.getMessage(), e);
-        }
+        throw new UnsupportedOperationException("POI is removed. Use parseFromRows.");
     }
 
     // ==================== ĐƯỜNG 2: nhận JSON rows từ Luckysheet (JCEF) ====================
@@ -171,7 +116,7 @@ public class QuizHubExcelImportService {
         deck.setCreatedAt(now);
         deck.setUpdatedAt(now);
 
-        QuizHubDeck.DefaultOptions opts = new QuizHubDeck.DefaultOptions();
+        QuizHubDeckOptions opts = new QuizHubDeckOptions();
         opts.setShuffleQuestions(result.isShuffleQuestionsDefault());
         opts.setShowExplanationImmediately(result.isShowExplanationImmediatelyDefault());
         deck.setDefaultOptions(opts);
@@ -260,22 +205,7 @@ public class QuizHubExcelImportService {
         valid.add(q);
     }
 
-    // ==================== đọc Thong_tin_de (POI) & áp dụng meta (chung) ====================
-
-    private static Map<String, String> readDeckMetaFromWorkbook(Workbook wb) {
-        Map<String, String> meta = new HashMap<>();
-        Sheet sheet = wb.getSheet(SHEET_THONG_TIN);
-        if (sheet == null) return meta;
-        DataFormatter fmt = new DataFormatter();
-        for (int r = 0; r <= sheet.getLastRowNum(); r++) {
-            Row row = sheet.getRow(r);
-            if (row == null) continue;
-            String key = cellText(row, 0, fmt);
-            if (!KNOWN_META_KEYS.contains(key)) continue;
-            meta.put(key, cellText(row, 1, fmt));
-        }
-        return meta;
-    }
+    // ==================== áp dụng meta (chung) ====================
 
     private static void applyDeckMeta(Map<String, String> meta, QuizHubImportResult result, String fallbackTitle) {
         String title = meta.getOrDefault("Ten_de", "");
@@ -298,44 +228,6 @@ public class QuizHubExcelImportService {
         return defaultValue;
     }
 
-    // ==================== helper đọc Excel (POI) ====================
-
-    private static void checkRequiredColumns(Map<String, Integer> col) {
-        List<String> missing = new ArrayList<>();
-        for (String required : REQUIRED_COLUMNS) if (!col.containsKey(required)) missing.add(required);
-        if (!missing.isEmpty()) {
-            throw new QuizHubImportException("Sheet '" + SHEET_CAU_HOI + "' thiếu cột bắt buộc: " + String.join(", ", missing));
-        }
-    }
-
-    private static Map<String, Integer> mapHeaderToColumnIndex(Row headerRow) {
-        Map<String, Integer> map = new HashMap<>();
-        if (headerRow == null) return map;
-        DataFormatter fmt = new DataFormatter();
-        int lastCol = headerRow.getLastCellNum();
-        for (int c = 0; c < lastCol; c++) {
-            String normalized = normalizeHeader(cellText(headerRow, c, fmt));
-            if (!normalized.isEmpty()) map.put(normalized, c);
-        }
-        return map;
-    }
-
-    private static String normalizeHeader(String raw) {
-        return raw == null ? "" : raw.trim().replaceAll("\\s*\\*\\s*$", "").trim();
-    }
-
-    private static boolean isRowBlank(Row row, DataFormatter fmt) {
-        int last = row.getLastCellNum();
-        for (int c = 0; c < last; c++) if (!cellText(row, c, fmt).isEmpty()) return false;
-        return true;
-    }
-
-    private static String cellText(Row row, Integer colIdx, DataFormatter fmt) {
-        if (row == null || colIdx == null || colIdx < 0) return "";
-        Cell cell = row.getCell(colIdx);
-        if (cell == null) return "";
-        try { return fmt.formatCellValue(cell).trim(); } catch (Exception e) { return ""; }
-    }
 
     // ==================== helper chung khác ====================
 

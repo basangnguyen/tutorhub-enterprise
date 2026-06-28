@@ -5,7 +5,7 @@ import com.mycompany.tutorhub_enterprise.client.JcefManager;
 import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubAttemptService;
 import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubDeckService;
 import org.cef.browser.CefBrowser;
-import org.cef.handler.CefMessageRouter;
+import org.cef.browser.CefMessageRouter;
 
 import javax.swing.*;
 import java.awt.*;
