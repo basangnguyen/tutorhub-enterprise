@@ -1,0 +1,127 @@
+<script>
+$(function () {
+  luckysheet.create({
+    container: 'luckysheet',
+    lang: 'zh', // Luckysheet chưa có 'vi', giữ 'zh' hoặc 'en' không ảnh hưởng dữ liệu nhập tiếng Việt
+    showtoolbar: true,
+    data: [
+      {
+        name: 'Thong_tin_de',
+        status: '1',
+        order: '0',
+        index: 0,
+        celldata: buildMetaSheetCells(),
+        config: { columnlen: { '0': 220, '1': 320 } }
+      },
+      {
+        name: 'Cau_hoi',
+        status: '0',
+        order: '1',
+        index: 1,
+        celldata: buildCauHoiHeaderCells(),
+        config: { columnlen: { '3': 380, '11': 300, '12': 380 } }
+      }
+    ]
+  });
+});
+
+const META_FIELDS = ["Ten_de", "Mo_ta_ngan", "Mon_hoc", "Mau_chu_de",
+                      "Tron_cau_hoi_mac_dinh", "Hien_giai_thich_ngay"];
+const COLS = ["STT","Chu_de","Do_kho","Cau_hoi","Dap_an_A","Dap_an_B","Dap_an_C",
+              "Dap_an_D","Dap_an_E","Dap_an_F","Dap_an_dung","Giai_thich",
+              "Giai_thich_dap_an_sai","Hinh_anh"];
+
+function cellObj(v) { return { v: v, m: v, ct: { fa: 'General', t: 'g' } }; }
+
+function buildMetaSheetCells() {
+  return META_FIELDS.map((key, r) => ({ r, c: 0, v: cellObj(key) }));
+  // Cột B (c:1) để trống cho người soạn tự điền giá trị tương ứng từng dòng
+}
+
+function buildCauHoiHeaderCells() {
+  return COLS.map((name, c) => ({ r: 0, c, v: cellObj(name) }));
+}
+
+/** Khi người dùng bấm "Tải file Excel có sẵn lên" — dùng Luckyexcel như deg_excel.html đã làm,
+ *  Luckyexcel sẽ tự tạo lại đúng số sheet/tên sheet có trong file gốc (kể cả Huong_dan, bỏ qua cũng không lỗi gì). */
+
+function findSheetByName(sheets, name) {
+  return sheets.find(s => s.name === name);
+}
+
+function cellVal(row, idx) {
+  if (idx == null || idx < 0 || !row || !row[idx]) return '';
+  const raw = row[idx].v;
+  return raw == null ? '' : String(raw).trim();
+}
+
+function buildColumnMap(headerRow) {
+  const map = {};
+  COLS.forEach((name, fallbackIdx) => {
+    let foundIdx = -1;
+    if (headerRow) {
+      for (let c = 0; c < headerRow.length; c++) {
+        const v = cellVal(headerRow, c).replace(/\s*\*\s*$/, '');
+        if (v === name) { foundIdx = c; break; }
+      }
+    }
+    map[name] = foundIdx >= 0 ? foundIdx : fallbackIdx;
+  });
+  return map;
+}
+
+function readMetaSheet(sheet) {
+  const meta = {};
+  if (!sheet || !sheet.data) return meta;
+  sheet.data.forEach(row => {
+    if (!row) return;
+    const key = cellVal(row, 0);
+    if (key) meta[key] = cellVal(row, 1);
+  });
+  return meta;
+}
+
+function saveQuizData() {
+  const sheets = luckysheet.getAllSheets(); // mỗi sheet có .name và .data (ma trận 2D)
+  const meta = readMetaSheet(findSheetByName(sheets, 'Thong_tin_de'));
+  const quizSheet = findSheetByName(sheets, 'Cau_hoi');
+
+  if (!quizSheet || !quizSheet.data || quizSheet.data.length < 2) {
+    alert('Không tìm thấy dữ liệu trong sheet Cau_hoi.');
+    return;
+  }
+
+  const data = quizSheet.data;
+  const colMap = buildColumnMap(data[0]);
+  const rows = [];
+
+  for (let r = 1; r < data.length; r++) {
+    const row = data[r];
+    if (!row) continue;
+    const cauHoi = cellVal(row, colMap['Cau_hoi']);
+    if (!cauHoi) continue; // bỏ dòng trống, không gửi sang Java
+
+    const item = { excelRowNumber: String(r + 1) };
+    COLS.forEach(name => { item[name] = cellVal(row, colMap[name]); });
+    rows.push(item);
+  }
+
+  if (rows.length === 0) {
+    alert('Chưa có câu hỏi nào để lưu.');
+    return;
+  }
+
+  window.cefQuery({
+    request: 'IMPORT_QUIZ_ROWS:' + JSON.stringify({ meta, rows }),
+    onSuccess: function (res) {
+      const data = JSON.parse(res);
+      if (data.ok) {
+        alert('Đã tạo đề: ' + data.data.title + ' (' + data.data.questions.length + ' câu)');
+      } else {
+        alert('Có lỗi: ' + data.message);
+      }
+    },
+    onFailure: function (code, msg) { alert('Lỗi gửi dữ liệu: ' + msg); }
+  });
+}
+</script>

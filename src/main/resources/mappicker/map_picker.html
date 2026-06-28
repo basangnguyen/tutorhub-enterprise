@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chọn địa chỉ — TutorHub</title>
+
+  <!--
+    ┌─────────────────────────────────────────────────────────┐
+    │  Stack bản đồ:                                          │
+    │  • MapLibre GL JS  — render bản đồ (open-source)       │
+    │  • OpenFreeMap     — tiles miễn phí, KHÔNG cần API key │
+    │  • Goong Geocoding — tìm kiếm địa chỉ Việt Nam chuẩn  │
+    │    ↳ Đăng ký API key tại: https://account.goong.io     │
+    │    ↳ API key được Java inject vào __GOONG_API_KEY__     │
+    │      (xem MapPickerDialog.java — thay thế placeholder   │
+    │       này trước khi load file HTML vào CefBrowser)      │
+    └─────────────────────────────────────────────────────────┘
+  -->
+  <link  href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <style>
+    /* ─── Reset & Base ────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── TOP BAR ─────────────────────────────────────────── */
+    #topBar {
+      height: 52px;
+      background: #7B5EA7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      flex-shrink: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .logo {
+      width: 32px; height: 32px;
+      background: white;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+
+    .bar-title {
+      color: white;
+      font-size: 13.5px;
+      font-weight: 600;
+      flex: 1;
+      white-space: nowrap;
+    }
+
+    /* ─── Search wrap ─────────────────────────────────────── */
+    #searchWrap {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      position: relative;   /* anchor điểm tham chiếu cho JS */
+    }
+
+    #searchInput {
+      width: 300px; height: 34px;
+      border: none; border-radius: 8px;
+      padding: 0 14px; font-size: 13px;
+      outline: none;
+      background: rgba(255,255,255,0.93);
+      color: #222;
+      transition: background 0.15s;
+    }
+    #searchInput:focus { background: #ffffff; }
+    #searchInput::placeholder { color: #aaa; }
+
+    /* ─── Buttons ─────────────────────────────────────────── */
+    .btn {
+      height: 34px; padding: 0 13px;
+      border: none; border-radius: 8px;
+      cursor: pointer;
+      font-size: 12.5px; font-weight: 500;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 4px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover  { opacity: 0.86; }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-white  { background: #ffffff; color: #7B5EA7; }
+    .btn-ghost  {
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.28);
+    }
+    .btn-cancel {
+      background: rgba(0,0,0,0.18);
+      color: rgba(255,255,255,0.82);
+      border: 1px solid rgba(255,255,255,0.15);
+      margin-left: 2px;
+    }
+
+    /* ─── MAP ─────────────────────────────────────────────── */
+    #map {
+      flex: 1;
+      cursor: crosshair;   /* gợi ý click để chọn vị trí */
+    }
+
+    /* ─── SUGGESTIONS — position: fixed, JS tính tọa độ ─── */
+    #suggestions {
+      display: none;
+      position: fixed;
+      z-index: 600;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      /* left / top / width được set bằng JS */
+    }
+
+    .sug-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 0.5px solid #f0f0f0;
+      display: flex; align-items: flex-start; gap: 10px;
+      transition: background 0.1s;
+    }
+    .sug-item:hover { background: #f2eeff; }
+    .sug-item:last-child { border-bottom: none; }
+
+    .sug-icon {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: #ede8f7; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; margin-top: 2px;
+    }
+    .sug-texts { min-width: 0; }
+    .sug-main  { font-size: 13px; color: #1a1a1a; font-weight: 500; }
+    .sug-sub   { font-size: 11.5px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sug-empty { padding: 16px 14px; text-align: center; font-size: 13px; color: #999; }
+
+    /* ─── SELECTED BAR (fixed, bottom center) ────────────── */
+    #selectedBar {
+      display: none;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 400;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 6px 28px rgba(0,0,0,0.17);
+      padding: 12px 16px;
+      align-items: center; gap: 10px;
+      min-width: 340px; max-width: 640px;
+      border: 1px solid rgba(123,94,167,0.14);
+    }
+
+    .sel-pin  { font-size: 24px; flex-shrink: 0; }
+    .sel-info { flex: 1; min-width: 0; }
+    .sel-label {
+      font-size: 10.5px; color: #999;
+      text-transform: uppercase; letter-spacing: 0.4px;
+      margin-bottom: 3px;
+    }
+    .sel-addr {
+      font-size: 13.5px; font-weight: 600; color: #111;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .btn-confirm {
+      flex-shrink: 0;
+      background: #7B5EA7; color: white;
+      border: none; padding: 9px 20px;
+      border-radius: 9px; cursor: pointer;
+      font-size: 13px; font-weight: 500;
+      transition: background 0.15s;
+    }
+    .btn-confirm:hover { background: #6a4d96; }
+
+    .btn-clear {
+      flex-shrink: 0;
+      background: #f1f1f1; color: #666;
+      border: none; padding: 9px 12px;
+      border-radius: 9px; cursor: pointer;
+      font-size: 12px; transition: background 0.1s;
+    }
+    .btn-clear:hover { background: #e5e5e5; }
+
+    /* ─── LOADING (fixed, top center) ────────────────────── */
+    #loading {
+      display: none;
+      position: fixed;
+      top: 60px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      background: rgba(255,255,255,0.97);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 13px; color: #555;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.13);
+      align-items: center; gap: 8px;
+      white-space: nowrap;
+    }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid #e0d8f0;
+      border-top-color: #7B5EA7;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── STATUS BAR ──────────────────────────────────────── */
+    #statusBar {
+      height: 26px;
+      background: #f4f4f5;
+      border-top: 0.5px solid #dedede;
+      display: flex; align-items: center;
+      padding: 0 14px; gap: 8px;
+      flex-shrink: 0;
+      font-size: 11.5px; color: #666;
+    }
+
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+    .status-dot.warn { background: #f59e0b; }
+    .status-badge { margin-left: auto; color: #bbb; font-size: 10.5px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ TOP BAR ══════════════════════════════════════════════ -->
+<div id="topBar">
+  <div class="logo">📍</div>
+  <span class="bar-title">Chọn địa chỉ dạy học — TutorHub</span>
+
+  <div id="searchWrap">
+    <input id="searchInput" type="text"
+           placeholder="Nhập địa chỉ, quận, tỉnh thành..."
+           oninput="onInput()"
+           onkeydown="onKey(event)"
+           autocomplete="off"/>
+    <button class="btn btn-white" onclick="doSearch()">🔍 Tìm</button>
+  </div>
+
+  <button class="btn btn-ghost" onclick="locateMe()">📡 Vị trí của tôi</button>
+  <button class="btn btn-cancel" onclick="cancelDialog()">✕ Đóng</button>
+</div>
+
+<!-- ══ MAP ══════════════════════════════════════════════════ -->
+<div id="map"></div>
+
+<!-- ══ SUGGESTIONS ══════════════════════════════════════════ -->
+<div id="suggestions"></div>
+
+<!-- ══ SELECTED BAR ═════════════════════════════════════════ -->
+<div id="selectedBar">
+  <span class="sel-pin">📍</span>
+  <div class="sel-info">
+    <div class="sel-label">Địa chỉ đã chọn</div>
+    <div class="sel-addr" id="addrText">—</div>
+  </div>
+  <button class="btn-clear" onclick="clearSelection()" title="Xoá lựa chọn">✕</button>
+  <button class="btn-confirm" onclick="confirmAddress()">✔ Xác nhận</button>
+</div>
+
+<!-- ══ LOADING ═══════════════════════════════════════════════ -->
+<div id="loading">
+  <div class="spinner"></div>
+  <span id="loadingText">Đang xử lý...</span>
+</div>
+
+<!-- ══ STATUS BAR ═══════════════════════════════════════════ -->
+<div id="statusBar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">Nhấn vào bản đồ hoặc tìm kiếm để chọn địa chỉ</span>
+  <span class="status-badge">MapLibre · OpenFreeMap · Goong Geocoding</span>
+</div>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIG
+   GOONG_API_KEY được Java thay thế lúc khởi động dialog.
+   Đăng ký miễn phí: https://account.goong.io
+   Tiles OpenFreeMap KHÔNG cần API key.
+══════════════════════════════════════════════════════════════ */
+const GOONG_API_KEY = '__GOONG_API_KEY__';
+
+const GOONG_BASE    = 'https://rsapi.goong.io';
+const OFMAP_STYLE   = 'https://tiles.openfreemap.org/styles/liberty';
+const DEFAULT_CENTER = [106.6297, 10.8231];   // TP. Hồ Chí Minh
+const DEFAULT_ZOOM   = 12;
+
+/* ══════════════════════════════════════════════════════════════
+   MAP INIT — MapLibre GL JS + OpenFreeMap tiles
+══════════════════════════════════════════════════════════════ */
+const map = new maplibregl.Map({
+  container : 'map',
+  style     : OFMAP_STYLE,
+  center    : DEFAULT_CENTER,
+  zoom      : DEFAULT_ZOOM,
+  attributionControl: false
+});
+
+map.addControl(new maplibregl.NavigationControl(),                  'top-right');
+map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }),     'bottom-left');
+map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+
+/* ── Marker màu TutorHub (dùng built-in MapLibre marker, đổi màu) ── */
+const marker = new maplibregl.Marker({ color: '#7B5EA7', draggable: false });
+
+/* ─── State ─────────────────────────────────────────────────── */
+let selectedAddr = '';
+let selectedLat  = 0;
+let selectedLng  = 0;
+let suggestTimer = null;
+let suggestAbort = null;   // AbortController của request autocomplete gần nhất
+
+/* ══════════════════════════════════════════════════════════════
+   Cảnh báo nếu Java chưa inject API key (placeholder còn nguyên)
+══════════════════════════════════════════════════════════════ */
+function checkApiKeyConfigured() {
+  if (!GOONG_API_KEY || GOONG_API_KEY === '__GOONG_API_KEY__' || GOONG_API_KEY.includes('ĐIỀN_KEY')) {
+    document.getElementById('statusDot').className = 'status-dot warn';
+    setStatus('⚠ Chưa cấu hình Goong Key — Đang chạy ở chế độ dự phòng (OpenStreetMap).');
+    return false;
+  }
+  document.getElementById('statusDot').className = 'status-dot ok';
+  setStatus('Đã cấu hình Goong API Key.');
+  return true;
+}
+checkApiKeyConfigured();
+
+/* ══════════════════════════════════════════════════════════════
+   CLICK BẢN ĐỒ → Reverse Geocoding (Goong -> OpenStreetMap)
+══════════════════════════════════════════════════════════════ */
+map.on('click', e => {
+  hideSuggestions();
+  reverseGeocode(e.lngLat.lat, e.lngLat.lng);
+});
+
+function reverseGeocode(lat, lng) {
+  showLoading('Đang xác định địa chỉ...');
+  setStatus('Đang lấy địa chỉ từ tọa độ...');
+
+  const tryGoong = () => {
+    if (!GOONG_API_KEY || GOONG_API_KEY === '__GOONG_API_KEY__' || GOONG_API_KEY.includes('ĐIỀN_KEY')) {
+      return Promise.reject(new Error('Goong key not configured'));
+    }
+    return goongFetch(`/Geocode?latlng=${lat},${lng}`)
+      .then(data => {
+        if (data.results?.length) {
+          return data.results[0].formatted_address;
+        }
+        throw new Error('Không có kết quả từ Goong');
+      });
+  };
+
+  const tryNominatim = () => {
+    setStatus('Đang dùng hệ thống dự phòng OpenStreetMap...');
+    return fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=vi`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (data.display_name) return data.display_name;
+        throw new Error('Không tìm thấy địa chỉ');
+      });
+  };
+
+  tryGoong()
+    .catch(() => tryNominatim())
+    .then(address => {
+      hideLoading();
+      setStatus('Định vị thành công.');
+      placeMarker(lat, lng, address);
+    })
+    .catch(err => {
+      hideLoading();
+      setStatus('⚠ Lỗi định vị: ' + err.message);
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AUTOCOMPLETE — Goong Place AutoComplete -> OpenStreetMap
+══════════════════════════════════════════════════════════════ */
+function onInput() {
+  clearTimeout(suggestTimer);
+  const q = document.getElementById('searchInput').value.trim();
+  if (q.length < 2) { hideSuggestions(); return; }
+  suggestTimer = setTimeout(() => fetchSuggestions(q), 280);
+}
+
+function fetchSuggestions(query) {
+  if (suggestAbort) suggestAbort.abort();
+  suggestAbort = new AbortController();
+  const mySignal = suggestAbort.signal;
+
+  const tryGoong = () => {
+    if (!GOONG_API_KEY || GOONG_API_KEY === '__GOONG_API_KEY__' || GOONG_API_KEY.includes('ĐIỀN_KEY')) {
+      return Promise.reject(new Error('Goong key not configured'));
+    }
+    const c = map.getCenter();
+    return goongFetch(`/Place/AutoComplete?input=${enc(query)}&location=${c.lat},${c.lng}`, mySignal)
+      .then(data => {
+        if (mySignal.aborted) return;
+        return (data.predictions || []).map(p => ({
+          isGoong: true,
+          place_id: p.place_id,
+          description: p.description,
+          main: p.structured_formatting?.main_text || p.description.split(',')[0],
+          sub: p.structured_formatting?.secondary_text || p.description.split(',').slice(1).join(',').trim()
+        }));
+      });
+  };
+
+  const tryNominatim = () => {
+    return fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${enc(query)}&limit=5&countrycodes=vn&accept-language=vi`, { signal: mySignal })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (mySignal.aborted) return;
+        return data.map(item => ({
+          isGoong: false,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          description: item.display_name,
+          main: item.display_name.split(',')[0],
+          sub: item.display_name.split(',').slice(1).join(',').trim()
+        }));
+      });
+  };
+
+  tryGoong()
+    .catch(() => tryNominatim())
+    .then(list => {
+      if (mySignal.aborted) return;
+      renderSuggestions(list || []);
+    })
+    .catch(err => {
+      if (err.name === 'AbortError') return;
+      hideSuggestions();
+    });
+}
+
+function renderSuggestions(list) {
+  const box = document.getElementById('suggestions');
+  box.innerHTML = '';
+
+  const inputEl = document.getElementById('searchInput');
+  const rect     = inputEl.getBoundingClientRect();
+  box.style.left  = rect.left + 'px';
+  box.style.top   = (rect.bottom + 4) + 'px';
+  box.style.width = Math.max(rect.width + 60, 320) + 'px';
+
+  if (!list.length) {
+    box.innerHTML = '<div class="sug-empty">Không tìm thấy địa chỉ phù hợp</div>';
+    box.style.display = 'block';
+    return;
+  }
+
+  list.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'sug-item';
+    item.innerHTML = `
+      <div class="sug-icon">📍</div>
+      <div class="sug-texts">
+        <div class="sug-main">${esc(p.main)}</div>
+        <div class="sug-sub">${esc(p.sub)}</div>
+      </div>`;
+    item.addEventListener('click', () => {
+      if (p.isGoong) {
+        selectPlace(p.place_id, p.description);
+      } else {
+        hideSuggestions();
+        document.getElementById('searchInput').value = p.main;
+        map.flyTo({ center: [p.lng, p.lat], zoom: 16, duration: 900 });
+        placeMarker(p.lat, p.lng, p.description);
+      }
+    });
+    box.appendChild(item);
+  });
+
+  box.style.display = 'block';
+}
+
+function selectPlace(placeId, description) {
+  hideSuggestions();
+  document.getElementById('searchInput').value = description.split(',')[0];
+  showLoading('Đang lấy thông tin địa điểm...');
+
+  goongFetch(`/Place/Detail?place_id=${enc(placeId)}`)
+    .then(data => {
+      hideLoading();
+      if (data.result) {
+        const loc = data.result.geometry.location;
+        map.flyTo({ center: [loc.lng, loc.lat], zoom: 16, duration: 900 });
+        placeMarker(loc.lat, loc.lng, data.result.formatted_address || description);
+      }
+    })
+    .catch(err => { hideLoading(); setStatus('⚠ Lỗi: ' + err.message); });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TÌM KIẾM TRỰC TIẾP (nút Tìm / Enter)
+══════════════════════════════════════════════════════════════ */
+function doSearch() {
+  hideSuggestions();
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+
+  showLoading(`Đang tìm "${q}"...`);
+
+  const tryGoong = () => {
+    if (!GOONG_API_KEY || GOONG_API_KEY === '__GOONG_API_KEY__' || GOONG_API_KEY.includes('ĐIỀN_KEY')) {
+      return Promise.reject(new Error('Goong key not configured'));
+    }
+    return goongFetch(`/Geocode?address=${enc(q)}`)
+      .then(data => {
+        if (!data.results?.length) throw new Error('Không có kết quả');
+        const loc = data.results[0].geometry.location;
+        return { lat: loc.lat, lng: loc.lng, address: data.results[0].formatted_address };
+      });
+  };
+
+  const tryNominatim = () => {
+    setStatus('Đang tìm kiếm qua OpenStreetMap...');
+    return fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${enc(q)}&limit=1&countrycodes=vn&accept-language=vi`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (!data.length) throw new Error('Không tìm thấy địa điểm');
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), address: data[0].display_name };
+      });
+  };
+
+  tryGoong()
+    .catch(() => tryNominatim())
+    .then(res => {
+      hideLoading();
+      map.flyTo({ center: [res.lng, res.lat], zoom: 16, duration: 1000 });
+      placeMarker(res.lat, res.lng, res.address);
+    })
+    .catch(err => {
+      hideLoading();
+      setStatus(`⚠ Không tìm thấy "${q}". Lỗi: ${err.message}`);
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GPS — Vị trí của tôi
+══════════════════════════════════════════════════════════════ */
+function locateMe() {
+  if (!navigator.geolocation) {
+    setStatus('⚠ Trình duyệt không hỗ trợ GPS.'); return;
+  }
+  showLoading('Đang lấy vị trí GPS...');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      hideLoading();
+      const { latitude: lat, longitude: lng } = pos.coords;
+      map.flyTo({ center: [lng, lat], zoom: 16, duration: 1000 });
+      reverseGeocode(lat, lng);
+    },
+    err => { hideLoading(); setStatus('⚠ Không lấy được GPS: ' + err.message); },
+    { timeout: 8000 }
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MARKER + SELECTED BAR
+══════════════════════════════════════════════════════════════ */
+function placeMarker(lat, lng, address) {
+  marker.setLngLat([lng, lat]).addTo(map);
+  selectedAddr = address;
+  selectedLat  = lat;
+  selectedLng  = lng;
+
+  document.getElementById('addrText').textContent = address;
+  document.getElementById('selectedBar').style.display = 'flex';
+  setStatus('📍 ' + (address.length > 72 ? address.slice(0, 72) + '…' : address));
+}
+
+function clearSelection() {
+  marker.remove();
+  selectedAddr = '';
+  document.getElementById('selectedBar').style.display = 'none';
+  document.getElementById('searchInput').value = '';
+  setStatus('Đã xoá. Nhấn vào bản đồ hoặc tìm kiếm để chọn lại.');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   XÁC NHẬN → GỬI VỀ JAVA qua window.cefQuery
+   Java nhận: MAP_SELECT:{"address":"...","lat":...,"lng":...}
+══════════════════════════════════════════════════════════════ */
+function confirmAddress() {
+  if (!selectedAddr) return;
+  const payload = JSON.stringify({ address: selectedAddr, lat: selectedLat, lng: selectedLng });
+
+  if (typeof window.cefQuery === 'function') {
+    window.cefQuery({
+      request  : 'MAP_SELECT:' + payload,
+      onSuccess: () => {
+        document.getElementById('selectedBar').style.display = 'none';
+        setStatus('✓ Địa chỉ đã được lưu thành công.');
+      },
+      onFailure: (code, msg) => setStatus('⚠ Lỗi lưu (' + code + '): ' + msg)
+    });
+  } else {
+    /* Chế độ test trên trình duyệt thường (không có JCEF) */
+    alert('✔ Xác nhận [DEMO - không có JCEF]:\n\n'
+        + selectedAddr + '\nLat: ' + selectedLat + '\nLng: ' + selectedLng);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HUỶ → Đóng dialog về Java
+   Java nhận: MAP_CANCEL
+══════════════════════════════════════════════════════════════ */
+function cancelDialog() {
+  if (typeof window.cefQuery === 'function') {
+    window.cefQuery({ request: 'MAP_CANCEL', onSuccess: () => {}, onFailure: () => {} });
+  } else {
+    window.close();
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   goTo(lat, lng, address)
+   Gọi từ Java để pre-load địa chỉ (chế độ Edit), AN TOÀN dù gọi
+   trước hay sau khi bản đồ đã load xong — chỉ chạy đúng MỘT lần.
+     browser.executeJavaScript("goTo(10.78, 106.7, 'Q.1, HCM');", url, 0);
+══════════════════════════════════════════════════════════════ */
+function goTo(lat, lng, address) {
+  function run() {
+    map.flyTo({ center: [lng, lat], zoom: 16, duration: 900 });
+    setTimeout(() => placeMarker(lat, lng, address || ''), 950);
+  }
+  if (map.loaded()) {
+    run();
+  } else {
+    map.once('load', run);   // 'load' chỉ bắn 1 lần — tránh chạy goTo 2 lần như 'idle'
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════════════ */
+
+/** Fetch helper cho Goong REST API. Trả về Promise<JSON>. */
+function goongFetch(path, signal) {
+  const sep = path.includes('?') ? '&' : '?';
+  return fetch(`${GOONG_BASE}${path}${sep}api_key=${GOONG_API_KEY}`, { signal })
+    .then(r => {
+      if (!r.ok) {
+        // Goong thường trả JSON kèm error_message khi key sai/hết quota
+        return r.json()
+          .then(body => { throw new Error(body?.error_message || `HTTP ${r.status}`); })
+          .catch(() => { throw new Error(`HTTP ${r.status}`); });
+      }
+      return r.json();
+    });
+}
+
+function enc(s) { return encodeURIComponent(s); }
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function onKey(e) {
+  if (e.key === 'Enter')  doSearch();
+  if (e.key === 'Escape') hideSuggestions();
+}
+
+function hideSuggestions() {
+  document.getElementById('suggestions').style.display = 'none';
+}
+
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg;
+  document.getElementById('loading').style.display   = 'flex';
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function setStatus(msg) {
+  document.getElementById('statusText').textContent = msg;
+}
+
+/* Đóng suggestions khi click ra ngoài */
+document.addEventListener('click', e => {
+  if (!e.target.closest('#searchWrap') && !e.target.closest('#suggestions'))
+    hideSuggestions();
+});
+
+/* Resize: MapLibre cần được thông báo */
+window.addEventListener('resize', () => map.resize());
+</script>
+</body>
+</html>

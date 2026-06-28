@@ -17,6 +17,8 @@ import java.util.Base64;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import java.util.function.Consumer;
+import com.mycompany.tutorhub_enterprise.client.mappicker.MapAddressResult;
+import com.mycompany.tutorhub_enterprise.client.mappicker.MapPickerDialog;
 
 public class ProfileTab extends JPanel {
 
@@ -40,6 +42,10 @@ public class ProfileTab extends JPanel {
     private final Color INPUT_BG     = Color.decode("#F8FAFC");
     // Thêm biến này lên đầu class để lưu tạm đường dẫn tải file
     public static java.io.File pendingDownloadFile = null;
+    
+    // API Key Goong (Thay bằng key thật của bạn)
+    private static final String GOONG_API_KEY = "ĐIỀN_KEY_CỦA_BẠN_VÀO_ĐÂY";
+
     private JLabel bigAvatarLabel, miniAvatarLabel;
     private byte[] pendingAvatarBytes = null;
     private Image pendingRawImage = null;
@@ -111,8 +117,13 @@ public class ProfileTab extends JPanel {
         setupCenterTabs(); 
         contentPanel.add(centerCardPanel, BorderLayout.CENTER);
         
-        // ADD TRỰC TIẾP CONTENT PANEL (BỎ JSCROLLPANE)
-        add(contentPanel, BorderLayout.CENTER);
+        // Hỗ trợ scrollbar khi thu nhỏ màn hình hoặc màn hình độ phân giải thấp
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(14);
+        add(scrollPane, BorderLayout.CENTER);
         
         switchTab(0);
         setEditMode(false);
@@ -350,7 +361,13 @@ public class ProfileTab extends JPanel {
             txt.setForeground(fgColor);
             txt.setBackground(bgColor);
             Container parent = txt.getParent();
-            if (parent != null) parent.setBackground(bgColor);
+            if (parent != null) {
+                parent.setBackground(bgColor);
+                // Đồng bộ background cho cả inputWrap của Address panel
+                if (comp == txtAddress && parent.getParent() != null) {
+                    parent.getParent().setBackground(bgColor);
+                }
+            }
         }
 
         cbGender.setEnabled(edit); 
@@ -661,7 +678,7 @@ public class ProfileTab extends JPanel {
      private JPanel createPersonalInfoForm() {
         RoundedPanel p = new RoundedPanel(14); 
         p.setLayout(new BorderLayout(0, 5)); 
-        p.setBorder(new EmptyBorder(22, 26, 22, 26)); 
+        p.setBorder(new EmptyBorder(16, 26, 16, 26)); 
 
         // ---- Header: title + edit button + divider ----
         JPanel headerWrap = new JPanel();
@@ -754,14 +771,63 @@ public class ProfileTab extends JPanel {
         grid.add(createIconInputGroup("Số điện thoại", "images/icon/phone.svg", txtPhone)); 
         grid.add(createIconInputGroup("Email", "images/icon/mail.svg", txtEmail));
         grid.add(createIconInputGroup("Giới tính", "images/icon/user.svg", cbGender)); 
-        grid.add(createIconInputGroup("Địa chỉ", "images/icon/map-pin.svg", txtAddress));
+
+        JPanel addressPanel = new JPanel(new BorderLayout(0, 0));
+        addressPanel.setOpaque(false);
+        
+        JButton btnMap = new JButton();
+        try { 
+            btnMap.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/map.svg", 16, 16)); 
+        } catch(Exception e){}
+        btnMap.setToolTipText("Chọn trên bản đồ");
+        btnMap.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnMap.setFocusable(false);
+        btnMap.setContentAreaFilled(false);
+        btnMap.setBorderPainted(false);
+        btnMap.setBorder(new EmptyBorder(0, 0, 0, 8)); // 8px spacing
+        btnMap.addActionListener(e -> {
+            MapAddressResult result = MapPickerDialog.pickAddress(
+                    (JFrame) SwingUtilities.getWindowAncestor(this),
+                    JcefManager.getClient(),
+                    GOONG_API_KEY,
+                    null
+            );
+            if (result != null) {
+                txtAddress.setText(result.getAddress());
+            }
+        });
+        
+        txtAddress.setBorder(null);
+        txtAddress.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtAddress.setOpaque(false);
+        txtAddress.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                Container parent = txtAddress.getParent();
+                if (parent != null) {
+                    Container grandparent = parent.getParent();
+                    if (grandparent != null) grandparent.repaint();
+                }
+            }
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                Container parent = txtAddress.getParent();
+                if (parent != null) {
+                    Container grandparent = parent.getParent();
+                    if (grandparent != null) grandparent.repaint();
+                }
+            }
+        });
+
+        addressPanel.add(btnMap, BorderLayout.WEST);
+        addressPanel.add(txtAddress, BorderLayout.CENTER);
+        
+        grid.add(createIconInputGroup("Địa chỉ", null, addressPanel));
         grid.add(createIconInputGroup("Khu vực dạy", "images/icon/map.svg", cbLocation)); 
         grid.add(createIconInputGroup("Môn dạy chính", "images/icon/monitor.svg", txtSubject));
         
         body.add(grid);
-        body.add(Box.createVerticalStrut(15));
+        body.add(Box.createVerticalStrut(10));
         body.add(createPhoneVerificationPanel());
-        body.add(Box.createVerticalStrut(15));
+        body.add(Box.createVerticalStrut(10));
 
         JLabel lblBio = new JLabel("Giới thiệu bản thân"); 
         lblBio.setFont(new Font("Segoe UI", Font.BOLD, 13)); 
@@ -783,10 +849,11 @@ public class ProfileTab extends JPanel {
         bioWrap.setOpaque(false);
         bioWrap.setBorder(new EmptyBorder(8, 12, 8, 12));
         bioWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
-        bioWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65)); 
+        bioWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110)); 
+        bioWrap.setPreferredSize(new Dimension(0, 110));
 
         txtBio = new JTextArea(""); 
-        txtBio.setRows(2); 
+        txtBio.setRows(4); 
         txtBio.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
         txtBio.setLineWrap(true); txtBio.setWrapStyleWord(true); 
         txtBio.setBorder(null);
@@ -804,9 +871,9 @@ public class ProfileTab extends JPanel {
         bioWrap.add(lblCharCount, BorderLayout.SOUTH);
 
         body.add(lblBio); 
-        body.add(Box.createVerticalStrut(6)); 
+        body.add(Box.createVerticalStrut(4)); 
         body.add(bioWrap); 
-        body.add(Box.createVerticalStrut(20)); 
+        body.add(Box.createVerticalStrut(10)); 
 
         JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4)); 
         btnWrap.setOpaque(false); 
@@ -836,6 +903,7 @@ public class ProfileTab extends JPanel {
         btnSaveProfile.setForeground(Color.decode("#DC2626")); 
         btnSaveProfile.setContentAreaFilled(false); 
         btnSaveProfile.setBorderPainted(false); 
+        btnSaveProfile.setBorder(new EmptyBorder(0, 0, 0, 0));
         btnSaveProfile.setPreferredSize(new Dimension(150, 40)); 
         btnSaveProfile.setCursor(new Cursor(Cursor.HAND_CURSOR));
         setNetworkIcon(btnSaveProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/checkmark.png", 16, 16);
@@ -969,7 +1037,15 @@ public class ProfileTab extends JPanel {
                 g2.setColor(getBackground());
                 g2.fillRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 8, 8);
                 
-                if (isEditingProfile && (inputComp.hasFocus() || (inputComp instanceof JComboBox && ((JComboBox)inputComp).isPopupVisible()))) {
+                boolean hasFocus = inputComp.hasFocus();
+                if (inputComp instanceof Container) {
+                    Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+                    if (owner != null && ((Container) inputComp).isAncestorOf(owner)) {
+                        hasFocus = true;
+                    }
+                }
+                
+                if (isEditingProfile && (hasFocus || (inputComp instanceof JComboBox && ((JComboBox)inputComp).isPopupVisible()))) {
                     g2.setColor(PRIMARY); 
                 } else {
                     g2.setColor(BORDER_COLOR);
