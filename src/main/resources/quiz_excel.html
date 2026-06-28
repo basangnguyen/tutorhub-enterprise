@@ -1,8 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="stylesheet" href="luckysheet/plugins/css/pluginsCss.css"/>
+  <link rel="stylesheet" href="luckysheet/plugins/plugins.css"/>
+  <link rel="stylesheet" href="luckysheet/css/luckysheet.css"/>
+  <link rel="stylesheet" href="luckysheet/assets/iconfont/iconfont.css"/>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { display:flex; flex-direction:column; height:100vh; overflow:hidden;
+           font-family:'Segoe UI',sans-serif; }
+    #topBar {
+      height:44px; background:#4CAF50; display:flex;
+      align-items:center; gap:8px; padding:0 14px;
+      flex-shrink:0; z-index:9999;
+    }
+    #topBar .title { color:white; font-size:14px; font-weight:600; flex:1; }
+    .btn { padding:5px 14px; border:none; border-radius:6px;
+           cursor:pointer; font-size:12.5px; font-weight:500; }
+    .btn-white { background:white; color:#4CAF50; }
+    .btn-green { background:#037920; color:white; }
+    .btn-ghost { background:rgba(255,255,255,0.18); color:white;
+                 border:1px solid rgba(255,255,255,0.35); }
+    .btn:hover { opacity:0.88; }
+    #luckysheet { flex:1; }
+  </style>
+</head>
+<body>
+
+<div id="topBar">
+  <span class="title">📋 Nhập Đề QuizHub từ Excel</span>
+  <button class="btn btn-ghost" onclick="importXLSX()">⬆ Mở file .xlsx mẫu</button>
+  <button class="btn btn-white" onclick="saveQuizData()">💾 Tạo Đề QuizHub</button>
+</div>
+
+<div id="luckysheet"></div>
+<input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleImport(event)"/>
+
+<script src="luckyexcel/luckyexcel.umd.js"></script>
+<script src="luckysheet/plugins/js/plugin.js"></script>
+<script src="luckysheet/luckysheet.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
 <script>
 $(function () {
   luckysheet.create({
     container: 'luckysheet',
-    lang: 'zh', // Luckysheet chưa có 'vi', giữ 'zh' hoặc 'en' không ảnh hưởng dữ liệu nhập tiếng Việt
+    lang: 'zh',
     showtoolbar: true,
     data: [
       {
@@ -35,15 +79,11 @@ function cellObj(v) { return { v: v, m: v, ct: { fa: 'General', t: 'g' } }; }
 
 function buildMetaSheetCells() {
   return META_FIELDS.map((key, r) => ({ r, c: 0, v: cellObj(key) }));
-  // Cột B (c:1) để trống cho người soạn tự điền giá trị tương ứng từng dòng
 }
 
 function buildCauHoiHeaderCells() {
   return COLS.map((name, c) => ({ r: 0, c, v: cellObj(name) }));
 }
-
-/** Khi người dùng bấm "Tải file Excel có sẵn lên" — dùng Luckyexcel như deg_excel.html đã làm,
- *  Luckyexcel sẽ tự tạo lại đúng số sheet/tên sheet có trong file gốc (kể cả Huong_dan, bỏ qua cũng không lỗi gì). */
 
 function findSheetByName(sheets, name) {
   return sheets.find(s => s.name === name);
@@ -82,7 +122,7 @@ function readMetaSheet(sheet) {
 }
 
 function saveQuizData() {
-  const sheets = luckysheet.getAllSheets(); // mỗi sheet có .name và .data (ma trận 2D)
+  const sheets = luckysheet.getAllSheets(); 
   const meta = readMetaSheet(findSheetByName(sheets, 'Thong_tin_de'));
   const quizSheet = findSheetByName(sheets, 'Cau_hoi');
 
@@ -99,7 +139,7 @@ function saveQuizData() {
     const row = data[r];
     if (!row) continue;
     const cauHoi = cellVal(row, colMap['Cau_hoi']);
-    if (!cauHoi) continue; // bỏ dòng trống, không gửi sang Java
+    if (!cauHoi) continue; 
 
     const item = { excelRowNumber: String(r + 1) };
     COLS.forEach(name => { item[name] = cellVal(row, colMap[name]); });
@@ -124,4 +164,24 @@ function saveQuizData() {
     onFailure: function (code, msg) { alert('Lỗi gửi dữ liệu: ' + msg); }
   });
 }
+
+function importXLSX() { document.getElementById('fileInput').click(); }
+
+function handleImport(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  LuckyExcel.transformExcelToLucky(file, function(exportJson) {
+    if (!exportJson.sheets || exportJson.sheets.length === 0) {
+      alert('Không đọc được file!'); return;
+    }
+    luckysheet.destroy();
+    luckysheet.create({
+      container:'luckysheet', data:exportJson.sheets,
+      title:exportJson.info.name,
+      showtoolbar:true, sheetFormulaBar:true, showinfobar:false
+    });
+  });
+}
 </script>
+</body>
+</html>
