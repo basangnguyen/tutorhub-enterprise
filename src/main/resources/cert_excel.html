@@ -32,6 +32,7 @@
   <span class="title">📋 Nhập Chứng Chỉ Chuyên Môn</span>
   <button class="btn btn-ghost" onclick="importXLSX()">⬆ Mở .xlsx</button>
   <button class="btn btn-green" onclick="exportXLSX()">⬇ Xuất .xlsx</button>
+  <button class="btn btn-white" onclick="attachFile()">📎 Đính kèm PDF</button>
   <button class="btn btn-white" onclick="saveToTutorHub()">💾 Lưu vào TutorHub</button>
 </div>
 
@@ -44,8 +45,8 @@
 <script src="luckysheet/luckysheet.umd.js"></script>
 
 <script>
-  var COL_NAMES  = ['Tên chứng chỉ','Đơn vị cấp','Ngày cấp','Hạn sử dụng','Ghi chú'];
-  var COL_WIDTHS = { 0:220, 1:180, 2:130, 3:130, 4:220 };
+  var COL_NAMES  = ['Tên chứng chỉ','Đơn vị cấp','Ngày cấp','Hạn sử dụng','Ghi chú','Tệp đính kèm'];
+  var COL_WIDTHS = { 0:220, 1:180, 2:130, 3:130, 4:220, 5:150 };
   var HEADER_STYLE = { bl:1, fs:12, ht:0, vt:0,
                        bg:'#7B5EA7', fc:'#FFFFFF' };
 
@@ -89,7 +90,8 @@
         col1: getVal(row[1]),
         col2: getVal(row[2]),
         col3: getVal(row[3]),
-        col4: getVal(row[4])
+        col4: getVal(row[4]),
+        col5: getVal(row[5])
       });
     }
 
@@ -133,6 +135,33 @@
   // ══════════════════════════════════════════════════════
   function importXLSX() { document.getElementById('fileInput').click(); }
 
+  // ══════════════════════════════════════════════════════
+  // ĐÍNH KÈM PDF — cefQuery
+  // ══════════════════════════════════════════════════════
+  function attachFile() {
+    var range = luckysheet.getRange();
+    if (!range || range.length === 0) {
+      alert("Vui lòng chọn 1 ô trong cột 'Tệp đính kèm' để tải file lên!");
+      return;
+    }
+    var r = range[0].row[0];
+    var c = range[0].column[0];
+    if (c !== 5) {
+      alert("Bạn phải chọn 1 ô trong cột 'Tệp đính kèm' (Cột F)!");
+      return;
+    }
+    
+    window.cefQuery({
+      request: 'OPEN_FILE_CHOOSER:' + r,
+      onSuccess: function(fileName) {
+        luckysheet.setCellValue(r, 5, fileName);
+      },
+      onFailure: function(code, msg) {
+        if (code !== 0) alert('Lỗi đính kèm: ' + msg);
+      }
+    });
+  }
+
   function handleImport(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -154,7 +183,7 @@
     var rows = JSON.parse(jsonStr);
     var cells = [...headerCells];
     rows.forEach(function(r, ri) {
-      [r.col0, r.col1, r.col2, r.col3, r.col4].forEach(function(v,ci) {
+      [r.col0, r.col1, r.col2, r.col3, r.col4, r.col5].forEach(function(v,ci) {
         if (v) cells.push({ r:ri+1, c:ci, v:{v:v,m:v} });
       });
     });

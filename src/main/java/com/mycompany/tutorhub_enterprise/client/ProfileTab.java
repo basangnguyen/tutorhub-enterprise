@@ -3028,24 +3028,20 @@ public class ProfileTab extends JPanel {
         
         String cleanFileName = rawFileName.replaceAll("<[^>]*>", "");
         
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Lưu tệp đính kèm");
-        fileChooser.setSelectedFile(new File(cleanFileName));
+        pdfPreviewCallback = (bytes) -> {
+            if (bytes != null) {
+                showFullscreenPDF(bytes);
+            }
+        };
         
-        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            // Lưu đường dẫn người dùng chọn vào biến tạm để luồng ngầm sử dụng sau
-            pendingDownloadFile = fileChooser.getSelectedFile();
-            
-            new Thread(() -> {
-                try {
-                    // CHỈ GỬI YÊU CẦU, KHÔNG GỌI receivePacket() Ở ĐÂY NỮA
-                    NetworkManager.getInstance().sendPacket(new Packet("DOWNLOAD_FILE", cleanFileName));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Lỗi gửi yêu cầu tải: " + ex.getMessage(), "Lỗi hệ thống", JOptionPane.ERROR_MESSAGE));
-                }
-            }).start();
-        }
+        new Thread(() -> {
+            try {
+                NetworkManager.getInstance().sendPacket(new Packet("DOWNLOAD_FILE", cleanFileName));
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Lỗi gửi yêu cầu tải: " + ex.getMessage(), "Lỗi hệ thống", JOptionPane.ERROR_MESSAGE));
+            }
+        }).start();
     }
     
     private org.cef.browser.CefBrowser inlinePdfBrowser = null;

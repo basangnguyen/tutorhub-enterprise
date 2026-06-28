@@ -21,11 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-
+import java.nio.file.Files;
 public class ExcelEditorDialog extends JDialog {
     private final CefBrowser browser;
     private final CefMessageRouter msgRouter;
     private static File extractAssetsDir = null;
+    private final Map<String, byte[]> fileCache = new java.util.HashMap<>();
 
     public ExcelEditorDialog(Frame owner, DefaultTableModel tableModel, boolean isDegree) {
         super(owner, isDegree ? "Quản lý Bằng cấp (Excel)" : "Quản lý Chứng chỉ (Excel)", true);
@@ -58,6 +59,27 @@ public class ExcelEditorDialog extends JDialog {
                     String base64 = request.substring("EXPORT_XLSX:".length());
                     handleExportXlsx(base64);
                     callback.success("OK");
+                    return true;
+                }
+                else if (request.startsWith("OPEN_FILE_CHOOSER:")) {
+                    SwingUtilities.invokeLater(() -> {
+                        JFileChooser chooser = new JFileChooser();
+                        chooser.setDialogTitle("Chọn tệp đính kèm (PDF)");
+                        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF Documents", "pdf"));
+                        if (chooser.showOpenDialog(ExcelEditorDialog.this) == JFileChooser.APPROVE_OPTION) {
+                            File f = chooser.getSelectedFile();
+                            try {
+                                byte[] bytes = Files.readAllBytes(f.toPath());
+                                String fName = "excel_" + System.currentTimeMillis() + "_" + f.getName();
+                                fileCache.put(fName, bytes);
+                                callback.success(fName);
+                            } catch (Exception ex) {
+                                callback.failure(1, "Lỗi đọc file: " + ex.getMessage());
+                            }
+                        } else {
+                            callback.failure(0, "Canceled");
+                        }
+                    });
                     return true;
                 }
                 return false;
@@ -136,6 +158,16 @@ public class ExcelEditorDialog extends JDialog {
                         String major = r.get("col2") != null ? r.get("col2") : "";
                         String year = r.get("col3") != null ? r.get("col3") : "";
                         String rank = r.get("col4") != null ? r.get("col4") : "";
+                        String fileName = r.get("col5") != null ? r.get("col5") : "";
+                        
+                        String b64 = "NO_FILE";
+                        if (!fileName.isEmpty() && fileCache.containsKey(fileName)) {
+                            b64 = Base64.getEncoder().encodeToString(fileCache.get(fileName));
+                        } else {
+                            fileName = "Excel_Data.xlsx";
+                        }
+                        
+                        final String finalFileName = fileName;
                         
                         SwingUtilities.invokeLater(() -> {
                             tableModel.addRow(new Object[]{
@@ -143,13 +175,13 @@ public class ExcelEditorDialog extends JDialog {
                                 uni, 
                                 year, 
                                 rank, 
-                                "",            
+                                finalFileName.equals("Excel_Data.xlsx") ? "" : finalFileName,            
                                 "Chờ duyệt"    
                             });
                         });
                         
                         // Payload: Tên bằng cấp | Chuyên ngành | Trường/Đơn vị | Năm TN | fileName | b64
-                        String payload = name + "|" + major + "|" + uni + "|" + year + "|Excel_Data.xlsx|NO_FILE";
+                        String payload = name + "|" + major + "|" + uni + "|" + year + "|" + fileName + "|" + b64;
                         com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_DEGREE", payload));
                     } else {
                         String name = r.get("col0") != null ? r.get("col0") : "";
@@ -157,6 +189,16 @@ public class ExcelEditorDialog extends JDialog {
                         String issue = r.get("col2") != null ? r.get("col2") : "";
                         String exp = r.get("col3") != null ? r.get("col3") : "";
                         String note = r.get("col4") != null ? r.get("col4") : "";
+                        String fileName = r.get("col5") != null ? r.get("col5") : "";
+                        
+                        String b64 = "NO_FILE";
+                        if (!fileName.isEmpty() && fileCache.containsKey(fileName)) {
+                            b64 = Base64.getEncoder().encodeToString(fileCache.get(fileName));
+                        } else {
+                            fileName = "Excel_Data.xlsx";
+                        }
+                        
+                        final String finalFileName = fileName;
                         
                         SwingUtilities.invokeLater(() -> {
                             tableModel.addRow(new Object[]{
@@ -164,13 +206,13 @@ public class ExcelEditorDialog extends JDialog {
                                 prov,
                                 issue,
                                 exp,
-                                "",             
+                                finalFileName.equals("Excel_Data.xlsx") ? "" : finalFileName,             
                                 "Chờ duyệt"     
                             });
                         });
                         
                         // Payload: Tên chứng chỉ | Đơn vị cấp | Ngày cấp | Hạn SD | fileName | b64
-                        String payload = name + "|" + prov + "|" + issue + "|" + exp + "|Excel_Data.xlsx|NO_FILE";
+                        String payload = name + "|" + prov + "|" + issue + "|" + exp + "|" + fileName + "|" + b64;
                         com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_CERTIFICATE", payload));
                     }
                 }
