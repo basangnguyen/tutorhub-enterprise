@@ -24,18 +24,22 @@ import java.util.Map;
 
 public class ChatTab extends JPanel {
 
-    // ===== THEME GIAO DIỆN CHUẨN MOCKUP =====
-    private final Color PRIMARY = Color.decode("#2563EB"); 
-    private final Color BG_MAIN = Color.decode("#F0F4FA"); // Nền xám xanh nhạt sang trọng
-    private final Color BG_LEFT = Color.decode("#FFFFFF"); 
-    private final Color BG_ME = Color.decode("#007AFF"); // Tin nhắn của mình màu Xanh Primary
-    private final Color BG_OTHER = Color.decode("#FFFFFF"); // Tin nhắn người khác màu Trắng
-    private final Color BORDER_COLOR = Color.decode("#E2E8F0");
-    private final Color TEXT_MAIN = Color.decode("#0F172A");
-    private final Color TEXT_MUTED = Color.decode("#64748B");
-    private final Color ONLINE_COLOR = Color.decode("#10B981"); 
-    private final Color OFFLINE_COLOR = Color.decode("#94A3B8"); 
-    private final Color BADGE_COLOR = Color.decode("#EF4444");
+    // ===== THEME TUTORHUB ENTERPRISE =====
+    private final Color PRIMARY       = Color.decode("#4F6EF7"); // TutorHub blue-purple
+    private final Color PRIMARY_DARK  = Color.decode("#3B56D9"); // Hover / press
+    private final Color PRIMARY_LIGHT = Color.decode("#EEF2FF"); // Active item background
+    private final Color BG_MAIN       = Color.decode("#F0F2F5"); // Chat area – Telegram-style
+    private final Color BG_LEFT       = Color.decode("#FFFFFF"); // Left panel
+    private final Color BG_ME         = Color.decode("#4F6EF7"); // Self bubble (primary)
+    private final Color BG_OTHER      = Color.decode("#FFFFFF"); // Incoming bubble
+    private final Color BORDER_COLOR  = Color.decode("#E5E7EB"); // Dividers
+    private final Color TEXT_MAIN     = Color.decode("#111827"); // Primary text
+    private final Color TEXT_MUTED    = Color.decode("#6B7280"); // Secondary text
+    private final Color ONLINE_COLOR  = Color.decode("#22C55E"); // Online dot
+    private final Color OFFLINE_COLOR = Color.decode("#9CA3AF"); // Offline dot
+    private final Color BADGE_COLOR   = Color.decode("#EF4444"); // Unread badge
+    private final Color HOVER_BG      = Color.decode("#F9FAFB"); // Item hover state
+    private final Color INPUT_BG      = Color.decode("#F3F4F6"); // Input field background
 
     // ===== DATA MODELS =====
     private List<ConversationInfo> conversations = new ArrayList<>();
@@ -108,8 +112,8 @@ public class ChatTab extends JPanel {
         // ========================================================
         // THÊM 2 DÒNG NÀY ĐỂ ÉP CỨNG ĐỘ RỘNG CỘT TRÁI LÀ 400px
         // ========================================================
-        leftColumn.setMinimumSize(new Dimension(400, 0)); 
-        mainSplit.setDividerLocation(400); 
+        leftColumn.setMinimumSize(new Dimension(360, 0)); 
+        mainSplit.setDividerLocation(360); 
 
         add(mainSplit, BorderLayout.CENTER);
 
@@ -392,57 +396,143 @@ public class ChatTab extends JPanel {
     private JPanel createConversationListColumn() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(BG_LEFT);
-        
-        // !!! CHÚ Ý: ĐÃ SỬA 360 THÀNH 450 Ở ĐÂY ĐỂ NỚI RỘNG CỘT DANH SÁCH !!!
-        panel.setPreferredSize(new Dimension(400, 0)); 
-        
+        panel.setPreferredSize(new Dimension(360, 0));
         panel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, BORDER_COLOR));
 
-        JPanel headerPanel = new JPanel();
-        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
-        headerPanel.setBackground(BG_LEFT);
-        headerPanel.setBorder(new EmptyBorder(10, 16, 5, 16)); 
+        // ── TITLE BAR: "Tin nhắn" + compose icon ──────────────────────────
+        JPanel topBar = new JPanel(new BorderLayout(0, 0));
+        topBar.setBackground(BG_LEFT);
+        topBar.setBorder(new EmptyBorder(18, 20, 4, 16));
 
-        headerPanel.add(createFilterTabs());
-        panel.add(headerPanel, BorderLayout.NORTH);
+        JLabel lblTitle = new JLabel("Tin nhắn");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblTitle.setForeground(TEXT_MAIN);
+        topBar.add(lblTitle, BorderLayout.WEST);
 
-        leftListPanel = new JPanel(); 
+        JPanel topActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        topActions.setOpaque(false);
+        JPanel btnCompose = createActionIcon(
+            "https://img.icons8.com/fluency-systems-regular/48/64748B/compose.png");
+        topActions.add(btnCompose);
+        topBar.add(topActions, BorderLayout.EAST);
+
+        // ── FILTER CHIPS ───────────────────────────────────────────────────
+        JPanel filterWrap = new JPanel(new BorderLayout());
+        filterWrap.setBackground(BG_LEFT);
+        filterWrap.setBorder(new EmptyBorder(10, 14, 10, 14));
+        filterWrap.add(createFilterTabs(), BorderLayout.WEST);
+
+        // ── HEADER SECTION (title + filters) ──────────────────────────────
+        JPanel headerSection = new JPanel();
+        headerSection.setLayout(new BoxLayout(headerSection, BoxLayout.Y_AXIS));
+        headerSection.setBackground(BG_LEFT);
+        headerSection.add(topBar);
+        headerSection.add(filterWrap);
+
+        JPanel headerBorder = new JPanel(new BorderLayout());
+        headerBorder.setBackground(BG_LEFT);
+        headerBorder.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
+        headerBorder.add(headerSection, BorderLayout.CENTER);
+
+        panel.add(headerBorder, BorderLayout.NORTH);
+
+        // ── CONVERSATION LIST ──────────────────────────────────────────────
+        leftListPanel = new JPanel();
         leftListPanel.setLayout(new BoxLayout(leftListPanel, BoxLayout.Y_AXIS));
         leftListPanel.setBackground(BG_LEFT);
-        
-        JScrollPane scroll = new JScrollPane(leftListPanel); 
-        scroll.setBorder(null); 
+
+        JScrollPane scroll = new JScrollPane(leftListPanel);
+        scroll.setBorder(null);
         scroll.getViewport().setBackground(BG_LEFT);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
-        scroll.getVerticalScrollBar().setPreferredSize(new Dimension(0, 0)); 
-        
-        panel.add(scroll, BorderLayout.CENTER);
+        scroll.getVerticalScrollBar().setPreferredSize(new Dimension(4, 0));
 
+        panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel createFilterTabs() {
-        JPanel tabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); tabs.setOpaque(false);
-        tabs.add(createFilterTab("Tất cả", "ALL")); 
-        tabs.add(Box.createHorizontalStrut(20));
-        tabs.add(createFilterTab("Ưu tiên", "PRIORITY")); 
-        tabs.add(Box.createHorizontalStrut(20));
-        tabs.add(createFilterTab("Chưa đọc", "UNREAD"));
+        JPanel tabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        tabs.setOpaque(false);
+
+        final String[][] defs = {
+            {"Tất cả", "ALL"},
+            {"Ưu tiên", "PRIORITY"},
+            {"Chưa đọc", "UNREAD"}
+        };
+
+        final List<JLabel>  tabLabels = new ArrayList<>();
+        final List<JPanel>  tabChips  = new ArrayList<>();
+
+        // Tạo tất cả chip trước
+        for (String[] def : defs) {
+            final String ft   = def[1];
+            boolean isActive  = currentFilter.equals(ft);
+
+            JPanel chip = new JPanel(new BorderLayout()) {
+                @Override protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    if (currentFilter.equals(ft)) {
+                        g2.setColor(PRIMARY_LIGHT);
+                    } else if (Boolean.TRUE.equals(getClientProperty("hovered"))) {
+                        g2.setColor(HOVER_BG);
+                    } else {
+                        g2.setColor(new Color(0, 0, 0, 0));
+                    }
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+                    g2.dispose();
+                    super.paintComponent(g);
+                }
+            };
+            chip.setOpaque(false);
+            chip.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            chip.setBorder(new EmptyBorder(5, 14, 5, 14));
+            chip.putClientProperty("filterType", ft);
+
+            JLabel lbl = new JLabel(def[0]);
+            lbl.setFont(new Font("Segoe UI", isActive ? Font.BOLD : Font.PLAIN, 13));
+            lbl.setForeground(isActive ? PRIMARY : TEXT_MUTED);
+            chip.add(lbl, BorderLayout.CENTER);
+
+            tabLabels.add(lbl);
+            tabChips.add(chip);
+        }
+
+        // Gắn listener SAU khi tất cả chip/label đã được tạo
+        for (int i = 0; i < tabChips.size(); i++) {
+            final JPanel chip    = tabChips.get(i);
+            final String myFt    = defs[i][1];
+
+            chip.addMouseListener(new MouseAdapter() {
+                @Override public void mouseEntered(MouseEvent e) {
+                    chip.putClientProperty("hovered", true);
+                    chip.repaint();
+                }
+                @Override public void mouseExited(MouseEvent e) {
+                    chip.putClientProperty("hovered", false);
+                    chip.repaint();
+                }
+                @Override public void mouseClicked(MouseEvent e) {
+                    currentFilter = myFt;
+                    // Cập nhật toàn bộ chip cùng lúc
+                    for (int j = 0; j < tabChips.size(); j++) {
+                        boolean active = defs[j][1].equals(currentFilter);
+                        tabLabels.get(j).setFont(new Font("Segoe UI", active ? Font.BOLD : Font.PLAIN, 13));
+                        tabLabels.get(j).setForeground(active ? PRIMARY : TEXT_MUTED);
+                        tabChips.get(j).repaint();
+                    }
+                    refreshConversationList();
+                }
+            });
+            tabs.add(chip);
+        }
         return tabs;
     }
 
+    // Giữ lại để không compile error nếu có code ngoài tham chiếu (không còn dùng nội bộ)
     private JPanel createFilterTab(String text, String filterType) {
-        JPanel p = new JPanel(new BorderLayout(5, 0)) {
-            @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                if (currentFilter.equals(filterType)) { Graphics2D g2 = (Graphics2D) g.create(); g2.setColor(PRIMARY); g2.fillRect(0, getHeight() - 2, getWidth(), 2); g2.dispose(); }
-            }
-        };
-        p.setOpaque(false); p.setCursor(new Cursor(Cursor.HAND_CURSOR)); p.setBorder(new EmptyBorder(0, 0, 8, 0));
-        JLabel lbl = new JLabel(text); lbl.setFont(new Font("Segoe UI", currentFilter.equals(filterType) ? Font.BOLD : Font.PLAIN, 13));
-        lbl.setForeground(currentFilter.equals(filterType) ? PRIMARY : TEXT_MUTED); p.add(lbl, BorderLayout.CENTER);
-        p.addMouseListener(new MouseAdapter() { @Override public void mouseClicked(MouseEvent e) { currentFilter = filterType; Container parent = p.getParent(); parent.repaint(); refreshConversationList(); } });
-        return p;
+        return createFilterTabs(); // redirect, không dùng trực tiếp nữa
     }
 
     private void refreshConversationList() {
@@ -471,72 +561,148 @@ public class ChatTab extends JPanel {
         }
 
         if (!hasItem) {
-            JPanel p = new JPanel(); p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setOpaque(false); p.setBorder(new EmptyBorder(40, 20, 20, 20));
-            JLabel icon = new JLabel(); setNetworkIcon(icon, "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/chat.png", 48, 48); icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-            JLabel lblTitle = new JLabel("Hộp thư trống"); lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 15)); lblTitle.setForeground(TEXT_MAIN); lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-            p.add(icon); p.add(Box.createVerticalStrut(15)); p.add(lblTitle);
-            leftListPanel.add(p);
+            JPanel empty = new JPanel();
+            empty.setLayout(new BoxLayout(empty, BoxLayout.Y_AXIS));
+            empty.setOpaque(false);
+            empty.setBorder(new EmptyBorder(52, 20, 20, 20));
+
+            JLabel icon = new JLabel();
+            setNetworkIcon(icon,
+                "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/chat.png", 44, 44);
+            icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+            JLabel lblEmpty = new JLabel("Hộp thư trống");
+            lblEmpty.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            lblEmpty.setForeground(TEXT_MAIN);
+            lblEmpty.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+            JLabel lblSub = new JLabel("Chưa có cuộc trò chuyện nào");
+            lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            lblSub.setForeground(TEXT_MUTED);
+            lblSub.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+            empty.add(icon);
+            empty.add(Box.createVerticalStrut(14));
+            empty.add(lblEmpty);
+            empty.add(Box.createVerticalStrut(6));
+            empty.add(lblSub);
+            leftListPanel.add(empty);
         }
 
         leftListPanel.revalidate(); leftListPanel.repaint();
     }
 
    private JPanel createConversationItem(ConversationInfo c) {
-        boolean isActive = activeConversation != null && activeConversation.conversationId == c.conversationId;
-        boolean hasUnread = c.unreadCount > 0; // Biến kiểm tra tin nhắn chưa đọc
-        
-        JPanel p = new JPanel(new BorderLayout(12, 0)); 
-        p.setBackground(isActive ? Color.decode("#E8F0FE") : BG_LEFT);
-        p.setBorder(new EmptyBorder(12, 16, 12, 16)); 
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74)); 
+        boolean isActive  = activeConversation != null && activeConversation.conversationId == c.conversationId;
+        boolean hasUnread = c.unreadCount > 0;
+
+        // ── OUTER PANEL với custom paint (active accent + hover) ─────────
+        JPanel p = new JPanel(new BorderLayout(0, 0)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                // Nền
+                if (isActive) {
+                    g2.setColor(PRIMARY_LIGHT);
+                } else if (Boolean.TRUE.equals(getClientProperty("hovered"))) {
+                    g2.setColor(HOVER_BG);
+                } else {
+                    g2.setColor(BG_LEFT);
+                }
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                // Left accent bar khi active
+                if (isActive) {
+                    g2.setColor(PRIMARY);
+                    g2.fillRect(0, 0, 3, getHeight());
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(11, 18, 11, 14));
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
         p.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JLayeredPane avatarPane = new JLayeredPane(); avatarPane.setPreferredSize(new Dimension(48, 48));
-        JLabel lblAvatar = new JLabel(); setAvatarIcon(lblAvatar, c.avatarUrl, 48); lblAvatar.setBounds(0, 0, 48, 48); avatarPane.add(lblAvatar, Integer.valueOf(0));
+        // ── AVATAR + ONLINE DOT ──────────────────────────────────────────
+        JLayeredPane avatarPane = new JLayeredPane();
+        avatarPane.setPreferredSize(new Dimension(46, 46));
+        JLabel lblAvatar = new JLabel();
+        setAvatarIcon(lblAvatar, c.avatarUrl, 46);
+        lblAvatar.setBounds(0, 0, 46, 46);
+        avatarPane.add(lblAvatar, Integer.valueOf(0));
         JPanel dot = new CircleDot(c.isOnline ? ONLINE_COLOR : OFFLINE_COLOR);
-        dot.setBounds(34, 34, 14, 14); avatarPane.add(dot, Integer.valueOf(1));
-        p.add(avatarPane, BorderLayout.WEST);
+        dot.setBounds(33, 33, 13, 13);
+        avatarPane.add(dot, Integer.valueOf(1));
 
-        JPanel center = new JPanel(); center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS)); center.setOpaque(false);
-        
-        // BÔI ĐẬM VÀ ĐỔI MÀU ĐEN TUYỀN CHO TÊN NẾU CHƯA ĐỌC
-        JLabel lblName = new JLabel(c.displayName); 
-        lblName.setFont(new Font("Segoe UI", hasUnread ? Font.BOLD : Font.BOLD, 15)); 
-        lblName.setForeground(hasUnread ? Color.BLACK : TEXT_MAIN);
-        
-        String msgContent = c.lastMessage != null ? c.lastMessage : "Bắt đầu trò chuyện!";
-        
-        // BÔI ĐẬM VÀ ĐỔI MÀU ĐEN TUYỀN CHO NỘI DUNG NẾU CHƯA ĐỌC
-        JLabel lblMsg = new JLabel(msgContent); 
-        lblMsg.setFont(new Font("Segoe UI", hasUnread ? Font.BOLD : Font.PLAIN, 13)); 
-        lblMsg.setForeground(hasUnread ? Color.BLACK : TEXT_MUTED); 
-        
-        center.add(lblName); center.add(Box.createVerticalStrut(4)); center.add(lblMsg); p.add(center, BorderLayout.CENTER);
+        // ── CENTER: name + last message ──────────────────────────────────
+        JPanel center = new JPanel();
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.setOpaque(false);
+        center.setBorder(new EmptyBorder(0, 13, 0, 6));
 
-        JPanel right = new JPanel(new BorderLayout()); right.setOpaque(false);
+        JLabel lblName = new JLabel(c.displayName);
+        lblName.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblName.setForeground(TEXT_MAIN);
+
+        String rawMsg  = (c.lastMessage != null && !c.lastMessage.isEmpty())
+                       ? c.lastMessage : "Bắt đầu trò chuyện";
+        // Truncate dài quá
+        if (rawMsg.length() > 36) rawMsg = rawMsg.substring(0, 36) + "…";
+
+        JLabel lblMsg = new JLabel(rawMsg);
+        lblMsg.setFont(new Font("Segoe UI", hasUnread ? Font.BOLD : Font.PLAIN, 12));
+        lblMsg.setForeground(hasUnread ? TEXT_MAIN : TEXT_MUTED);
+
+        center.add(lblName);
+        center.add(Box.createVerticalStrut(3));
+        center.add(lblMsg);
+
+        // ── RIGHT: time + unread badge ───────────────────────────────────
+        JPanel right = new JPanel();
+        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+        right.setOpaque(false);
+        right.setPreferredSize(new Dimension(50, 46));
+
         String timeStr = c.lastMessageTime != null ? timeFormat.format(c.lastMessageTime) : "";
-        
-        // BÔI ĐẬM VÀ ĐỔI MÀU XANH CHO THỜI GIAN NẾU CHƯA ĐỌC
-        JLabel lblTime = new JLabel(timeStr); 
-        lblTime.setFont(new Font("Segoe UI", hasUnread ? Font.BOLD : Font.PLAIN, 11)); 
-        lblTime.setForeground(hasUnread ? PRIMARY : TEXT_MUTED); 
-        right.add(lblTime, BorderLayout.NORTH);
-        
-        if (hasUnread) { 
-            JPanel badgeWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0)); badgeWrapper.setOpaque(false); 
-            badgeWrapper.add(new PillBadge(String.valueOf(c.unreadCount), BADGE_COLOR, Color.WHITE)); right.add(badgeWrapper, BorderLayout.SOUTH); 
-        }
-        p.add(right, BorderLayout.EAST);
+        JLabel lblTime = new JLabel(timeStr);
+        lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblTime.setForeground(hasUnread ? PRIMARY : TEXT_MUTED);
+        lblTime.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
+        right.add(lblTime);
+        if (hasUnread) {
+            right.add(Box.createVerticalStrut(5));
+            String badgeText = c.unreadCount > 99 ? "99+" : String.valueOf(c.unreadCount);
+            JPanel badgeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+            badgeWrap.setOpaque(false);
+            badgeWrap.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            badgeWrap.add(new PillBadge(badgeText, BADGE_COLOR, Color.WHITE));
+            right.add(badgeWrap);
+        }
+
+        // ── ASSEMBLE ─────────────────────────────────────────────────────
+        JPanel contentRow = new JPanel(new BorderLayout(0, 0));
+        contentRow.setOpaque(false);
+        contentRow.add(center, BorderLayout.CENTER);
+        contentRow.add(right,  BorderLayout.EAST);
+
+        p.add(avatarPane,  BorderLayout.WEST);
+        p.add(contentRow,  BorderLayout.CENTER);
+
+        // Hover + click
         p.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { if (!isActive) { p.setBackground(Color.decode("#F8F9FA")); p.repaint(); } }
-            @Override public void mouseExited(MouseEvent e) { if (!isActive) { p.setBackground(BG_LEFT); p.repaint(); } }
-            @Override public void mouseReleased(MouseEvent e) { 
-                setActiveConversation(c); 
-                refreshConversationList(); 
+            @Override public void mouseEntered(MouseEvent e) {
+                if (!isActive) { p.putClientProperty("hovered", true);  p.repaint(); }
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                p.putClientProperty("hovered", false); p.repaint();
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                setActiveConversation(c);
+                refreshConversationList();
             }
         });
-        
+
         return p;
     }
 
@@ -608,7 +774,7 @@ public class ChatTab extends JPanel {
             setNetworkIcon(lblIcon, "https://img.icons8.com/fluency-systems-regular/48/2563EB/search-message.png", 28, 28); 
             pLocal.add(lblIcon, BorderLayout.WEST);
             
-            JLabel lblText = new JLabel("<html>Tìm thấy <b style='color:#2563EB;'>" + localMatchCount + "</b> tin nhắn phù hợp (Nhấn để xem)</html>"); 
+            JLabel lblText = new JLabel("<html>Tìm thấy <b style='color:#4F6EF7;'>" + localMatchCount + "</b> tin nhắn phù hợp (Nhấn để xem)</html>"); 
             lblText.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
             lblText.setForeground(TEXT_MAIN); 
             pLocal.add(lblText, BorderLayout.CENTER);
@@ -807,115 +973,127 @@ updatePopupSelection(); }
     // HÀM RENDER (LẬT BÀI CARDLAYOUT - ĐÃ FIX TRÀN VIỀN NGANG)
     // =========================================================================
     private void renderActiveChatStructure() {
-        // 1. NẾU CHƯA CHỌN AI -> LẬT LÁ BÀI SLIDER LÊN RỒI DỪNG LẠI
         if (activeConversation == null) {
             if (centerCardLayout != null) centerCardLayout.show(centerChatPanel, "WELCOME_CARD");
             return;
         }
-
-        // 2. NẾU ĐÃ CHỌN NGƯỜI -> LẬT LÁ BÀI CHAT LÊN
         if (centerCardLayout != null) centerCardLayout.show(centerChatPanel, "CHAT_CARD");
+        activeChatContainer.removeAll();
 
-        // Xóa sạch khung chat cũ trước khi vẽ người mới
-        activeChatContainer.removeAll(); 
+        // ── KHU VỰC 1: HEADER ──────────────────────────────────────────────
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(Color.WHITE);
+        header.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
+            new EmptyBorder(12, 20, 12, 14)
+        ));
+        header.setPreferredSize(new Dimension(0, 66));
 
-        // ==========================================
-        // KHU VỰC 1: HEADER (ẢNH ĐẠI DIỆN & NÚT GỌI)
-        // ==========================================
-        JPanel header = new JPanel(new BorderLayout()); 
-        header.setBackground(Color.WHITE); 
-        header.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR), new EmptyBorder(12, 24, 12, 24)));
-        
-        JPanel leftHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0)); 
+        // LEFT: avatar + info
+        JPanel leftHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         leftHeader.setOpaque(false);
-        
-        JLayeredPane avatarPane = new JLayeredPane(); 
-        avatarPane.setPreferredSize(new Dimension(46, 46));
-        JLabel lblAvatar = new JLabel(); 
-        setAvatarIcon(lblAvatar, activeConversation.avatarUrl, 46);
-        lblAvatar.setBounds(0, 0, 46, 46); 
+
+        JLayeredPane avatarPane = new JLayeredPane();
+        avatarPane.setPreferredSize(new Dimension(44, 44));
+        JLabel lblAvatar = new JLabel();
+        setAvatarIcon(lblAvatar, activeConversation.avatarUrl, 44);
+        lblAvatar.setBounds(0, 0, 44, 44);
         avatarPane.add(lblAvatar, Integer.valueOf(0));
         JPanel dot = new CircleDot(activeConversation.isOnline ? ONLINE_COLOR : OFFLINE_COLOR);
-        dot.setBounds(33, 33, 13, 13); 
+        dot.setBounds(31, 31, 13, 13);
         avatarPane.add(dot, Integer.valueOf(1));
 
-        JPanel info = new JPanel(); 
-        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS)); 
+        JPanel info = new JPanel();
+        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
         info.setOpaque(false);
-        JLabel lblName = new JLabel(activeConversation.displayName); 
-        lblName.setFont(new Font("Segoe UI", Font.BOLD, 18)); 
+
+        JLabel lblName = new JLabel(activeConversation.displayName);
+        lblName.setFont(new Font("Segoe UI", Font.BOLD, 15));
         lblName.setForeground(TEXT_MAIN);
-        
-        String statusStr = activeConversation.conversationId < 0 ? "Người dùng hệ thống" : formatLastSeen(activeConversation.isOnline, activeConversation.lastMessageTime);
-        JLabel lblStatus = new JLabel(statusStr); 
-        lblStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
+
+        String statusStr = activeConversation.conversationId < 0
+            ? "Người dùng hệ thống"
+            : formatLastSeen(activeConversation.isOnline, activeConversation.lastMessageTime);
+        JLabel lblStatus = new JLabel(statusStr);
+        lblStatus.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblStatus.setForeground(activeConversation.isOnline ? ONLINE_COLOR : TEXT_MUTED);
-        
-        info.add(lblName); 
-        info.add(Box.createVerticalStrut(2)); 
-        info.add(lblStatus); 
-        leftHeader.add(avatarPane); 
+
+        info.add(lblName);
+        info.add(Box.createVerticalStrut(2));
+        info.add(lblStatus);
+        leftHeader.add(avatarPane);
         leftHeader.add(info);
 
-        JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0)); 
+        // RIGHT: nút search | tách ngang | phone, video
+        JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         rightHeader.setOpaque(false);
-        
-        JPanel btnSearch = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/search.png"); 
-        btnSearch.addMouseListener(new MouseAdapter() { 
-            @Override public void mouseClicked(MouseEvent e) { 
-                if (txtGlobalSearch != null) txtGlobalSearch.requestFocusInWindow(); 
-            } 
+
+        JPanel btnSearch = createActionIcon(
+            "https://img.icons8.com/fluency-systems-regular/48/64748B/search.png");
+        btnSearch.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (txtGlobalSearch != null) txtGlobalSearch.requestFocusInWindow();
+            }
         });
-        rightHeader.add(btnSearch); 
-        
-        JPanel btnAudioCall = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/phone.png"); 
-        btnAudioCall.addMouseListener(new MouseAdapter() { @Override public void mouseClicked(MouseEvent e) { startAudioCall(); } });
-        rightHeader.add(btnAudioCall); 
-        
-        JPanel btnVideoCall = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/video-call.png"); 
-        btnVideoCall.addMouseListener(new MouseAdapter() { @Override public void mouseClicked(MouseEvent e) { startVideoCall(); } });
-        rightHeader.add(btnVideoCall); 
-        
-        header.add(leftHeader, BorderLayout.WEST); 
-        header.add(rightHeader, BorderLayout.EAST); 
+
+        // Vertical separator
+        JPanel vSep = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(BORDER_COLOR);
+                g.drawLine(getWidth() / 2, 6, getWidth() / 2, getHeight() - 6);
+            }
+        };
+        vSep.setOpaque(false);
+        vSep.setPreferredSize(new Dimension(10, 32));
+
+        JPanel btnAudioCall = createActionIcon(
+            "https://img.icons8.com/fluency-systems-regular/48/64748B/phone.png");
+        btnAudioCall.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { startAudioCall(); }
+        });
+
+        JPanel btnVideoCall = createActionIcon(
+            "https://img.icons8.com/fluency-systems-regular/48/64748B/video-call.png");
+        btnVideoCall.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { startVideoCall(); }
+        });
+
+        rightHeader.add(btnSearch);
+        rightHeader.add(vSep);
+        rightHeader.add(btnAudioCall);
+        rightHeader.add(btnVideoCall);
+
+        header.add(leftHeader, BorderLayout.WEST);
+        header.add(rightHeader, BorderLayout.EAST);
         activeChatContainer.add(header, BorderLayout.NORTH);
 
-        // ==========================================
-        // KHU VỰC 2: CUỘN TIN NHẮN (ĐÃ FIX TRÀN VIỀN BẰNG WRAPPER)
-        // ==========================================
-        messageArea = new JPanel(); 
-        messageArea.setLayout(new BoxLayout(messageArea, BoxLayout.Y_AXIS)); 
-        messageArea.setBackground(BG_MAIN); 
-        messageArea.setBorder(new EmptyBorder(15, 30, 15, 30));
-        
-        // --- LỚP KHIÊN BẢO VỆ: Ép khung chat dính lên trên và KHÓA CHIỀU NGANG ---
+        // ── KHU VỰC 2: CUỘN TIN NHẮN ──────────────────────────────────────
+        messageArea = new JPanel();
+        messageArea.setLayout(new BoxLayout(messageArea, BoxLayout.Y_AXIS));
+        messageArea.setBackground(BG_MAIN);
+        messageArea.setBorder(new EmptyBorder(20, 22, 20, 22));
+
         JPanel scrollContentWrapper = new JPanel(new BorderLayout());
         scrollContentWrapper.setBackground(BG_MAIN);
-        scrollContentWrapper.add(messageArea, BorderLayout.NORTH); 
+        scrollContentWrapper.add(messageArea, BorderLayout.NORTH);
 
-        // Nạp Wrapper vào ScrollPane thay vì nạp trực tiếp messageArea
-        chatScrollPane = new JScrollPane(scrollContentWrapper); 
-        chatScrollPane.setBorder(null); 
-        chatScrollPane.getViewport().setBackground(BG_MAIN); 
+        chatScrollPane = new JScrollPane(scrollContentWrapper);
+        chatScrollPane.setBorder(null);
+        chatScrollPane.getViewport().setBackground(BG_MAIN);
         chatScrollPane.getVerticalScrollBar().setUnitIncrement(20);
         chatScrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(6, 0));
-        
-        // --- CHỐT CHẶN CUỐI CÙNG: CẤM CUỘN NGANG ---
         chatScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        
         activeChatContainer.add(chatScrollPane, BorderLayout.CENTER);
 
-        // ==========================================
-        // KHU VỰC 3: PHÍA DƯỚI (NÚT CUỘN & THANH INPUT)
-        // ==========================================
+        // ── KHU VỰC 3: SOUTH (scroll-to-bottom + input) ───────────────────
         JPanel btnScrollDown = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(255, 255, 255, 230)); 
+                g2.setColor(new Color(255, 255, 255, 235));
                 g2.fillOval(0, 0, getWidth(), getHeight());
                 g2.setColor(BORDER_COLOR);
-                g2.drawOval(0, 0, getWidth()-1, getHeight()-1);
+                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
                 g2.dispose();
             }
         };
@@ -923,10 +1101,10 @@ updatePopupSelection(); }
         btnScrollDown.setPreferredSize(new Dimension(36, 36));
         btnScrollDown.setCursor(new Cursor(Cursor.HAND_CURSOR));
         JLabel iconDown = new JLabel();
-        setNetworkIcon(iconDown, "https://img.icons8.com/fluency-systems-filled/48/2563EB/down.png", 20, 20);
+        setNetworkIcon(iconDown, "https://img.icons8.com/fluency-systems-filled/48/4F6EF7/down.png", 20, 20);
         btnScrollDown.add(iconDown, BorderLayout.CENTER);
-        btnScrollDown.setVisible(false); 
-        
+        btnScrollDown.setVisible(false);
+
         btnScrollDown.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 JScrollBar vBar = chatScrollPane.getVerticalScrollBar();
@@ -937,26 +1115,20 @@ updatePopupSelection(); }
         chatScrollPane.getVerticalScrollBar().addAdjustmentListener(e -> {
             JScrollBar vBar = (JScrollBar) e.getAdjustable();
             int max = vBar.getMaximum() - vBar.getVisibleAmount();
-            if (vBar.getValue() < max - 150) {
-                btnScrollDown.setVisible(true);
-            } else {
-                btnScrollDown.setVisible(false);
-            }
+            btnScrollDown.setVisible(vBar.getValue() < max - 150);
         });
 
         JPanel scrollOverlay = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 10));
         scrollOverlay.setOpaque(false);
         scrollOverlay.add(btnScrollDown);
-        
+
         JPanel southPanel = new JPanel(new BorderLayout());
         southPanel.setOpaque(false);
-        southPanel.add(scrollOverlay, BorderLayout.NORTH); 
-        southPanel.add(createMessageInputBar(), BorderLayout.SOUTH); 
+        southPanel.add(scrollOverlay, BorderLayout.NORTH);
+        southPanel.add(createMessageInputBar(), BorderLayout.SOUTH);
 
         activeChatContainer.add(southPanel, BorderLayout.SOUTH);
-
-        // Refresh lại giao diện lá bài Chat
-        activeChatContainer.revalidate(); 
+        activeChatContainer.revalidate();
         activeChatContainer.repaint();
     }
    private void refreshMessages() {
@@ -1025,54 +1197,52 @@ updatePopupSelection(); }
     // KHU VỰC NHẬP TIN NHẮN CHUẨN SAAS
     // =========================================================================
     private JPanel createMessageInputBar() {
+        // Footer: nền trắng + border top — tách biệt khỏi vùng chat
         JPanel footer = new JPanel(new BorderLayout(10, 0));
-        footer.setBackground(BG_MAIN);
-        footer.setBorder(new EmptyBorder(10, 20, 15, 20)); 
+        footer.setBackground(Color.WHITE);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR),
+            new EmptyBorder(10, 18, 13, 18)
+        ));
 
-        JPanel inputBubble = new JPanel(new BorderLayout(10, 0)) {
+        // Input bubble: INPUT_BG khi bình thường, WHITE khi focus, PRIMARY border khi focus
+        JPanel inputBubble = new JPanel(new BorderLayout(8, 0)) {
             private boolean isFocused = false;
             @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create(); 
+                Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE); 
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24); 
-                g2.setColor(isFocused ? PRIMARY : Color.decode("#CBD5E1")); 
+                g2.setColor(isFocused ? Color.WHITE : INPUT_BG);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 26, 26);
+                g2.setColor(isFocused ? PRIMARY : BORDER_COLOR);
                 g2.setStroke(new BasicStroke(isFocused ? 1.5f : 1.0f));
-                g2.drawRoundRect(1, 1, getWidth()-2, getHeight()-2, 24, 24); 
+                g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 26, 26);
                 g2.dispose();
             }
             public void setFocused(boolean f) { this.isFocused = f; repaint(); }
         };
         inputBubble.setOpaque(false);
-        inputBubble.setBorder(new EmptyBorder(6, 16, 6, 10));
+        inputBubble.setBorder(new EmptyBorder(7, 14, 7, 10));
 
-        JPanel leftIcons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel leftIcons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         leftIcons.setOpaque(false);
-        
+
         JPanel btnPlus = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/plus-math.png");
-        
-        // Gắn sự kiện CHỌN ẢNH vào icon Ảnh
+
         JPanel btnImage = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/image.png");
         btnImage.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { chooseAndSendImage(); }
         });
-        
-       JPanel btnAttach = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/attach.png");
-        
-        // --- BƯỚC 3: BẮT SỰ KIỆN CLICK VÀO NÚT GHIM GIẤY (GỬI TỆP) ---
+
+        JPanel btnAttach = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/attach.png");
         btnAttach.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
+            @Override public void mouseClicked(MouseEvent e) {
                 if (activeConversation == null || activeConversation.conversationId < 0) {
                     JOptionPane.showMessageDialog(ChatTab.this, "Vui lòng chọn một người bạn để gửi tài liệu!", "Thông báo", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
-
                 JFileChooser fc = new JFileChooser();
                 fc.setDialogTitle("Chọn tài liệu để gửi...");
-                
                 fc.setMultiSelectionEnabled(true);
-                // Bạn có thể lọc định dạng nếu muốn, ở đây cho phép chọn tất cả
                 if (fc.showOpenDialog(ChatTab.this) == JFileChooser.APPROVE_OPTION) {
                     uploadDocumentFiles(fc.getSelectedFiles());
                 }
@@ -1084,34 +1254,29 @@ updatePopupSelection(); }
         inputBubble.add(leftIcons, BorderLayout.WEST);
 
         txtChatInput = new JTextArea();
-        txtChatInput.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-        txtChatInput.setBackground(new Color(0,0,0,0)); 
+        txtChatInput.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtChatInput.setBackground(new Color(0, 0, 0, 0));
         txtChatInput.setBorder(null);
         txtChatInput.setForeground(TEXT_MAIN);
         txtChatInput.setLineWrap(true);
         txtChatInput.setWrapStyleWord(true);
         txtChatInput.setOpaque(false);
-        
+
         txtChatInput.addFocusListener(new FocusAdapter() {
             @Override public void focusGained(FocusEvent e) { try { inputBubble.getClass().getMethod("setFocused", boolean.class).invoke(inputBubble, true); } catch(Exception ex){} }
-            @Override public void focusLost(FocusEvent e) { try { inputBubble.getClass().getMethod("setFocused", boolean.class).invoke(inputBubble, false); } catch(Exception ex){} }
+            @Override public void focusLost(FocusEvent e)   { try { inputBubble.getClass().getMethod("setFocused", boolean.class).invoke(inputBubble, false); } catch(Exception ex){} }
         });
-        
+
         txtChatInput.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyTyped(java.awt.event.KeyEvent e) {
+            @Override public void keyTyped(java.awt.event.KeyEvent e) {
                 if (activeConversation != null) {
                     long now = System.currentTimeMillis();
                     if (now - lastTypingSent > 3000) {
-                        try {
-                            NetworkManager.getInstance().sendPacket(new Packet("TYPING", activeConversation.conversationId));
-                            lastTypingSent = now;
-                        } catch (Exception ex) {}
+                        try { NetworkManager.getInstance().sendPacket(new Packet("TYPING", activeConversation.conversationId)); lastTypingSent = now; } catch (Exception ex) {}
                     }
                 }
             }
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent e) {
+            @Override public void keyPressed(java.awt.event.KeyEvent e) {
                 if (e.isControlDown() && e.getKeyCode() == java.awt.event.KeyEvent.VK_V) {
                     try {
                         java.awt.datatransfer.Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -1120,81 +1285,81 @@ updatePopupSelection(); }
                             if (img != null) {
                                 java.io.File tempFile = java.io.File.createTempFile("clipboard_", ".png");
                                 java.awt.image.BufferedImage bImg = new java.awt.image.BufferedImage(img.getWidth(null), img.getHeight(null), java.awt.image.BufferedImage.TYPE_INT_ARGB);
-                                Graphics2D g = bImg.createGraphics();
-                                g.drawImage(img, 0, 0, null);
-                                g.dispose();
+                                Graphics2D g = bImg.createGraphics(); g.drawImage(img, 0, 0, null); g.dispose();
                                 javax.imageio.ImageIO.write(bImg, "png", tempFile);
-                                uploadImageFiles(new java.io.File[]{tempFile});
-                                e.consume();
-                                return;
+                                uploadImageFiles(new java.io.File[]{tempFile}); e.consume(); return;
                             }
                         }
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
+                    } catch (Exception ex) { ex.printStackTrace(); }
                 }
-                
                 if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
-                    if (e.isShiftDown()) {
-                        txtChatInput.append("\n");
-                    } else {
-                        e.consume(); 
-                        sendCurrentMessage();
-                    }
+                    if (e.isShiftDown()) { txtChatInput.append("\n"); }
+                    else { e.consume(); sendCurrentMessage(); }
                 }
             }
         });
-        
+
         JScrollPane scrollInput = new JScrollPane(txtChatInput);
         scrollInput.setBorder(null);
         scrollInput.setOpaque(false);
         scrollInput.getViewport().setOpaque(false);
-        scrollInput.setPreferredSize(new Dimension(0, 45)); 
-        
+        scrollInput.setPreferredSize(new Dimension(0, 44));
         inputBubble.add(scrollInput, BorderLayout.CENTER);
-        
-        // Thêm Icon Emoji vào cuối khung chat
+
         JPanel btnEmoji = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/happy.png");
         btnEmoji.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { showEmojiPicker(btnEmoji); }
         });
         inputBubble.add(btnEmoji, BorderLayout.EAST);
-        
+
+        // Typing indicator — nhỏ, trên input
         lblTypingIndicator = new JLabel(" ");
         lblTypingIndicator.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         lblTypingIndicator.setForeground(TEXT_MUTED);
-        lblTypingIndicator.setBorder(new EmptyBorder(0, 10, 5, 0));
+        lblTypingIndicator.setBorder(new EmptyBorder(0, 4, 2, 0));
         footer.add(lblTypingIndicator, BorderLayout.NORTH);
-        
         footer.add(inputBubble, BorderLayout.CENTER);
 
-        // Nút Gửi Tin Nhắn
+        // Send button — giữ nguyên custom icon logic
         JPanel btnSendWrapper = new JPanel() {
             private Image iconImage; private boolean isHover = false;
             {
                 try { URL iconUrl = getClass().getResource("/images/icon/iconnutgui.png"); if (iconUrl != null) iconImage = new ImageIcon(iconUrl).getImage(); } catch (Exception e) {}
-                setOpaque(false); setPreferredSize(new Dimension(46, 46)); setCursor(new Cursor(Cursor.HAND_CURSOR));
+                setOpaque(false); setPreferredSize(new Dimension(44, 44)); setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
             @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g); Graphics2D g2 = (Graphics2D) g.create(); g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR); g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (iconImage != null) { int drawSize = 64; int offset = (getWidth() - drawSize) / 2; g2.drawImage(iconImage, offset, offset, drawSize, drawSize, null); } 
-                else { g2.setColor(PRIMARY); g2.fillOval(0, 0, getWidth(), getHeight()); }
-                if (isHover) { g2.setColor(new Color(255, 255, 255, 50)); g2.fillOval(2, 2, getWidth()-4, getHeight()-4); } g2.dispose();
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (iconImage != null) {
+                    int drawSize = 44; int offset = (getWidth() - drawSize) / 2;
+                    g2.drawImage(iconImage, offset, offset, drawSize, drawSize, null);
+                } else {
+                    // Fallback: vẽ vòng tròn PRIMARY + mũi tên
+                    g2.setColor(isHover ? PRIMARY_DARK : PRIMARY);
+                    g2.fillOval(0, 0, getWidth(), getHeight());
+                    g2.setColor(Color.WHITE);
+                    int[] xp = {11, 33, 22}; int[] yp = {22, 22, 12};
+                    g2.fillPolygon(xp, yp, 3);
+                    g2.fillRect(20, 22, 4, 14);
+                }
+                if (isHover) { g2.setColor(new Color(255, 255, 255, 40)); g2.fillOval(2, 2, getWidth() - 4, getHeight() - 4); }
+                g2.dispose();
             }
             public void setHover(boolean h) { this.isHover = h; repaint(); }
         };
-
         btnSendWrapper.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { try { btnSendWrapper.getClass().getMethod("setHover", boolean.class).invoke(btnSendWrapper, true); } catch(Exception ex){} }
-            @Override public void mouseExited(MouseEvent e) { try { btnSendWrapper.getClass().getMethod("setHover", boolean.class).invoke(btnSendWrapper, false); } catch(Exception ex){} }
-            @Override public void mousePressed(MouseEvent e) { btnSendWrapper.setLocation(btnSendWrapper.getX(), btnSendWrapper.getY() + 1); } 
+            @Override public void mouseExited(MouseEvent e)  { try { btnSendWrapper.getClass().getMethod("setHover", boolean.class).invoke(btnSendWrapper, false); } catch(Exception ex){} }
+            @Override public void mousePressed(MouseEvent e)  { btnSendWrapper.setLocation(btnSendWrapper.getX(), btnSendWrapper.getY() + 1); }
             @Override public void mouseReleased(MouseEvent e) { btnSendWrapper.setLocation(btnSendWrapper.getX(), btnSendWrapper.getY() - 1); }
-            @Override public void mouseClicked(MouseEvent e) { sendCurrentMessage(); }
+            @Override public void mouseClicked(MouseEvent e)  { sendCurrentMessage(); }
         });
 
         JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         rightActions.setOpaque(false);
-        rightActions.add(Box.createHorizontalStrut(5));
+        rightActions.add(Box.createHorizontalStrut(8));
         rightActions.add(btnSendWrapper);
         footer.add(rightActions, BorderLayout.EAST);
 
@@ -1208,7 +1373,7 @@ updatePopupSelection(); }
                 if(hover) {
                     Graphics2D g2 = (Graphics2D) g.create(); 
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(Color.decode("#E2E8F0")); 
+                    g2.setColor(BORDER_COLOR); 
                     g2.fillOval(0, 0, getWidth(), getHeight()); 
                     g2.dispose();
                 }
@@ -1255,9 +1420,12 @@ updatePopupSelection(); }
         boolean isImage = m.content != null && (m.content.startsWith("[IMG]") || m.content.startsWith("[IMG_URL]"));
         boolean isFile = m.content != null && m.content.startsWith("[FILE]");
 
-        RoundedPanel bubble = new RoundedPanel(20, isImage ? new Color(0,0,0,0) : Color.WHITE); 
+        RoundedPanel bubble = new RoundedPanel(18, isImage ? new Color(0,0,0,0) : BG_OTHER);
         if (isImage) bubble.setBorder(new EmptyBorder(0, 0, 0, 0));
-        else bubble.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1), new EmptyBorder(10, 16, 10, 16)));
+        else bubble.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1),
+            new EmptyBorder(10, 14, 10, 14)
+        ));
         bubble.setLayout(new BorderLayout());
         
         if (isImage) {
@@ -1407,16 +1575,16 @@ updatePopupSelection(); }
         boolean isFile = m.content != null && m.content.startsWith("[FILE]");
         boolean isUploading = m.content != null && m.content.contains("UPLOADING"); // Khai báo isUploading CHUẨN ở đây
 
-        Color zaloBlue = Color.decode("#E5EFFF");
-        RoundedPanel bubble = new RoundedPanel(20, isImage ? new Color(0,0,0,0) : zaloBlue); 
-        bubble.setBorder(new EmptyBorder(isImage ? 0 : 10, isImage ? 0 : 16, isImage ? 0 : 10, isImage ? 0 : 16)); 
+        Color zaloBlue = Color.decode("#E5EFFF");  // giữ tương thích, dùng BG_ME thay thế
+        RoundedPanel bubble = new RoundedPanel(18, isImage ? new Color(0,0,0,0) : BG_ME);
+        bubble.setBorder(new EmptyBorder(isImage ? 0 : 10, isImage ? 0 : 14, isImage ? 0 : 10, isImage ? 0 : 14));
         bubble.setLayout(new BorderLayout());
         
         if (isImage) {
             if (isUploading) {
                 JPanel loadPanel = new JPanel(new BorderLayout()); loadPanel.setOpaque(false); loadPanel.setPreferredSize(new Dimension(200, 150));
                 JLabel lblIcon = new JLabel("", SwingConstants.CENTER); setNetworkIcon(lblIcon, "https://img.icons8.com/fluency-systems-regular/48/94A3B8/cloud-sync.png", 40, 40);
-                JLabel lblLoading = new JLabel("Đang tải lên...", SwingConstants.CENTER); lblLoading.setForeground(Color.decode("#94A3B8")); lblLoading.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+                JLabel lblLoading = new JLabel("Đang tải lên...", SwingConstants.CENTER); lblLoading.setForeground(new Color(199, 210, 254)); lblLoading.setFont(new Font("Segoe UI", Font.ITALIC, 12));
                 loadPanel.add(lblIcon, BorderLayout.CENTER); loadPanel.add(lblLoading, BorderLayout.SOUTH); bubble.add(loadPanel, BorderLayout.CENTER);
             } else {
                 String cacheKey = "CHAT_IMG_" + m.content.hashCode();
@@ -1492,9 +1660,9 @@ updatePopupSelection(); }
             else if (lowerName.endsWith(".pptx") || lowerName.endsWith(".ppt")) iconUrl = "https://img.icons8.com/fluency/48/microsoft-powerpoint-2019.png";
             JLabel lblIcon = new JLabel(); final String finalIconUrl = iconUrl;
             new Thread(() -> { try { Image img = new ImageIcon(new java.net.URL(finalIconUrl)).getImage().getScaledInstance(36, 36, Image.SCALE_SMOOTH); SwingUtilities.invokeLater(() -> lblIcon.setIcon(new ImageIcon(img))); } catch (Exception e) {} }).start();
-            String sizeHtml = fileSize.isEmpty() ? "" : " <span style='color:#64748B;'>(" + fileSize + ")</span>";
-            String textDisplay = isUploading ? "<html><u>" + fileName + "</u> <i style='color:#64748B;'>(Đang gửi...)</i></html>" : "<html><u>" + fileName + "</u>" + sizeHtml + "</html>";
-            JLabel lblName = new JLabel(textDisplay); lblName.setFont(new Font("Segoe UI", Font.BOLD, 13)); lblName.setForeground(isUploading ? Color.decode("#94A3B8") : Color.decode("#2563EB")); 
+            String sizeHtml = fileSize.isEmpty() ? "" : " <span style='color:#C7D2FE;'>(" + fileSize + ")</span>";
+            String textDisplay = isUploading ? "<html><u>" + fileName + "</u> <i style='color:#C7D2FE;'>(Đang gửi...)</i></html>" : "<html><u>" + fileName + "</u>" + sizeHtml + "</html>";
+            JLabel lblName = new JLabel(textDisplay); lblName.setFont(new Font("Segoe UI", Font.BOLD, 13)); lblName.setForeground(isUploading ? new Color(199, 210, 254) : Color.WHITE); 
             if (!isUploading) {
                 lblName.setCursor(new Cursor(Cursor.HAND_CURSOR)); lblName.setToolTipText("Nhấp vào đây để tải xuống tài liệu");
                 lblName.addMouseListener(new java.awt.event.MouseAdapter() { public void mouseClicked(java.awt.event.MouseEvent e) { try { java.awt.Desktop.getDesktop().browse(new java.net.URI(fileUrl)); } catch(Exception ex) { JOptionPane.showMessageDialog(ChatTab.this, "Lỗi tải file!"); } } });
@@ -1504,9 +1672,9 @@ updatePopupSelection(); }
             String displayContent = m.content.replace("\n", "<br>");
             if (!searchKeyword.isEmpty() && displayContent.toLowerCase().contains(searchKeyword)) displayContent = displayContent.replaceAll("(?i)(" + searchKeyword + ")", "<span style='background-color: #FBBF24; color: #000000; font-weight: bold;'>$1</span>");
             displayContent = parseEmojis(displayContent);
-            String htmlAuto = "<html><div style='font-size:14px; font-family: Segoe UI; color:#0F172A; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>";
+            String htmlAuto = "<html><div style='font-size:14px; font-family: Segoe UI; color:#FFFFFF; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>";
             JLabel lblText = new JLabel(htmlAuto); 
-            if (lblText.getPreferredSize().width > 280) lblText.setText("<html><div style='width: 280px; font-size:14px; font-family: Segoe UI; color:#0F172A; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>");
+            if (lblText.getPreferredSize().width > 280) lblText.setText("<html><div style='width: 280px; font-size:14px; font-family: Segoe UI; color:#FFFFFF; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>");
             bubble.add(lblText, BorderLayout.CENTER);
         }
         
@@ -1530,7 +1698,7 @@ updatePopupSelection(); }
         if (isUploading || isPending) {
             setNetworkIcon(checkIcon, "https://img.icons8.com/fluency-systems-regular/48/94A3B8/clock--v1.png", 14, 14); // Icon đồng hồ mờ
         } else {
-            setNetworkIcon(checkIcon, isRead ? "https://img.icons8.com/fluency-systems-filled/48/2563EB/double-tick.png" : "https://img.icons8.com/fluency-systems-filled/48/94A3B8/double-tick.png", 14, 14); 
+            setNetworkIcon(checkIcon, isRead ? "https://img.icons8.com/fluency-systems-filled/48/4F6EF7/double-tick.png" : "https://img.icons8.com/fluency-systems-filled/48/94A3B8/double-tick.png", 14, 14); 
         }
 
         timePanel.add(lblTime); 
@@ -1545,18 +1713,47 @@ updatePopupSelection(); }
         JPanel alignRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0)); alignRight.setOpaque(false); alignRight.add(bubbleWrap); p.add(alignRight, BorderLayout.CENTER); 
         return p;
     }
-    private JPanel createDateDivider(String text) { 
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER)); 
-        p.setOpaque(false); 
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40)); 
-        RoundedPanel badge = new RoundedPanel(999, Color.WHITE); 
-        badge.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1), new EmptyBorder(4, 12, 4, 12))); 
-        JLabel lbl = new JLabel(text); 
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 11)); 
-        lbl.setForeground(TEXT_MUTED); 
-        badge.add(lbl); 
-        p.add(badge); 
-        return p; 
+    private JPanel createDateDivider(String text) {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setOpaque(false);
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridy = 0;
+        gbc.fill  = GridBagConstraints.HORIZONTAL;
+
+        // Đường kẻ trái
+        gbc.gridx    = 0;
+        gbc.weightx  = 1.0;
+        gbc.insets   = new Insets(0, 16, 0, 10);
+        JSeparator leftLine = new JSeparator();
+        leftLine.setForeground(BORDER_COLOR);
+        p.add(leftLine, gbc);
+
+        // Badge chứa text
+        gbc.gridx   = 1;
+        gbc.weightx = 0;
+        gbc.insets  = new Insets(0, 0, 0, 0);
+        RoundedPanel badge = new RoundedPanel(999, Color.WHITE);
+        badge.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1),
+            new EmptyBorder(3, 12, 3, 12)
+        ));
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lbl.setForeground(TEXT_MUTED);
+        badge.add(lbl);
+        p.add(badge, gbc);
+
+        // Đường kẻ phải
+        gbc.gridx   = 2;
+        gbc.weightx = 1.0;
+        gbc.insets  = new Insets(0, 10, 0, 16);
+        JSeparator rightLine = new JSeparator();
+        rightLine.setForeground(BORDER_COLOR);
+        p.add(rightLine, gbc);
+
+        return p;
     }
 
    
@@ -1573,7 +1770,7 @@ updatePopupSelection(); }
         
         // Màu Nền và Viền theo Mockup
         Color bubbleBg = isMe ? Color.decode("#F5F8FF") : Color.WHITE;
-        Color borderColor = isMe ? Color.decode("#D1E0FF") : Color.decode("#E2E8F0");
+        Color borderColor = isMe ? Color.decode("#D1E0FF") : BORDER_COLOR;
         if (!isMe && !isEnded) borderColor = Color.decode("#A7F3D0"); // Viền xanh lá mờ cho cuộc gọi đến
 
         RoundedPanel bubble = new RoundedPanel(24, bubbleBg); 
@@ -2907,7 +3104,7 @@ updatePopupSelection(); }
             lblImage.setPreferredSize(new Dimension(TARGET_WIDTH, TARGET_HEIGHT));
             // Tạo border để ảnh không bị dính sát lề
             lblImage.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(1, 1, 1, 1, Color.decode("#E2E8F0")), // Viền mảnh xám
+                    BorderFactory.createMatteBorder(1, 1, 1, 1, BORDER_COLOR), // Viền mảnh xám
                     new EmptyBorder(0,0,0,0) // Padding trong ảnh
             ));
 

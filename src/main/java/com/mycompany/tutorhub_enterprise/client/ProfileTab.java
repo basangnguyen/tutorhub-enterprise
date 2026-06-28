@@ -26,7 +26,16 @@ public class ProfileTab extends JPanel {
     private final Color BG_PRIMARY_LIGHT = Color.decode("#EEF2FF"); // Màu Indigo cực nhạt (nền nút, header bảng)
     private final Color CARD_BG = Color.WHITE;
     private final Color BORDER_COLOR = Color.decode("#E2E8F0");
-    private final Color DISABLED_BG = Color.decode("#F8FAFC"); 
+    private final Color DISABLED_BG  = Color.decode("#F8FAFC");
+    // ---- Màu bổ sung Phase 1 ----
+    private final Color BG_PAGE      = Color.decode("#F6F7FB");
+    private final Color PURPLE_LIGHT = Color.decode("#F5F3FF");
+    private final Color PURPLE       = Color.decode("#7C3AED");
+    private final Color SUCCESS      = Color.decode("#22C55E");
+    private final Color SUCCESS_BG   = Color.decode("#DCFCE7");
+    private final Color WARN_BG      = Color.decode("#FEF3C7");
+    private final Color WARN_FG      = Color.decode("#B45309");
+    private final Color INPUT_BG     = Color.decode("#F8FAFC");
     // Thêm biến này lên đầu class để lưu tạm đường dẫn tải file
     public static java.io.File pendingDownloadFile = null;
     private JLabel bigAvatarLabel, miniAvatarLabel;
@@ -109,21 +118,11 @@ public class ProfileTab extends JPanel {
         JPanel leftTitle = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         leftTitle.setOpaque(false);
         
-        JPanel iconWrapper = new JPanel(new BorderLayout()) {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create(); 
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE); 
-                g2.fillOval(0, 0, getWidth(), getHeight()); 
-                g2.setColor(BORDER_COLOR); 
-                g2.drawOval(0, 0, getWidth()-1, getHeight()-1); 
-                g2.dispose();
-            }
-        };
+        JPanel iconWrapper = new JPanel(new BorderLayout());
         iconWrapper.setOpaque(false); 
-        iconWrapper.setPreferredSize(new Dimension(40, 40));
+        iconWrapper.setPreferredSize(new Dimension(48, 48));
         JLabel lblIcon = new JLabel(); 
-        setNetworkIcon(lblIcon, "https://img.icons8.com/fluency-systems-regular/48/64748B/user.png", 20, 20);
+        lblIcon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/user-avatar-svgrepo-com.svg", 48, 48));
         iconWrapper.add(lblIcon, BorderLayout.CENTER);
 
         JPanel titlePanel = new JPanel(); 
@@ -146,20 +145,33 @@ public class ProfileTab extends JPanel {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(getBackground());
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12); 
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226)); // Hover #FEE2E2
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 16, 16);
+                g2.setColor(new Color(252, 165, 165)); // Border #FCA5A5
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 16, 16);
                 super.paintComponent(g); 
                 g2.dispose();
             }
         };
         btnUpdateGlobal.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnUpdateGlobal.setBackground(BG_PRIMARY_LIGHT); 
-        btnUpdateGlobal.setForeground(PRIMARY);
+        btnUpdateGlobal.setForeground(Color.decode("#DC2626")); // Text #DC2626
         btnUpdateGlobal.setContentAreaFilled(false); 
+        btnUpdateGlobal.setBorderPainted(false);
         btnUpdateGlobal.setBorder(new EmptyBorder(8, 20, 8, 20));
         btnUpdateGlobal.setFocusPainted(false);
         btnUpdateGlobal.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        setNetworkIcon(btnUpdateGlobal, "https://img.icons8.com/fluency-systems-regular/48/6366F1/save.png", 16, 16);
+        try {
+            btnUpdateGlobal.setIcon(new ImageIcon(new ImageIcon(ProfileTab.class.getResource("/images/icon/icons8-save-50.png")).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)));
+        } catch (Exception e) {
+            setNetworkIcon(btnUpdateGlobal, "https://img.icons8.com/fluency-systems-regular/48/6366F1/save.png", 16, 16);
+        }
         btnUpdateGlobal.setIconTextGap(8);
         
         btnUpdateGlobal.addActionListener(e -> {
@@ -223,29 +235,88 @@ public class ProfileTab extends JPanel {
     }
 
     private JPanel createTabs() {
-        JPanel tabsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 24, 0)); tabsPanel.setOpaque(false);
-        tabsPanel.setBorder(BorderFactory.createCompoundBorder(new EmptyBorder(0, 20, 0, 20), BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR)));
+        JPanel tabsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        tabsPanel.setOpaque(false);
+        tabsPanel.setBorder(BorderFactory.createCompoundBorder(
+            new EmptyBorder(8, 20, 0, 20),
+            BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR)
+        ));
         String[] tabNames = {"Thông tin cá nhân", "Bằng cấp", "Chứng chỉ", "CV", "Chuyên môn", "Xác minh"};
         tabButtons = new JPanel[tabNames.length];
-        for (int i = 0; i < tabNames.length; i++) { tabButtons[i] = createTabButton(tabNames[i], i); tabsPanel.add(tabButtons[i]); }
+        for (int i = 0; i < tabNames.length; i++) {
+            tabButtons[i] = createTabButton(tabNames[i], i);
+            tabsPanel.add(tabButtons[i]);
+        }
         return tabsPanel;
     }
 
     private JPanel createTabButton(String title, int index) {
-        JPanel p = new JPanel(new BorderLayout()); p.setOpaque(false); p.setCursor(new Cursor(Cursor.HAND_CURSOR)); 
-        p.setBorder(new EmptyBorder(10, 0, 10, 0));
-        JLabel lbl = new JLabel(title); lbl.setFont(new Font("Segoe UI", Font.BOLD, 13)); lbl.setForeground(TEXT_MUTED);
-        JPanel line = new JPanel(); line.setPreferredSize(new Dimension(0, 3)); line.setBackground(new Color(0,0,0,0));
-        p.add(lbl, BorderLayout.CENTER); p.add(line, BorderLayout.SOUTH);
-        p.addMouseListener(new MouseAdapter() { @Override public void mouseClicked(MouseEvent e) { switchTab(index); } });
+        // Structure: BorderLayout → [JLabel CENTER, JPanel(underline) SOUTH]
+        // switchTab() relies on getComponent(0)=JLabel, getComponent(1)=JPanel
+        JPanel p = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                JLabel lbl = (JLabel) getComponent(0);
+                boolean active = PRIMARY.equals(lbl.getForeground());
+                if (active) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    // Pill highlight only on top part (above the underline)
+                    g2.setColor(BG_PRIMARY_LIGHT);
+                    g2.fillRoundRect(0, 4, getWidth(), getHeight() - 7, 10, 10);
+                    g2.dispose();
+                }
+                super.paintComponent(g);
+            }
+        };
+        p.setOpaque(false);
+        p.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        p.setBorder(new EmptyBorder(8, 14, 0, 14));
+
+        JLabel lbl = new JLabel(title);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lbl.setForeground(TEXT_MUTED);
+
+        // Underline indicator (3px)
+        JPanel line = new JPanel();
+        line.setPreferredSize(new Dimension(0, 3));
+        line.setBackground(new Color(0, 0, 0, 0));
+        line.setOpaque(false);
+
+        p.add(lbl, BorderLayout.CENTER);
+        p.add(line, BorderLayout.SOUTH);
+
+        p.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { switchTab(index); }
+            @Override public void mouseEntered(MouseEvent e) {
+                JLabel lbl2 = (JLabel) p.getComponent(0);
+                if (!PRIMARY.equals(lbl2.getForeground())) lbl2.setForeground(TEXT_MAIN);
+                p.repaint();
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                JLabel lbl2 = (JLabel) p.getComponent(0);
+                if (!PRIMARY.equals(lbl2.getForeground())) lbl2.setForeground(TEXT_MUTED);
+                p.repaint();
+            }
+        });
         return p;
     }
 
     private void switchTab(int index) {
         for (int i = 0; i < tabButtons.length; i++) {
-            JLabel lbl = (JLabel) tabButtons[i].getComponent(0); JPanel line = (JPanel) tabButtons[i].getComponent(1);
-            if (i == index) { lbl.setForeground(PRIMARY); line.setBackground(PRIMARY); } 
-            else { lbl.setForeground(TEXT_MUTED); line.setBackground(new Color(0,0,0,0)); }
+            JLabel lbl  = (JLabel) tabButtons[i].getComponent(0);
+            JPanel line = (JPanel) tabButtons[i].getComponent(1);
+            if (i == index) {
+                lbl.setForeground(PRIMARY);
+                lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                line.setBackground(PRIMARY);
+                line.setOpaque(true);
+            } else {
+                lbl.setForeground(TEXT_MUTED);
+                lbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                line.setBackground(new Color(0, 0, 0, 0));
+                line.setOpaque(false);
+            }
+            tabButtons[i].repaint();
         }
         centerCardLayout.show(centerCardPanel, "TAB_" + index);
     }
@@ -294,7 +365,7 @@ public class ProfileTab extends JPanel {
         }
 
         btnSaveProfile.setEnabled(edit);
-        btnSaveProfile.setBackground(edit ? PRIMARY : Color.decode("#93C5FD")); 
+        btnSaveProfile.setBackground(edit ? Color.WHITE : Color.decode("#F3F4F6")); 
         if (btnVerifyPhone != null) {
             btnVerifyPhone.setEnabled(!edit && !isPhoneVerified);
             btnVerifyPhone.setText(edit ? "Lưu trước" : (isPhoneVerified ? "Đã xác minh" : "Xác minh"));
@@ -302,67 +373,94 @@ public class ProfileTab extends JPanel {
 
         if (edit) {
             btnEditProfile.setText("Hủy chỉnh sửa");
-            btnEditProfile.setForeground(Color.decode("#DC2626")); // Màu đỏ khi đang edit
+            btnEditProfile.setForeground(Color.decode("#DC2626")); 
             setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/cancel.png", 14, 14);
         } else {
             btnEditProfile.setText("Chỉnh sửa");
-            btnEditProfile.setForeground(PRIMARY);
-            setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/2563EB/edit.png", 14, 14);
+            btnEditProfile.setForeground(Color.decode("#DC2626"));
+            setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/edit.png", 14, 14);
         }
         repaint();
     }
 
     // --- CỘT TRÁI (PROFILE META) ---
-   // --- CỘT TRÁI (PROFILE META) ---
-    // --- CỘT TRÁI (PROFILE META) ---
-   // --- CỘT TRÁI (PROFILE META) ---
-    // --- CỘT TRÁI (PROFILE META) ---
-    // --- CỘT TRÁI (PROFILE META) ---
-   // --- CỘT TRÁI (PROFILE META) ---
-    // --- CỘT TRÁI (PROFILE META) ---
-    private JPanel createLeftColumn() {
-        RoundedPanel p = new RoundedPanel(12); 
+     private JPanel createLeftColumn() {
+        RoundedPanel p = new RoundedPanel(14); 
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); 
-        p.setPreferredSize(new Dimension(270, 0)); 
+        p.setPreferredSize(new Dimension(268, 0)); 
         p.setBorder(new EmptyBorder(25, 20, 20, 20)); 
 
-        JPanel avaPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        avaPanel.setOpaque(false);
-        bigAvatarLabel = new JLabel(); 
-        setAvatarNetworkIcon(bigAvatarLabel, "https://img.icons8.com/color/150/circled-user-male-skin-type-4--v1.png", 100); 
-        avaPanel.add(bigAvatarLabel);
+        // ---- Avatar với ring (JPanel, không dùng JLabel làm container) ----
+        JPanel avaOuter = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        avaOuter.setOpaque(false);
 
-        JPanel nameRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0)); 
-        nameRow.setOpaque(false);
-        lblLeftName.setFont(new Font("Segoe UI", Font.BOLD, 17)); 
-        lblLeftName.setForeground(TEXT_MAIN);
-        JLabel lblCheck = new JLabel(); 
-        setNetworkIcon(lblCheck, "https://img.icons8.com/color/48/verified-badge.png", 18, 18);
-        nameRow.add(lblLeftName); nameRow.add(lblCheck);
-
-        JPanel roleRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        roleRow.setOpaque(false);
-        lblLeftRole.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
-        lblLeftRole.setForeground(TEXT_MUTED); 
-        roleRow.add(lblLeftRole);
-
-        p.add(avaPanel); 
-        p.add(Box.createVerticalStrut(15)); 
-        p.add(nameRow); 
-        p.add(Box.createVerticalStrut(4)); 
-        p.add(roleRow); 
-        p.add(Box.createVerticalStrut(20)); 
-        
-        JPanel separator = new JPanel() {
+        JPanel avatarRingPanel = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
-                g.setColor(Color.decode("#F1F5F9")); 
-                g.drawLine(0, getHeight()/2, getWidth(), getHeight()/2);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(BG_PRIMARY_LIGHT);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.setColor(PRIMARY);
+                g2.setStroke(new BasicStroke(2.5f));
+                g2.drawOval(2, 2, getWidth() - 5, getHeight() - 5);
+                g2.dispose();
             }
         };
-        separator.setOpaque(false); separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-        p.add(separator);
+        avatarRingPanel.setOpaque(false);
+        avatarRingPanel.setPreferredSize(new Dimension(110, 110));
+        avatarRingPanel.setMaximumSize(new Dimension(110, 110));
+
+        bigAvatarLabel = new JLabel();
+        bigAvatarLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        setAvatarNetworkIcon(bigAvatarLabel,
+                "https://img.icons8.com/color/150/circled-user-male-skin-type-4--v1.png", 100);
+        avatarRingPanel.add(bigAvatarLabel, BorderLayout.CENTER);
+        avaOuter.add(avatarRingPanel);
+
+        p.add(avaOuter);
+        p.add(Box.createVerticalStrut(12));
+
+        // ---- Name row ----
+        JPanel nameRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+        nameRow.setOpaque(false);
+        lblLeftName.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        lblLeftName.setForeground(TEXT_MAIN);
+        JLabel lblCheck = new JLabel();
+        try {
+            lblCheck.setIcon(new ImageIcon(new ImageIcon(ProfileTab.class.getResource("/images/icon/-Pngtree-instagram bule tick insta blue_9074860.png")).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)));
+        } catch (Exception e) {
+            setNetworkIcon(lblCheck, "https://img.icons8.com/color/48/verified-badge.png", 18, 18);
+        }
+        nameRow.add(lblLeftName);
+        nameRow.add(lblCheck);
+
+        // ---- Role pill badge ----
+        JPanel roleRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        roleRow.setOpaque(false);
+        lblLeftRole.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblLeftRole.setForeground(PRIMARY);
+        lblLeftRole.setOpaque(true);
+        lblLeftRole.setBackground(BG_PRIMARY_LIGHT);
+        lblLeftRole.setBorder(new EmptyBorder(3, 10, 3, 10));
+        roleRow.add(lblLeftRole);
+
+        p.add(nameRow);
+        p.add(Box.createVerticalStrut(6));
+        p.add(roleRow);
         p.add(Box.createVerticalStrut(20));
 
+        // ---- Divider ----
+        JPanel separator = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(BORDER_COLOR);
+                g.fillRect(0, 0, getWidth(), 1);
+            }
+        };
+        separator.setOpaque(false);
+        separator.setPreferredSize(new Dimension(0, 1));
+        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        p.add(separator);
+        p.add(Box.createVerticalStrut(20));
         // DANH SÁCH THÔNG TIN
         JPanel infoList = new JPanel(); 
         infoList.setLayout(new BoxLayout(infoList, BoxLayout.Y_AXIS)); 
@@ -390,32 +488,37 @@ public class ProfileTab extends JPanel {
         final boolean[] isEditingLeft = {false};
         
         // --- NÚT CHỈNH SỬA THU NHỎ LẠI ---
-       // --- NÚT CHỈNH SỬA THÔNG TIN (Đã sửa lỗi khuyết nét) ---
+        // --- NÚT CHỈNH SỬA THÔNG TIN (Đã sửa lỗi khuyết nét) ---
         JButton btnEditLeft = new JButton("Chỉnh sửa thông tin") {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 
-                // Thu vào 1px để không bị lẹm viền
-                g2.setColor(getBackground());
-                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8); 
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14); 
                 
                 // Vẽ viền
-                g2.setColor(isEditingLeft[0] ? Color.decode("#10B981") : PRIMARY);
-                g2.setStroke(new BasicStroke(1.2f)); // Cho viền rõ nét hơn một chút
-                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8);
+                g2.setColor(isEditingLeft[0] ? Color.decode("#10B981") : Color.decode("#FCA5A5"));
+                g2.setStroke(new BasicStroke(1.2f)); 
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
                 
-                super.paintComponent(g); // Gọi super sau khi vẽ nền để chữ nổi lên trên
+                super.paintComponent(g); 
                 g2.dispose();
             }
         };
         btnEditLeft.setContentAreaFilled(false);
         btnEditLeft.setBorderPainted(false); // Bắt buộc tắt viền mặc định
         btnEditLeft.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnEditLeft.setForeground(PRIMARY);
-        btnEditLeft.setBackground(BG_PRIMARY_LIGHT); // Màu nền nhạt
+        btnEditLeft.setForeground(Color.decode("#DC2626"));
+        btnEditLeft.setBackground(Color.WHITE); 
         btnEditLeft.setBorder(new EmptyBorder(4, 12, 4, 12)); 
-        setNetworkIcon(btnEditLeft, "https://img.icons8.com/fluency-systems-regular/48/6366F1/edit.png", 14, 14); 
+        setNetworkIcon(btnEditLeft, "https://img.icons8.com/fluency-systems-regular/48/DC2626/edit.png", 14, 14); 
         btnEditLeft.setIconTextGap(6);
         btnEditLeft.setFocusPainted(false);
         btnEditLeft.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -545,32 +648,79 @@ public class ProfileTab extends JPanel {
     }
 
     // --- CENTER COLUMN (FORM) ---
-    private JPanel createPersonalInfoForm() {
-        RoundedPanel p = new RoundedPanel(12); 
+     private JPanel createPersonalInfoForm() {
+        RoundedPanel p = new RoundedPanel(14); 
         p.setLayout(new BorderLayout(0, 5)); 
-        p.setBorder(new EmptyBorder(20, 25, 20, 25)); 
+        p.setBorder(new EmptyBorder(22, 26, 22, 26)); 
+
+        // ---- Header: title + edit button + divider ----
+        JPanel headerWrap = new JPanel();
+        headerWrap.setLayout(new BoxLayout(headerWrap, BoxLayout.Y_AXIS));
+        headerWrap.setOpaque(false);
 
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
+
+        JPanel titleGroup = new JPanel();
+        titleGroup.setLayout(new BoxLayout(titleGroup, BoxLayout.Y_AXIS));
+        titleGroup.setOpaque(false);
         JLabel title = new JLabel("Thông tin cá nhân"); 
         title.setFont(new Font("Segoe UI", Font.BOLD, 18)); 
         title.setForeground(TEXT_MAIN);
-        
-        btnEditProfile = new JButton("Chỉnh sửa");
+        JLabel subtitle = new JLabel("Quản lý thông tin hồ sơ của bạn");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitle.setForeground(TEXT_MUTED);
+        titleGroup.add(title);
+        titleGroup.add(Box.createVerticalStrut(2));
+        titleGroup.add(subtitle);
+
+        btnEditProfile = new JButton("Chỉnh sửa") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                g2.setColor(Color.decode("#FCA5A5"));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         btnEditProfile.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnEditProfile.setForeground(PRIMARY);
-        btnEditProfile.setBackground(Color.WHITE);
-        btnEditProfile.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(6, 12, 6, 12) 
-        ));
+        btnEditProfile.setBackground(BG_PRIMARY_LIGHT);
+        btnEditProfile.setContentAreaFilled(false);
+        btnEditProfile.setBorderPainted(false);
+        btnEditProfile.setBorder(new EmptyBorder(7, 14, 7, 14));
         btnEditProfile.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnEditProfile.setFocusPainted(false);
+        setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/2563EB/edit.png", 14, 14);
+        btnEditProfile.setIconTextGap(6);
         btnEditProfile.addActionListener(e -> setEditMode(!isEditingProfile));
-        
-        header.add(title, BorderLayout.WEST);
+
+        header.add(titleGroup, BorderLayout.WEST);
         header.add(btnEditProfile, BorderLayout.EAST);
-        p.add(header, BorderLayout.NORTH);
+
+        JPanel divider = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(BORDER_COLOR);
+                g.fillRect(0, 0, getWidth(), 1);
+            }
+        };
+        divider.setOpaque(false);
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+
+        headerWrap.add(header);
+        headerWrap.add(Box.createVerticalStrut(14));
+        headerWrap.add(divider);
+        p.add(headerWrap, BorderLayout.NORTH);
 
         JPanel body = new JPanel();
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
@@ -652,21 +802,31 @@ public class ProfileTab extends JPanel {
         btnWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
         
         btnSaveProfile = new JButton("Lưu thay đổi") { 
-            @Override protected void paintComponent(Graphics g) { 
-                Graphics2D g2 = (Graphics2D) g.create(); 
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-                g2.setColor(getBackground()); 
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8); 
-                super.paintComponent(g); 
-                g2.dispose(); 
-            } 
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(getBackground());
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                g2.setColor(Color.decode("#FCA5A5"));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                super.paintComponent(g);
+                g2.dispose();
+            }
         };
         btnSaveProfile.setFont(new Font("Segoe UI", Font.BOLD, 13)); 
-        btnSaveProfile.setForeground(Color.WHITE); btnSaveProfile.setContentAreaFilled(false); 
+        btnSaveProfile.setForeground(Color.decode("#DC2626")); 
+        btnSaveProfile.setContentAreaFilled(false); 
         btnSaveProfile.setBorderPainted(false); 
         btnSaveProfile.setPreferredSize(new Dimension(150, 40)); 
         btnSaveProfile.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        setNetworkIcon(btnSaveProfile, "https://img.icons8.com/fluency-systems-regular/48/FFFFFF/checkmark.png", 16, 16);
+        setNetworkIcon(btnSaveProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/checkmark.png", 16, 16);
         btnSaveProfile.setIconTextGap(8);
         
         btnSaveProfile.addActionListener(e -> {
@@ -721,14 +881,30 @@ public class ProfileTab extends JPanel {
         statusWrap.add(lbl);
         statusWrap.add(lblPhoneVerificationStatus);
 
-        btnVerifyPhone = new JButton("Xác minh");
+        btnVerifyPhone = new JButton("Xác minh") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                g2.setColor(Color.decode("#FCA5A5"));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         btnVerifyPhone.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnVerifyPhone.setForeground(PRIMARY);
-        btnVerifyPhone.setBackground(BG_PRIMARY_LIGHT);
-        btnVerifyPhone.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                new EmptyBorder(7, 14, 7, 14)
-        ));
+        btnVerifyPhone.setForeground(Color.decode("#DC2626"));
+        btnVerifyPhone.setContentAreaFilled(false);
+        btnVerifyPhone.setBorderPainted(false);
+        btnVerifyPhone.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnVerifyPhone.setFocusPainted(false);
         btnVerifyPhone.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnVerifyPhone.addActionListener(e -> requestPhoneVerification());
@@ -811,43 +987,74 @@ public class ProfileTab extends JPanel {
     }
 
     // --- CỘT PHẢI ---
-    private JPanel createRightColumn() {
+      private JPanel createRightColumn() {
         JPanel p = new JPanel(); 
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); 
         p.setOpaque(false); 
         p.setPreferredSize(new Dimension(240, 0)); 
 
-        RoundedPanel box1 = new RoundedPanel(12); 
-        box1.setLayout(new BorderLayout(10, 0)); 
-        box1.setBorder(new EmptyBorder(16, 20, 20, 20)); 
-        JLabel title1 = new JLabel("Ảnh đại diện"); 
-        title1.setFont(new Font("Segoe UI", Font.BOLD, 15)); 
-        box1.add(title1, BorderLayout.NORTH);
+        // ---- Card 1: Ảnh đại diện ----
+        RoundedPanel box1 = new RoundedPanel(14); 
+        box1.setLayout(new BoxLayout(box1, BoxLayout.Y_AXIS)); 
+        box1.setBorder(new EmptyBorder(18, 18, 18, 18));
+        box1.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel avaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15)); 
-        avaPanel.setOpaque(false);
+        JLabel title1 = new JLabel("Ảnh đại diện"); 
+        title1.setFont(new Font("Segoe UI", Font.BOLD, 14)); 
+        title1.setForeground(TEXT_MAIN);
+        title1.setAlignmentX(Component.CENTER_ALIGNMENT);
+        box1.add(title1);
+        box1.add(Box.createVerticalStrut(14));
+
+        // Avatar preview centered with ring
+        JPanel avaCenter = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        avaCenter.setOpaque(false);
         miniAvatarLabel = new JLabel(); 
-        setAvatarNetworkIcon(miniAvatarLabel, "https://img.icons8.com/color/80/circled-user-male-skin-type-4--v1.png", 64); 
-        
-        JPanel avaText = new JPanel(); 
-        avaText.setLayout(new BoxLayout(avaText, BoxLayout.Y_AXIS)); 
-        avaText.setOpaque(false);
-        JLabel lblAvaReq = new JLabel("JPG, PNG < 2MB."); 
-        lblAvaReq.setFont(new Font("Segoe UI", Font.PLAIN, 10)); 
+        setAvatarNetworkIcon(miniAvatarLabel, "https://img.icons8.com/color/80/circled-user-male-skin-type-4--v1.png", 72); 
+        avaCenter.add(miniAvatarLabel);
+        box1.add(avaCenter);
+        box1.add(Box.createVerticalStrut(10));
+
+        JLabel lblAvaReq = new JLabel("JPG, PNG < 2MB"); 
+        lblAvaReq.setFont(new Font("Segoe UI", Font.PLAIN, 11)); 
         lblAvaReq.setForeground(TEXT_MUTED);
-        
-        JButton btnChangeAva = new JButton("Đổi ảnh"); 
+        lblAvaReq.setAlignmentX(Component.CENTER_ALIGNMENT);
+        box1.add(lblAvaReq);
+        box1.add(Box.createVerticalStrut(10));
+
+        JButton btnChangeAva = new JButton("Đổi ảnh") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                g2.setColor(Color.decode("#FCA5A5"));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         btnChangeAva.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnChangeAva.setBackground(Color.WHITE); 
-        btnChangeAva.setForeground(PRIMARY); 
-        btnChangeAva.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(5, 12, 5, 12)
-        ));
+        btnChangeAva.setBackground(Color.WHITE);
+        btnChangeAva.setForeground(Color.decode("#DC2626"));
+        btnChangeAva.setContentAreaFilled(false);
+        btnChangeAva.setBorderPainted(false);
+        btnChangeAva.setBorder(new EmptyBorder(7, 16, 7, 16));
         setNetworkIcon(btnChangeAva, "https://img.icons8.com/fluency-systems-regular/48/2563EB/upload.png", 14, 14);
+        btnChangeAva.setIconTextGap(6);
         btnChangeAva.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnChangeAva.setFocusPainted(false);
-        
+        btnChangeAva.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnChangeAva.setMaximumSize(new Dimension(200, 36));
+
+        // === GIỮ NGUYÊN LOGIC UPLOAD ===
         btnChangeAva.addActionListener(e -> { 
             JFileChooser fileChooser = new JFileChooser(); 
             fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Hình ảnh", "jpg", "png", "jpeg")); 
@@ -861,90 +1068,100 @@ public class ProfileTab extends JPanel {
                 } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Lỗi đọc file ảnh!"); } 
             } 
         });
-        
-        avaText.add(lblAvaReq); avaText.add(Box.createVerticalStrut(6)); avaText.add(btnChangeAva); 
-        avaPanel.add(miniAvatarLabel); avaPanel.add(avaText); 
-        box1.add(avaPanel, BorderLayout.CENTER); 
-        
-        // Card Mẹo hồ sơ & hình bé Bot ở góc
-        JPanel box2 = new JPanel(new BorderLayout(8, 6)) {
+
+        box1.add(btnChangeAva);
+
+        // ---- Card 2: Mẹo hồ sơ — tím nhạt ----
+        JPanel box2 = new JPanel(new BorderLayout(0, 10)) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE); 
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                g2.setColor(BORDER_COLOR);
-                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+                g2.setColor(PURPLE_LIGHT);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g2.setColor(new Color(0xDDD6FE)); // tím nhạt hơn cho viền
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 14, 14);
                 g2.dispose();
             }
         };
         box2.setOpaque(false);
-        box2.setBorder(new EmptyBorder(15, 15, 15, 15)); 
-        
-        JPanel tipHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        box2.setBorder(new EmptyBorder(16, 16, 16, 16)); 
+        box2.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel tipHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         tipHeader.setOpaque(false);
         JLabel iconBulb = new JLabel();
-        setNetworkIcon(iconBulb, "https://img.icons8.com/color/48/idea.png", 20, 20);
+        setNetworkIcon(iconBulb, "https://img.icons8.com/color/48/idea.png", 18, 18);
         JLabel lblTipTitle = new JLabel("Mẹo hồ sơ");
-        lblTipTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblTipTitle.setForeground(PRIMARY);
-        tipHeader.add(iconBulb); tipHeader.add(lblTipTitle);
-        
-        JTextArea txtTip = new JTextArea("Hồ sơ đầy đủ và chính xác sẽ giúp học viên tin tưởng và dễ dàng lựa chọn bạn hơn.");
-        txtTip.setWrapStyleWord(true); txtTip.setLineWrap(true);
-        txtTip.setOpaque(false); txtTip.setEditable(false);
-        txtTip.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        txtTip.setForeground(TEXT_MAIN);
-        txtTip.setBorder(new EmptyBorder(5, 5, 0, 5));
-        
-        // Robot cute ở góc
+        lblTipTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblTipTitle.setForeground(PURPLE);
+        tipHeader.add(iconBulb);
+        tipHeader.add(lblTipTitle);
+
+        JPanel tipContent = new JPanel();
+        tipContent.setLayout(new BoxLayout(tipContent, BoxLayout.Y_AXIS));
+        tipContent.setOpaque(false);
+
+        // 3 bullet points thay vì một đoạn văn dài
+        String[] tips = {
+            "✓ Điền đầy đủ mọi trường thông tin",
+            "✓ Tải lên ảnh đại diện rõ mặt",
+            "✓ Xác minh số điện thoại để tạo uy tín"
+        };
+        for (String tip : tips) {
+            JLabel tipLbl = new JLabel("<html><div style='width:160px;'>" + tip + "</div></html>");
+            tipLbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            tipLbl.setForeground(new Color(0x4C1D95)); // tím đậm dễ đọc
+            tipLbl.setBorder(new EmptyBorder(3, 2, 3, 2));
+            tipContent.add(tipLbl);
+        }
+
+        // Robot nhỏ hơn, ở góc dưới phải, không làm rối
+        JPanel botRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        botRow.setOpaque(false);
         JLabel lblRobot = new JLabel();
-        setNetworkIcon(lblRobot, "https://img.icons8.com/color/96/bot.png", 60, 60);
-        JPanel robotPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        robotPanel.setOpaque(false);
-        robotPanel.add(lblRobot);
-        
-        JPanel tipBody = new JPanel(new BorderLayout());
-        tipBody.setOpaque(false);
-        tipBody.add(txtTip, BorderLayout.CENTER);
-        tipBody.add(robotPanel, BorderLayout.SOUTH);
+        setNetworkIcon(lblRobot, "https://img.icons8.com/color/96/bot.png", 36, 36);
+        botRow.add(lblRobot);
+        tipContent.add(Box.createVerticalStrut(6));
+        tipContent.add(botRow);
 
         box2.add(tipHeader, BorderLayout.NORTH);
-        box2.add(tipBody, BorderLayout.CENTER);
+        box2.add(tipContent, BorderLayout.CENTER);
 
         p.add(box1); 
-        p.add(Box.createVerticalStrut(15));
+        p.add(Box.createVerticalStrut(14));
         p.add(box2);
-        
         p.add(Box.createVerticalGlue()); 
         
         return p;
     }
 
-    class RoundedPanel extends JPanel {
-        private int radius; 
+  class RoundedPanel extends JPanel {
+        private int radius;
         public RoundedPanel(int radius) { this.radius = radius; setOpaque(false); }
-        @Override protected void paintComponent(Graphics g) { 
-            Graphics2D g2 = (Graphics2D) g.create(); 
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-            
-            // Soft Shadow
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // Shadow 3 lớp nhẹ, giữ nguyên kích thước card
             int shadowGap = 2;
             int shadowOffset = 1;
-            for (int i = 0; i < shadowGap; i++) {
-                g2.setColor(new Color(0, 0, 0, 8));
-                g2.fillRoundRect(i, i + shadowOffset, getWidth() - i * 2, getHeight() - i * 2, radius, radius);
+            for (int i = 0; i < 3; i++) {
+                g2.setColor(new Color(0, 0, 0, 6 - i * 2));
+                g2.fillRoundRect(i, i + shadowOffset,
+                        getWidth() - i * 2, getHeight() - i * 2, radius, radius);
             }
-            
-            g2.setColor(CARD_BG); 
-            g2.fillRoundRect(0, 0, getWidth() - shadowGap, getHeight() - shadowGap - shadowOffset, radius, radius); 
-            g2.setColor(BORDER_COLOR); 
-            g2.setStroke(new BasicStroke(1f)); 
-            g2.drawRoundRect(0, 0, getWidth() - shadowGap - 1, getHeight() - shadowGap - shadowOffset - 1, radius, radius); 
-            g2.dispose(); 
-            super.paintComponent(g); 
+
+            g2.setColor(CARD_BG);
+            g2.fillRoundRect(0, 0, getWidth() - shadowGap, getHeight() - shadowGap - shadowOffset, radius, radius);
+            g2.setColor(BORDER_COLOR);
+            g2.setStroke(new BasicStroke(1f));
+            g2.drawRoundRect(0, 0, getWidth() - shadowGap - 1, getHeight() - shadowGap - shadowOffset - 1, radius, radius);
+            g2.dispose();
+            super.paintComponent(g);
         }
     }
+
 
     private void setNetworkIcon(JComponent label, String urlStr, int width, int height) {
         new Thread(() -> { 
@@ -1145,7 +1362,7 @@ public class ProfileTab extends JPanel {
                 if(data.length > 10 && data[10] != null && !data[10].isEmpty() && !data[10].equals("null")) {
                     File f = new File(data[10]);
                     currentServerCvFileName = f.getName(); // Lưu lại tên file để tải/xem
-                    lblCvPreview.setText("<html><div style='text-align: center;'><img src='https://img.icons8.com/color/48/pdf.png'><br><br><b style='color:#2563EB;'>Đã tải lên: " + currentServerCvFileName + "</b></div></html>");
+                    lblCvPreview.setText("<html><div style='text-align: center;'><br><b style='color:#2563EB;'>Đã tải lên:<br>" + currentServerCvFileName + "</b></div></html>");
                 }
                 
                 // QUAN TRỌNG: Load ảnh Mặt trước eKYC
@@ -1212,18 +1429,27 @@ public class ProfileTab extends JPanel {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE); 
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.setColor(PRIMARY); 
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                
+                g2.setColor(Color.decode("#FCA5A5")); 
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
                 super.paintComponent(g);
                 g2.dispose();
             }
         };
         btnAdd.setBackground(Color.WHITE);
-        btnAdd.setForeground(PRIMARY); 
+        btnAdd.setForeground(Color.decode("#DC2626")); 
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnAdd.setContentAreaFilled(false);
+        btnAdd.setBorderPainted(false);
         btnAdd.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnAdd.addActionListener(e -> showAddDegreeDialog());
@@ -1424,21 +1650,25 @@ public class ProfileTab extends JPanel {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 
-                // Thụt vào 1px
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
                 
-                // Vẽ viền
-                g2.setColor(PRIMARY); 
+                g2.setColor(Color.decode("#FCA5A5")); 
                 g2.setStroke(new BasicStroke(1.2f));
-                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8);
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
                 
                 super.paintComponent(g); 
                 g2.dispose();
             }
         };
         btnAdd.setBackground(Color.WHITE); 
-        btnAdd.setForeground(PRIMARY);
+        btnAdd.setForeground(Color.decode("#DC2626"));
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnAdd.setContentAreaFilled(false); 
         btnAdd.setBorderPainted(false); // Bắt buộc tắt viền mặc định
@@ -1617,22 +1847,38 @@ public class ProfileTab extends JPanel {
                 g2.setColor(Color.decode("#EFF6FF")); g2.fillOval(0,0,getWidth(),getHeight()); g2.dispose();
             }
         };
-        iconWrap.setOpaque(false); iconWrap.setPreferredSize(new Dimension(40,40)); iconWrap.setMaximumSize(new Dimension(40,40));
+        iconWrap.setOpaque(false); iconWrap.setPreferredSize(new Dimension(56,56)); iconWrap.setMaximumSize(new Dimension(56,56));
         iconWrap.setLayout(new GridBagLayout());
-        JLabel lblUploadIcon = new JLabel(); setNetworkIcon(lblUploadIcon, "https://img.icons8.com/fluency-systems-filled/48/2563EB/upload-to-cloud.png", 20, 20);
+        JLabel lblUploadIcon = new JLabel(); lblUploadIcon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/arrow-cloud-upload-svgrepo-com.svg", 28, 28));
         iconWrap.add(lblUploadIcon);
         iconWrap.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel lblDrag = new JLabel("Kéo & thả CV vào đây"); lblDrag.setFont(new Font("Segoe UI", Font.BOLD, 12)); lblDrag.setAlignmentX(Component.CENTER_ALIGNMENT);
         JLabel lblOr = new JLabel("hoặc chọn tệp từ máy tính"); lblOr.setFont(new Font("Segoe UI", Font.PLAIN, 11)); lblOr.setForeground(TEXT_MUTED); lblOr.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        // ĐÃ SỬA: Nút "Chọn tệp" với màu nền ĐỎ
-        JButton btnChoose = new JButton("Chọn tệp");
+        JButton btnChoose = new JButton("Chọn tệp") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(PRIMARY.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(99, 102, 241));
+                } else {
+                    g2.setColor(PRIMARY);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         btnChoose.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnChoose.setForeground(Color.WHITE);
-        btnChoose.setBackground(Color.decode("#EF4444")); // Mã màu đỏ của thẻ
-        btnChoose.setBorder(new EmptyBorder(6, 16, 6, 16));
+        btnChoose.setBackground(PRIMARY);
+        btnChoose.setBorder(new EmptyBorder(8, 20, 8, 20));
         btnChoose.setFocusPainted(false);
+        btnChoose.setContentAreaFilled(false);
         btnChoose.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnChoose.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -1653,7 +1899,7 @@ public class ProfileTab extends JPanel {
         fileRow.setOpaque(false); fileRow.setBorder(new EmptyBorder(5, 0, 5, 0));
         
         JPanel fileLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); fileLeft.setOpaque(false);
-        JLabel fileIcon = new JLabel(); setNetworkIcon(fileIcon, "https://img.icons8.com/color/48/pdf.png", 28, 28);
+        JLabel fileIcon = new JLabel(); fileIcon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/file-pdf-color-red-icon.svg", 28, 28));
         
         JPanel fileDetail = new JPanel(); fileDetail.setLayout(new BoxLayout(fileDetail, BoxLayout.Y_AXIS)); fileDetail.setOpaque(false);
         JLabel lblCvNameDetail = new JLabel("Chưa có tệp nào"); lblCvNameDetail.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -1684,10 +1930,10 @@ public class ProfileTab extends JPanel {
         
         // ĐÃ THÊM: Nút "Xem CV"
         JButton btnViewCV = createUploadButton("Xem CV");
-        setNetworkIcon(btnViewCV, "https://img.icons8.com/fluency-systems-regular/48/2563EB/visible.png", 14, 14);
+        setNetworkIcon(btnViewCV, "https://img.icons8.com/fluency-systems-regular/48/DC2626/visible.png", 14, 14);
 
         JButton btnDownload = createUploadButton("Tải xuống"); 
-        setNetworkIcon(btnDownload, "https://img.icons8.com/fluency-systems-regular/48/2563EB/download.png", 14, 14);
+        btnDownload.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/download-pdf-icon.svg", 14, 14));
         
         // Sắp xếp lại thứ tự các nút cho hợp lý
         actionRow.add(btnViewCV); actionRow.add(btnDownload);
@@ -1706,8 +1952,9 @@ public class ProfileTab extends JPanel {
         rightCol.setOpaque(false);
         
         JLabel lblPreviewTitle = new JLabel("Xem trước CV");
-        lblPreviewTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblPreviewTitle.setBorder(new EmptyBorder(0, 0, 5, 0));
+        lblPreviewTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblPreviewTitle.setForeground(Color.decode("#1E293B"));
+        lblPreviewTitle.setBorder(new EmptyBorder(0, 0, 8, 0));
         
         RoundedPanel previewCard = new RoundedPanel(12);
         previewCard.setLayout(new BorderLayout());
@@ -1722,7 +1969,11 @@ public class ProfileTab extends JPanel {
         previewBody.setBackground(Color.decode("#F1F5F9")); 
         previewBody.setBorder(new EmptyBorder(10, 10, 10, 10));
         
-        lblCvPreview = new JLabel("<html><div style='text-align: center;'><img src='https://img.icons8.com/color/48/pdf.png'><br><br>Chưa có bản xem trước</div></html>", SwingConstants.CENTER);
+        lblCvPreview = new JLabel("Chưa có bản xem trước", SwingConstants.CENTER);
+        lblCvPreview.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/file-pdf-color-red-icon.svg", 48, 48));
+        lblCvPreview.setHorizontalTextPosition(SwingConstants.CENTER);
+        lblCvPreview.setVerticalTextPosition(SwingConstants.BOTTOM);
+        lblCvPreview.setIconTextGap(10);
         lblCvPreview.setOpaque(true);
         lblCvPreview.setBackground(Color.WHITE);
         lblCvPreview.setBorder(BorderFactory.createLineBorder(Color.decode("#E2E8F0")));
@@ -1761,7 +2012,7 @@ public class ProfileTab extends JPanel {
                     lblBadgeText.setText("Sẵn sàng lưu");
                     badge.bg = Color.decode("#FEF3C7"); 
                     
-                    lblCvPreview.setText("<html><div style='text-align: center; max-width: 180px;'><img src='https://img.icons8.com/color/48/pdf.png'><br><br><b style='color:#2563EB;'>" + cvFileNameStr + "</b></div></html>");
+                    lblCvPreview.setText("<html><div style='text-align: center; max-width: 180px;'><br><b style='color:#2563EB;'>" + cvFileNameStr + "</b></div></html>");
                 } catch (Exception ex) { ex.printStackTrace(); }
             }
         });
@@ -2077,7 +2328,7 @@ public class ProfileTab extends JPanel {
         ColorRoundedPanel footerInfo = new ColorRoundedPanel(8, Color.decode("#EFF6FF")); 
         footerInfo.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 8));
         JLabel infoIcon = new JLabel(); 
-        setNetworkIcon(infoIcon, "https://img.icons8.com/fluency-systems-filled/48/2563EB/info.png", 16, 16);
+        infoIcon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/brain-generator-idea-svgrepo-com.svg", 28, 28));
         JLabel infoText = new JLabel("Vui lòng đảm bảo hình ảnh rõ nét, đầy đủ 4 góc, không bị lóa sáng.");
         infoText.setFont(new Font("Segoe UI", Font.BOLD, 12)); 
         infoText.setForeground(Color.decode("#1E3A8A")); // Chữ màu xanh đậm
@@ -2119,7 +2370,12 @@ public class ProfileTab extends JPanel {
         ));
 
         // Hình ảnh xem trước (Căn giữa, bung toàn bộ không gian CENTER)
-        JLabel lblPreview = new JLabel("<html><div style='text-align: center;'><img src='https://img.icons8.com/color/48/camera.png'><br><br>Nhấn để chọn ảnh</div></html>", SwingConstants.CENTER);
+        JLabel lblPreview = new JLabel("Nhấn để chọn ảnh", SwingConstants.CENTER);
+        lblPreview.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/layers-player-slides-svgrepo-com.svg", 48, 48));
+        lblPreview.setHorizontalTextPosition(SwingConstants.CENTER);
+        lblPreview.setVerticalTextPosition(SwingConstants.BOTTOM);
+        lblPreview.setIconTextGap(10);
+        lblPreview.setForeground(Color.decode("#64748B"));
         lblPreview.setCursor(new Cursor(Cursor.HAND_CURSOR));
         lblPreview.setToolTipText("Nhấn vào đây để tải ảnh lên");
 
@@ -2141,39 +2397,13 @@ public class ProfileTab extends JPanel {
         JPanel actionRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0)); 
         actionRow.setOpaque(false);
         
-        // Nút Xem ảnh lớn (Tô màu tím PRIMARY, chữ trắng, bo góc 8px)
-        JButton btnView = new JButton("Xem ảnh lớn") {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(PRIMARY); 
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8); 
-                super.paintComponent(g); g2.dispose();
-            }
-        };
-        btnView.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnView.setForeground(Color.WHITE);
-        btnView.setContentAreaFilled(false); btnView.setBorderPainted(false);
-        btnView.setBorder(new EmptyBorder(8, 16, 8, 16));
-        setNetworkIcon(btnView, "https://img.icons8.com/fluency-systems-regular/48/FFFFFF/search.png", 14, 14);
-        btnView.setFocusPainted(false); btnView.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // Nút Xem ảnh lớn
+        JButton btnView = createUploadButton("Xem ảnh lớn");
+        setNetworkIcon(btnView, "https://img.icons8.com/fluency-systems-regular/48/DC2626/search.png", 14, 14);
 
-        // Nút Tải xuống (Tô màu tím PRIMARY, chữ trắng, bo góc 8px)
-        JButton btnDownload = new JButton("Tải xuống") {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(PRIMARY); 
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8); 
-                super.paintComponent(g); g2.dispose();
-            }
-        };
-        btnDownload.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnDownload.setForeground(Color.WHITE);
-        btnDownload.setContentAreaFilled(false); btnDownload.setBorderPainted(false);
-        btnDownload.setBorder(new EmptyBorder(8, 16, 8, 16));
-        setNetworkIcon(btnDownload, "https://img.icons8.com/fluency-systems-regular/48/FFFFFF/download.png", 14, 14);
-        btnDownload.setFocusPainted(false); btnDownload.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // Nút Tải xuống
+        JButton btnDownload = createUploadButton("Tải xuống");
+        btnDownload.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/download-pdf-icon.svg", 14, 14));
 
         actionRow.add(btnView);
         actionRow.add(btnDownload);
@@ -2270,7 +2500,27 @@ public class ProfileTab extends JPanel {
     }
 
     private JButton createUploadButton(String text) {
-        JButton btn = new JButton(text); btn.setFont(new Font("Segoe UI", Font.BOLD, 12)); btn.setForeground(PRIMARY); btn.setBackground(Color.WHITE); btn.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(PRIMARY), new EmptyBorder(6,12,6,12))); btn.setFocusPainted(false); btn.setCursor(new Cursor(Cursor.HAND_CURSOR)); return btn;
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                g2.setColor(new Color(252, 165, 165));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12)); btn.setForeground(Color.decode("#DC2626")); btn.setBackground(Color.WHITE); btn.setBorder(new EmptyBorder(8,18,8,18)); btn.setFocusPainted(false); btn.setContentAreaFilled(false); btn.setBorderPainted(false); btn.setCursor(new Cursor(Cursor.HAND_CURSOR)); return btn;
     }
 
     private void showAddDegreeDialog() {
