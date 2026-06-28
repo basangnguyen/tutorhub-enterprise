@@ -17,6 +17,19 @@ public class QuizHubTab extends JPanel {
         System.out.println("[QUIZHUB] QuizHubTab initialized");
         setLayout(new BorderLayout());
         
+        // --- ADD TOOLBAR FOR IMPORT ---
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnImportExcel = new JButton("Nhập đề từ Excel");
+        btnImportExcel.addActionListener(e -> {
+            com.mycompany.tutorhub_enterprise.client.quizhub.bridge.QuizExcelImportDialog dialog = 
+                new com.mycompany.tutorhub_enterprise.client.quizhub.bridge.QuizExcelImportDialog(
+                    SwingUtilities.getWindowAncestor(this));
+            dialog.setVisible(true);
+        });
+        topPanel.add(btnImportExcel);
+        add(topPanel, BorderLayout.NORTH);
+        // ------------------------------
+
         jfxPanel = new JFXPanel();
         add(jfxPanel, BorderLayout.CENTER);
 
