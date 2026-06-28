@@ -12,13 +12,20 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.JarURLConnection;
+import java.net.URL;
 import java.util.Base64;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 public class ExcelEditorDialog extends JDialog {
     private final CefBrowser browser;
     private final CefMessageRouter msgRouter;
+    private static File extractAssetsDir = null;
 
     public ExcelEditorDialog(Frame owner, DefaultTableModel tableModel, boolean isDegree) {
         super(owner, isDegree ? "Quản lý Bằng cấp (Excel)" : "Quản lý Chứng chỉ (Excel)", true);
@@ -26,9 +33,13 @@ public class ExcelEditorDialog extends JDialog {
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
 
-        // 1. Khởi tạo CefBrowser tải file HTML local
+        // 1. Giải nén tài nguyên ra thư mục cục bộ nếu chạy từ file JAR
+        File assetsDir = getExtractedAssetsDir();
         String htmlFileName = isDegree ? "deg_excel.html" : "cert_excel.html";
-        String htmlUrl = ExcelEditorDialog.class.getResource("/" + htmlFileName).toExternalForm();
+        File htmlFile = new File(assetsDir, htmlFileName);
+        String htmlUrl = htmlFile.toURI().toString();
+
+        System.out.println("[EXCEL_EDITOR] Loading UI from: " + htmlUrl);
         browser = JcefManager.getClient().createBrowser(htmlUrl, false, false);
 
         // 2. Tạo MessageRouter để nhận sự kiện từ JavaScript (cefQuery)
@@ -55,6 +66,61 @@ public class ExcelEditorDialog extends JDialog {
         
         JcefManager.getClient().addMessageRouter(msgRouter);
         add(browser.getUIComponent(), BorderLayout.CENTER);
+    }
+
+    private static synchronized File getExtractedAssetsDir() {
+        if (extractAssetsDir != null && extractAssetsDir.exists()) {
+            return extractAssetsDir;
+        }
+        
+        File destDir = new File(System.getProperty("user.home"), ".tutorhub_excel_assets");
+        
+        try {
+            URL url = ExcelEditorDialog.class.getResource("/cert_excel.html");
+            if (url != null && "jar".equals(url.getProtocol())) {
+                // Chỉ thực hiện giải nén một lần hoặc ghi đè nếu muốn cập nhật
+                if (!destDir.exists()) {
+                    destDir.mkdirs();
+                }
+                
+                JarURLConnection connection = (JarURLConnection) url.openConnection();
+                JarFile jar = connection.getJarFile();
+                Enumeration<JarEntry> entries = jar.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (name.startsWith("luckysheet/") || name.startsWith("luckyexcel/") || name.equals("cert_excel.html") || name.equals("deg_excel.html")) {
+                        File destFile = new File(destDir, name);
+                        if (entry.isDirectory()) {
+                            destFile.mkdirs();
+                        } else {
+                            destFile.getParentFile().mkdirs();
+                            try (InputStream is = jar.getInputStream(entry);
+                                 FileOutputStream fos = new FileOutputStream(destFile)) {
+                                byte[] buffer = new byte[8192];
+                                int bytesRead;
+                                while ((bytesRead = is.read(buffer)) != -1) {
+                                    fos.write(buffer, 0, bytesRead);
+                                }
+                            }
+                        }
+                    }
+                }
+                System.out.println("[EXCEL_EDITOR] Extracted assets from JAR to: " + destDir.getAbsolutePath());
+            } else {
+                // Nếu chạy trong IDE (không đóng gói JAR), sử dụng trực tiếp tài nguyên từ thư mục build
+                if (url != null) {
+                    File file = new File(url.toURI());
+                    extractAssetsDir = file.getParentFile();
+                    return extractAssetsDir;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        extractAssetsDir = destDir;
+        return destDir;
     }
 
     private void handleSaveData(String json, DefaultTableModel tableModel, boolean isDegree) {
