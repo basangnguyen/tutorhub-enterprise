@@ -1095,10 +1095,10 @@ public class ProfileTab extends JPanel {
             }
         };
         box2.setOpaque(false);
-        box2.setBorder(new EmptyBorder(16, 16, 16, 16)); 
+        box2.setBorder(new EmptyBorder(16, 10, 16, 10)); 
         box2.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel tipHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel tipHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         tipHeader.setOpaque(false);
         JLabel iconBulb = new JLabel();
         setNetworkIcon(iconBulb, "https://img.icons8.com/color/48/idea.png", 18, 18);
@@ -1119,10 +1119,10 @@ public class ProfileTab extends JPanel {
             "✓ Xác minh số điện thoại để tạo uy tín"
         };
         for (String tip : tips) {
-            JLabel tipLbl = new JLabel("<html><div style='width:190px;'>" + tip + "</div></html>");
+            JLabel tipLbl = new JLabel("<html><div style='width:210px;'>" + tip + "</div></html>");
             tipLbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             tipLbl.setForeground(new Color(0x4C1D95)); // tím đậm dễ đọc
-            tipLbl.setBorder(new EmptyBorder(3, 2, 3, 2));
+            tipLbl.setBorder(new EmptyBorder(3, 0, 3, 0));
             tipContent.add(tipLbl);
         }
 
@@ -2165,7 +2165,9 @@ public class ProfileTab extends JPanel {
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER));
         footer.setOpaque(false);
         footer.setBorder(new EmptyBorder(15, 0, 0, 0));
-        JButton btnMore = new JButton("Hiển thị thêm ▾");
+        JButton btnMore = new JButton("Hiển thị thêm");
+        btnMore.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/chevron-down-blue.svg", 14, 14));
+        btnMore.setHorizontalTextPosition(SwingConstants.LEFT);
         btnMore.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnMore.setForeground(PRIMARY);
         btnMore.setContentAreaFilled(false);
@@ -2288,8 +2290,8 @@ public class ProfileTab extends JPanel {
         JPanel subInfo = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         subInfo.setOpaque(false);
         subInfo.setBorder(new EmptyBorder(8, 0, 8, 0));
-        subInfo.add(createIconText("https://img.icons8.com/fluency-systems-regular/48/64748B/user.png", type));
-        subInfo.add(createIconText("https://img.icons8.com/marker.png", location));
+        subInfo.add(createIconText("images/icon/user-gray.svg", type));
+        subInfo.add(createIconText("images/icon/map-pin-gray.svg", location));
         
         JTextArea txtDesc = new JTextArea(desc);
         txtDesc.setWrapStyleWord(true);
@@ -2823,7 +2825,11 @@ public class ProfileTab extends JPanel {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         p.setOpaque(false);
         JLabel icon = new JLabel();
-        setNetworkIcon(icon, iconUrl, 14, 14);
+        if (iconUrl.endsWith(".svg")) {
+            icon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon(iconUrl, 14, 14));
+        } else {
+            setNetworkIcon(icon, iconUrl, 14, 14);
+        }
         JLabel lbl = new JLabel(text);
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lbl.setForeground(TEXT_MUTED);
