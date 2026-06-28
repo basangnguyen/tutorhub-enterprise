@@ -129,14 +129,9 @@ public class ProfileTab extends JPanel {
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS)); 
         titlePanel.setOpaque(false);
         JLabel lblTitle = new JLabel("Hồ sơ cá nhân"); 
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18)); 
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20)); 
         lblTitle.setForeground(TEXT_MAIN);
-        JLabel lblBreadcrumb = new JLabel("Trang chủ  >  Hồ sơ cá nhân"); 
-        lblBreadcrumb.setFont(new Font("Segoe UI", Font.PLAIN, 12)); 
-        lblBreadcrumb.setForeground(TEXT_MUTED);
         titlePanel.add(lblTitle); 
-        titlePanel.add(Box.createVerticalStrut(2)); 
-        titlePanel.add(lblBreadcrumb);
         
         leftTitle.add(iconWrapper); 
         leftTitle.add(titlePanel);
@@ -374,11 +369,11 @@ public class ProfileTab extends JPanel {
         if (edit) {
             btnEditProfile.setText("Hủy chỉnh sửa");
             btnEditProfile.setForeground(Color.decode("#DC2626")); 
-            setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/cancel.png", 14, 14);
+            btnEditProfile.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/close.svg", 18, 18));
         } else {
             btnEditProfile.setText("Chỉnh sửa");
             btnEditProfile.setForeground(Color.decode("#DC2626"));
-            setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/edit.png", 14, 14);
+            btnEditProfile.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit.svg", 18, 18));
         }
         repaint();
     }
@@ -474,13 +469,13 @@ public class ProfileTab extends JPanel {
         setNetworkIcon(lblLeftStatus, "https://img.icons8.com/color/48/ok--v1.png", 14, 14);
         JComboBox<String> cbStatus = new JComboBox<>(new String[]{"Đang hoạt động", "Tạm nghỉ", "Khóa"});
 
-        infoList.add(createEditableRow("https://img.icons8.com/fluency-systems-regular/48/64748B/identity-theft.png", "Mã gia sư", lblLeftId, txtId, clId, cardId));
+        infoList.add(createEditableRow("images/icon/id-card.svg", "Mã gia sư", lblLeftId, txtId, clId, cardId));
         infoList.add(Box.createVerticalStrut(18)); 
-        infoList.add(createEditableRow("https://img.icons8.com/fluency-systems-regular/48/64748B/calendar--v1.png", "Ngày tham gia", lblJoinDate, txtDate, clDate, cardDate));
+        infoList.add(createEditableRow("images/icon/calendar.svg", "Ngày tham gia", lblJoinDate, txtDate, clDate, cardDate));
         infoList.add(Box.createVerticalStrut(18));
-        infoList.add(createEditableRow("https://img.icons8.com/fluency-systems-regular/48/64748B/marker.png", "Khu vực", lblLeftLocation, cbLoc, clLoc, cardLoc));
+        infoList.add(createEditableRow("images/icon/map-pin.svg", "Khu vực", lblLeftLocation, cbLoc, clLoc, cardLoc));
         infoList.add(Box.createVerticalStrut(18));
-        infoList.add(createEditableRow("https://img.icons8.com/fluency-systems-regular/48/64748B/checked-user-male.png", "Trạng thái", lblLeftStatus, cbStatus, clStatus, cardStatus));
+        infoList.add(createEditableRow("images/icon/user-check.svg", "Trạng thái", lblLeftStatus, cbStatus, clStatus, cardStatus));
         
         p.add(infoList); 
         p.add(Box.createVerticalStrut(25)); 
@@ -518,7 +513,7 @@ public class ProfileTab extends JPanel {
         btnEditLeft.setForeground(Color.decode("#DC2626"));
         btnEditLeft.setBackground(Color.WHITE); 
         btnEditLeft.setBorder(new EmptyBorder(4, 12, 4, 12)); 
-        setNetworkIcon(btnEditLeft, "https://img.icons8.com/fluency-systems-regular/48/DC2626/edit.png", 14, 14); 
+        btnEditLeft.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit.svg", 18, 18));  
         btnEditLeft.setIconTextGap(6);
         btnEditLeft.setFocusPainted(false);
         btnEditLeft.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -544,8 +539,8 @@ public class ProfileTab extends JPanel {
                 clLoc.show(cardLoc, "EDIT"); clStatus.show(cardStatus, "EDIT");
             } else {
                 btnEditLeft.setText("Chỉnh sửa thông tin");
-                btnEditLeft.setForeground(PRIMARY); 
-                setNetworkIcon(btnEditLeft, "https://img.icons8.com/fluency-systems-regular/48/6366F1/edit.png", 14, 14);
+                btnEditLeft.setForeground(Color.decode("#DC2626")); 
+                btnEditLeft.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit.svg", 18, 18));
                 
                 lblLeftId.setText(txtId.getText());
                 lblJoinDate.setText(txtDate.getText());
@@ -577,7 +572,14 @@ public class ProfileTab extends JPanel {
         // Bên trái (Icon + Text mờ)
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.setOpaque(false);
-        JLabel icon = new JLabel(); setNetworkIcon(icon, iconUrl, 16, 16);
+        JLabel icon = new JLabel(); 
+        if (iconUrl != null && !iconUrl.isEmpty()) {
+            if (iconUrl.startsWith("http")) {
+                setNetworkIcon(icon, iconUrl, 16, 16);
+            } else {
+                icon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon(iconUrl, 16, 16));
+            }
+        }
         JLabel lbl = new JLabel(labelTxt); 
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
         lbl.setForeground(TEXT_MUTED);
@@ -694,14 +696,14 @@ public class ProfileTab extends JPanel {
             }
         };
         btnEditProfile.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnEditProfile.setForeground(PRIMARY);
-        btnEditProfile.setBackground(BG_PRIMARY_LIGHT);
+        btnEditProfile.setForeground(Color.decode("#DC2626"));
+        btnEditProfile.setBackground(Color.WHITE);
         btnEditProfile.setContentAreaFilled(false);
         btnEditProfile.setBorderPainted(false);
-        btnEditProfile.setBorder(new EmptyBorder(7, 14, 7, 14));
+        btnEditProfile.setBorder(new EmptyBorder(6, 12, 6, 12));
         btnEditProfile.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnEditProfile.setFocusPainted(false);
-        setNetworkIcon(btnEditProfile, "https://img.icons8.com/fluency-systems-regular/48/2563EB/edit.png", 14, 14);
+        btnEditProfile.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit.svg", 18, 18));
         btnEditProfile.setIconTextGap(6);
         btnEditProfile.addActionListener(e -> setEditMode(!isEditingProfile));
 
@@ -740,13 +742,13 @@ public class ProfileTab extends JPanel {
         txtSubject = new JTextField("");
 
         grid.add(createIconInputGroup("Họ và tên", null, txtName)); 
-        grid.add(createIconInputGroup("Ngày sinh", "https://img.icons8.com/fluency-systems-regular/48/64748B/calendar--v1.png", txtDob));
-        grid.add(createIconInputGroup("Số điện thoại", "https://img.icons8.com/fluency-systems-regular/48/64748B/phone.png", txtPhone)); 
-        grid.add(createIconInputGroup("Email", "https://img.icons8.com/fluency-systems-regular/48/64748B/mail.png", txtEmail));
-        grid.add(createIconInputGroup("Giới tính", "https://img.icons8.com/fluency-systems-regular/48/64748B/user.png", cbGender)); 
-        grid.add(createIconInputGroup("Địa chỉ", "https://img.icons8.com/fluency-systems-regular/48/64748B/marker.png", txtAddress));
-        grid.add(createIconInputGroup("Khu vực dạy", "https://img.icons8.com/fluency-systems-regular/48/64748B/map.png", cbLocation)); 
-        grid.add(createIconInputGroup("Môn dạy chính", "https://img.icons8.com/fluency-systems-regular/48/64748B/monitor.png", txtSubject));
+        grid.add(createIconInputGroup("Ngày sinh", "images/icon/calendar.svg", txtDob));
+        grid.add(createIconInputGroup("Số điện thoại", "images/icon/phone.svg", txtPhone)); 
+        grid.add(createIconInputGroup("Email", "images/icon/mail.svg", txtEmail));
+        grid.add(createIconInputGroup("Giới tính", "images/icon/user.svg", cbGender)); 
+        grid.add(createIconInputGroup("Địa chỉ", "images/icon/map-pin.svg", txtAddress));
+        grid.add(createIconInputGroup("Khu vực dạy", "images/icon/map.svg", cbLocation)); 
+        grid.add(createIconInputGroup("Môn dạy chính", "images/icon/monitor.svg", txtSubject));
         
         body.add(grid);
         body.add(Box.createVerticalStrut(15));
@@ -763,9 +765,10 @@ public class ProfileTab extends JPanel {
                 Graphics2D g2 = (Graphics2D)g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(getBackground());
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.fillRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 8, 8);
                 if (isEditingProfile) g2.setColor(PRIMARY); else g2.setColor(BORDER_COLOR);
-                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8);
                 g2.dispose();
             }
         };
@@ -797,8 +800,9 @@ public class ProfileTab extends JPanel {
         body.add(bioWrap); 
         body.add(Box.createVerticalStrut(20)); 
 
-        JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); 
+        JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4)); 
         btnWrap.setOpaque(false); 
+        btnWrap.setBorder(new EmptyBorder(0, 0, 6, 0));
         btnWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
         
         btnSaveProfile = new JButton("Lưu thay đổi") { 
@@ -827,6 +831,7 @@ public class ProfileTab extends JPanel {
         btnSaveProfile.setPreferredSize(new Dimension(150, 40)); 
         btnSaveProfile.setCursor(new Cursor(Cursor.HAND_CURSOR));
         setNetworkIcon(btnSaveProfile, "https://img.icons8.com/fluency-systems-regular/48/DC2626/checkmark.png", 16, 16);
+        btnSaveProfile.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/check.svg", 16, 16));
         btnSaveProfile.setIconTextGap(8);
         
         btnSaveProfile.addActionListener(e -> {
@@ -937,14 +942,15 @@ public class ProfileTab extends JPanel {
                 Graphics2D g2 = (Graphics2D)g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(getBackground());
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.fillRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 8, 8);
                 
                 if (isEditingProfile && (inputComp.hasFocus() || (inputComp instanceof JComboBox && ((JComboBox)inputComp).isPopupVisible()))) {
                     g2.setColor(PRIMARY); 
                 } else {
                     g2.setColor(BORDER_COLOR);
                 }
-                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8);
                 g2.dispose();
             }
         };
@@ -956,7 +962,11 @@ public class ProfileTab extends JPanel {
 
         if (iconUrl != null && !iconUrl.isEmpty()) {
             JLabel iconLbl = new JLabel();
-            setNetworkIcon(iconLbl, iconUrl, 16, 16);
+            if (iconUrl.startsWith("http")) {
+                setNetworkIcon(iconLbl, iconUrl, 16, 16);
+            } else {
+                iconLbl.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon(iconUrl, 16, 16));
+            }
             inputWrap.add(iconLbl, BorderLayout.WEST);
         }
 
@@ -1047,7 +1057,7 @@ public class ProfileTab extends JPanel {
         btnChangeAva.setContentAreaFilled(false);
         btnChangeAva.setBorderPainted(false);
         btnChangeAva.setBorder(new EmptyBorder(7, 16, 7, 16));
-        setNetworkIcon(btnChangeAva, "https://img.icons8.com/fluency-systems-regular/48/2563EB/upload.png", 14, 14);
+        btnChangeAva.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/arrow-cloud-upload-svgrepo-com.svg", 18, 18));
         btnChangeAva.setIconTextGap(6);
         btnChangeAva.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnChangeAva.setFocusPainted(false);
@@ -1109,7 +1119,7 @@ public class ProfileTab extends JPanel {
             "✓ Xác minh số điện thoại để tạo uy tín"
         };
         for (String tip : tips) {
-            JLabel tipLbl = new JLabel("<html><div style='width:160px;'>" + tip + "</div></html>");
+            JLabel tipLbl = new JLabel("<html><div style='width:190px;'>" + tip + "</div></html>");
             tipLbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             tipLbl.setForeground(new Color(0x4C1D95)); // tím đậm dễ đọc
             tipLbl.setBorder(new EmptyBorder(3, 2, 3, 2));
@@ -1548,9 +1558,11 @@ public class ProfileTab extends JPanel {
                 cell.setOpaque(true);
                 cell.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
-                JLabel lblEdit = new JLabel("<html><span style='color:#6366F1;font-size:18px;'>✎</span></html>");
+                JLabel lblEdit = new JLabel();
+                lblEdit.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit-blue.svg", 16, 16));
                 lblEdit.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                JLabel lblDel = new JLabel("<html><span style='color:#EF4444;font-size:18px;'>🗑</span></html>");
+                JLabel lblDel = new JLabel();
+                lblDel.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/trash-red.svg", 16, 16));
                 lblDel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
                 cell.add(lblEdit);
@@ -1733,12 +1745,14 @@ public class ProfileTab extends JPanel {
         table.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
+                JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 18));
                 cell.setOpaque(true); cell.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
                 
-                JLabel lblEdit = new JLabel("<html><span style='color:#6366F1;font-size:18px;'>✎</span></html>");
+                JLabel lblEdit = new JLabel();
+                lblEdit.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit-blue.svg", 16, 16));
                 lblEdit.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                JLabel lblDel = new JLabel("<html><span style='color:#EF4444;font-size:18px;'>🗑</span></html>");
+                JLabel lblDel = new JLabel();
+                lblDel.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/trash-red.svg", 16, 16));
                 lblDel.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 
                 cell.add(lblEdit); cell.add(lblDel); return cell;
@@ -2061,7 +2075,7 @@ public class ProfileTab extends JPanel {
         ColorRoundedPanel iconWrap = new ColorRoundedPanel(10, Color.decode("#EFF6FF"));
         iconWrap.setBorder(new EmptyBorder(6, 6, 6, 6));
         JLabel iconLbl = new JLabel();
-        setNetworkIcon(iconLbl, "https://img.icons8.com/briefcase.png", 20, 20);
+        iconLbl.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/briefcase.svg", 20, 20));
         iconWrap.add(iconLbl);
         
         JPanel textWrap = new JPanel();
@@ -2178,12 +2192,12 @@ public class ProfileTab extends JPanel {
         JButton btnEdit = new JButton();
         btnEdit.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnEdit.setContentAreaFilled(false); btnEdit.setBorderPainted(false); btnEdit.setPreferredSize(new Dimension(30, 30));
-        setNetworkIcon(btnEdit, "https://img.icons8.com/fluency-systems-regular/48/2563EB/edit.png", 16, 16);
+        btnEdit.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/edit-blue.svg", 16, 16));
 
         JButton btnDelete = new JButton();
         btnDelete.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnDelete.setContentAreaFilled(false); btnDelete.setBorderPainted(false); btnDelete.setPreferredSize(new Dimension(30, 30));
-        setNetworkIcon(btnDelete, "https://img.icons8.com/fluency-systems-regular/48/DC2626/trash.png", 16, 16);
+        btnDelete.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/trash-red.svg", 16, 16));
 
         // Logic Xóa
        // Logic Xóa Kinh nghiệm giảng dạy
@@ -2298,7 +2312,7 @@ public class ProfileTab extends JPanel {
         ColorRoundedPanel iconWrap = new ColorRoundedPanel(12, Color.decode("#EFF6FF"));
         iconWrap.setBorder(new EmptyBorder(8, 8, 8, 8));
         JLabel iconLbl = new JLabel();
-        setNetworkIcon(iconLbl, "https://img.icons8.com/fluency-systems-regular/48/2563EB/security-checked.png", 24, 24);
+        iconLbl.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/shield-check.svg", 24, 24));
         iconWrap.add(iconLbl);
         
         JPanel textWrap = new JPanel();
