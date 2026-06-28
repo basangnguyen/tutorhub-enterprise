@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
-<title>Quiz - CÆ¡ sá»Ÿ ATTT</title>
+<title>Quiz - Cơ sở ATTT</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   :root {
@@ -110,7 +110,7 @@
   .nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 8px; }
   .nav-cell { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; cursor: pointer; color: #444; display: flex; align-items: center; justify-content: center; position: relative; }
   .nav-cell.answered { background: #e3edf7; border-color: #b9d3ec; }
-  .nav-cell.flagged::after { content: "ðŸš©"; position: absolute; top: -6px; right: -4px; font-size: 10px; }
+  .nav-cell.flagged::after { content: "🚩"; position: absolute; top: -6px; right: -4px; font-size: 10px; }
   .nav-cell.right { background: #d6f5e0; border-color: #b3e6c2; }
   .nav-cell.bad { background: #f8d6d6; border-color: #eab8b8; }
 
@@ -145,41 +145,42 @@
 
 <!-- MENU -->
 <div id="menu" class="menu-wrap">
-  <div class="menu-title">CÆ¡ sá»Ÿ An toÃ n ThÃ´ng tin</div>
-  <div class="menu-sub">Chá»n Ä‘á» vÃ  cháº¿ Ä‘á»™ Ä‘á»ƒ báº¯t Ä‘áº§u</div>
-  <div class="cards" id="decks-container">Đang tải danh sách đề...</div><div class="modes">
-    <h3>âš™ï¸ Tuá»³ chá»n lÃ m bÃ i</h3>
+  <div class="menu-title">Cơ sở An toàn Thông tin</div>
+  <div class="menu-sub">Chọn đề và chế độ để bắt đầu</div>
+  <div class="cards" id="decks-container">Đang tải danh sách đề...</div>
+    <div class="modes">
+    <h3>⚙️ Tuỳ chọn làm bài</h3>
     <div class="toggle-row">
-      <label>Cháº¿ Ä‘á»™</label>
+      <label>Chế độ</label>
       <div class="seg" id="seg-mode">
-        <button class="on" data-v="study" onclick="setMode('study')">Ã”n táº­p</button>
-        <button data-v="exam" onclick="setMode('exam')">Thi thá»­</button>
+        <button class="on" data-v="study" onclick="setMode('study')">Ôn tập</button>
+        <button data-v="exam" onclick="setMode('exam')">Thi thử</button>
       </div>
     </div>
     <div class="toggle-row">
-      <label for="sw-shuffleQ">Trá»™n thá»© tá»± cÃ¢u há»i</label>
+      <label for="sw-shuffleQ">Trộn thứ tự câu hỏi</label>
       <div class="switch"><input type="checkbox" id="sw-shuffleQ"><span onclick="this.previousElementSibling.click()"></span></div>
     </div>
     <div class="toggle-row">
-      <label for="sw-shuffleO">Trá»™n thá»© tá»± Ä‘Ã¡p Ã¡n</label>
+      <label for="sw-shuffleO">Trộn thứ tự đáp án</label>
       <div class="switch"><input type="checkbox" id="sw-shuffleO"><span onclick="this.previousElementSibling.click()"></span></div>
     </div>
     <div class="toggle-row">
-      <label for="sw-instant">Hiá»‡n giáº£i thÃ­ch ngay khi chá»n (chá»‰ Ã”n táº­p)</label>
+      <label for="sw-instant">Hiện giải thích ngay khi chọn (chỉ Ôn tập)</label>
       <div class="switch"><input type="checkbox" id="sw-instant" checked><span onclick="this.previousElementSibling.click()"></span></div>
     </div>
     <div class="toggle-row" id="row-limit">
-      <label>Giá»›i háº¡n sá»‘ cÃ¢u</label>
+      <label>Giới hạn số câu</label>
       <div class="seg" id="seg-limit">
-        <button class="on" data-v="0" onclick="setLimit(0)">Táº¥t cáº£</button>
+        <button class="on" data-v="0" onclick="setLimit(0)">Tất cả</button>
         <button data-v="10" onclick="setLimit(10)">10</button>
         <button data-v="20" onclick="setLimit(20)">20</button>
         <button data-v="30" onclick="setLimit(30)">30</button>
       </div>
     </div>
     <div class="toggle-row" style="border-top:1px solid var(--line); margin-top:6px; padding-top:12px;">
-      <label>Hoáº·c Ã´n nhanh kiá»ƒu tháº» láº­t</label>
-      <button class="btn btn-ghost" onclick="startFlashcards()">ðŸƒ Flashcard</button>
+      <label>Hoặc ôn nhanh kiểu thẻ lật</label>
+      <button class="btn btn-ghost" onclick="startFlashcards()">🃏 Flashcard</button>
     </div>
   </div>
   <div id="fc-deck-pick" class="hidden"></div>
@@ -189,14 +190,14 @@
 <div id="quiz" class="hidden">
   <div class="quiz-header">
     <div class="top">
-      <button class="back-btn" onclick="backToMenu()">â† Äá»•i Ä‘á»</button>
+      <button class="back-btn" onclick="backToMenu()">← Đổi đề</button>
       <h1 id="quiz-title"></h1>
       <span class="timer" id="timer"></span>
-      <span class="score" id="score">ChÆ°a ná»™p</span>
+      <span class="score" id="score">Chưa nộp</span>
       <div class="search-box">
-        <span class="search-ico">ðŸ”</span>
-        <input type="text" id="search-input" placeholder="TÃ¬m cÃ¢u há»i / Ä‘Ã¡p Ã¡n theo chá»¯..." oninput="doSearch(this.value)" autocomplete="off">
-        <button class="search-clear" id="search-clear" onclick="clearSearch()" title="XoÃ¡">âœ•</button>
+        <span class="search-ico">🔍</span>
+        <input type="text" id="search-input" placeholder="Tìm câu hỏi / đáp án theo chữ..." oninput="doSearch(this.value)" autocomplete="off">
+        <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Xoá">✕</button>
       </div>
     </div>
     <div class="pbar"><div id="pbar-fill"></div></div>
@@ -205,12 +206,12 @@
     <div class="search-count" id="search-count"></div>
     <div id="result" class="result-banner hidden"></div>
     <div id="questions"></div>
-    <div id="search-empty" class="search-empty hidden">KhÃ´ng tÃ¬m tháº¥y cÃ¢u nÃ o khá»›p vá»›i tá»« khoÃ¡.</div>
+    <div id="search-empty" class="search-empty hidden">Không tìm thấy câu nào khớp với từ khoá.</div>
   </div>
-  <button class="nav-toggle" onclick="openNav()" title="Báº£n Ä‘á»“ cÃ¢u há»i">âŠž</button>
+  <button class="nav-toggle" onclick="openNav()" title="Bản đồ câu hỏi">⊞</button>
   <div class="bottom-bar">
-    <button class="btn btn-primary" id="grade-btn" onclick="grade()">Cháº¥m Ä‘iá»ƒm</button>
-    <button class="btn btn-secondary" onclick="resetQuiz()">LÃ m láº¡i</button>
+    <button class="btn btn-primary" id="grade-btn" onclick="grade()">Chấm điểm</button>
+    <button class="btn btn-secondary" onclick="resetQuiz()">Làm lại</button>
     <span class="progress" id="progress"></span>
   </div>
 </div>
@@ -219,7 +220,7 @@
 <div id="flash" class="hidden">
   <div class="quiz-header">
     <div class="top">
-      <button class="back-btn" onclick="backToMenu()">â† ThoÃ¡t</button>
+      <button class="back-btn" onclick="backToMenu()">← Thoát</button>
       <h1 id="fc-title">Flashcard</h1>
     </div>
   </div>
@@ -228,17 +229,17 @@
       <div class="fc-q" id="fc-q"></div>
       <div id="fc-back" class="hidden">
         <div class="fc-ans">
-          <div class="lbl">ÄÃ¡p Ã¡n Ä‘Ãºng</div>
+          <div class="lbl">Đáp án đúng</div>
           <div class="val" id="fc-a"></div>
           <div class="ex" id="fc-ex"></div>
         </div>
       </div>
-      <div class="fc-tap" id="fc-hint">Cháº¡m Ä‘á»ƒ láº­t tháº»</div>
+      <div class="fc-tap" id="fc-hint">Chạm để lật thẻ</div>
     </div>
     <div class="fc-nav">
-      <button class="btn btn-secondary" onclick="fcPrev()">â† TrÆ°á»›c</button>
-      <button class="btn btn-ghost" onclick="fcShuffle()">ðŸ”€ Trá»™n</button>
-      <button class="btn btn-primary" onclick="fcNext()">Sau â†’</button>
+      <button class="btn btn-secondary" onclick="fcPrev()">← Trước</button>
+      <button class="btn btn-ghost" onclick="fcShuffle()">🔀 Trộn</button>
+      <button class="btn btn-primary" onclick="fcNext()">Sau →</button>
       <span class="pos" id="fc-pos"></span>
     </div>
   </div>
@@ -247,112 +248,113 @@
 <!-- NAV SHEET -->
 <div class="nav-sheet" id="nav-sheet" onclick="if(event.target===this)closeNav()">
   <div class="nav-inner">
-    <h3>Báº£n Ä‘á»“ cÃ¢u há»i</h3>
+    <h3>Bản đồ câu hỏi</h3>
     <div class="nav-legend">
-      <span><i class="dot" style="background:#e3edf7;border:1px solid #b9d3ec"></i>ÄÃ£ chá»n</span>
-      <span><i class="dot" style="background:white;border:1px solid var(--line)"></i>ChÆ°a lÃ m</span>
-      <span>ðŸš© ÄÃ¡nh dáº¥u</span>
+      <span><i class="dot" style="background:#e3edf7;border:1px solid #b9d3ec"></i>Đã chọn</span>
+      <span><i class="dot" style="background:white;border:1px solid var(--line)"></i>Chưa làm</span>
+      <span>🚩 Đánh dấu</span>
     </div>
     <div class="nav-grid" id="nav-grid"></div>
   </div>
 </div>
 
 <script>
-/* ====== Dá»® LIá»†U ====== */
-const LETTERS = "ABCDEF"; let TITLES = {};
+/* ====== DỮ LIỆU ====== */
+const LETTERS = "ABCDEF";
+let TITLES = {};
 
-/* ====== Báº¢NG Tá»ª VIáº¾T Táº®T ====== */
-// Má»—i viáº¿t táº¯t -> tÃªn Ä‘áº§y Ä‘á»§ chÃ¨n vÃ o láº§n xuáº¥t hiá»‡n Ä‘áº§u tiÃªn trong má»—i Ä‘oáº¡n text
+/* ====== BẢNG TỪ VIẾT TẮT ====== */
+// Mỗi viết tắt -> tên đầy đủ chèn vào lần xuất hiện đầu tiên trong mỗi đoạn text
 const ACRONYMS = {
-  "MAC": "Mandatory Access Control - Kiá»ƒm soÃ¡t truy cáº­p báº¯t buá»™c",
-  "DAC": "Discretionary Access Control - Kiá»ƒm soÃ¡t truy cáº­p tÃ¹y Ã½",
-  "RBAC": "Role-Based Access Control - Kiá»ƒm soÃ¡t truy cáº­p theo vai trÃ²",
-  "ABAC": "Attribute-Based Access Control - Kiá»ƒm soÃ¡t truy cáº­p theo thuá»™c tÃ­nh",
-  "RuBAC": "Rule-Based Access Control - Kiá»ƒm soÃ¡t truy cáº­p theo quy táº¯c",
-  "ACL": "Access Control List - Danh sÃ¡ch kiá»ƒm soÃ¡t truy cáº­p",
-  "CL": "Capability List - Danh sÃ¡ch nÄƒng lá»±c",
-  "NIDS": "Network-based Intrusion Detection System - Há»‡ thá»‘ng phÃ¡t hiá»‡n xÃ¢m nháº­p má»©c máº¡ng",
-  "HIDS": "Host-based Intrusion Detection System - Há»‡ thá»‘ng phÃ¡t hiá»‡n xÃ¢m nháº­p trÃªn mÃ¡y chá»§",
-  "IDS": "Intrusion Detection System - Há»‡ thá»‘ng phÃ¡t hiá»‡n xÃ¢m nháº­p",
-  "IPS": "Intrusion Prevention System - Há»‡ thá»‘ng ngÄƒn cháº·n xÃ¢m nháº­p",
-  "NIPS": "Network-based Intrusion Prevention System - Há»‡ thá»‘ng ngÄƒn cháº·n xÃ¢m nháº­p má»©c máº¡ng",
-  "DLP": "Data Loss Prevention - PhÃ²ng chá»‘ng tháº¥t thoÃ¡t dá»¯ liá»‡u",
-  "VPN": "Virtual Private Network - Máº¡ng riÃªng áº£o",
-  "DMZ": "Demilitarized Zone - VÃ¹ng máº¡ng Ä‘á»‡m",
-  "VLAN": "Virtual LAN - Máº¡ng LAN áº£o",
-  "LAN": "Local Area Network - Máº¡ng ná»™i bá»™",
-  "NAT": "Network Address Translation - BiÃªn dá»‹ch Ä‘á»‹a chá»‰ máº¡ng",
-  "DHCP": "Dynamic Host Configuration Protocol - Giao thá»©c cáº¥p phÃ¡t IP Ä‘á»™ng",
-  "DNS": "Domain Name System - Há»‡ thá»‘ng phÃ¢n giáº£i tÃªn miá»n",
-  "ARP": "Address Resolution Protocol - Giao thá»©c phÃ¢n giáº£i Ä‘á»‹a chá»‰",
-  "NIC": "Network Interface Card - Card giao tiáº¿p máº¡ng",
-  "TCP": "Transmission Control Protocol - Giao thá»©c Ä‘iá»u khiá»ƒn truyá»n váº­n",
-  "UDP": "User Datagram Protocol - Giao thá»©c truyá»n khÃ´ng káº¿t ná»‘i",
-  "IP": "Internet Protocol - Giao thá»©c Internet",
-  "OSI": "Open Systems Interconnection - MÃ´ hÃ¬nh káº¿t ná»‘i há»‡ thá»‘ng má»Ÿ",
-  "HTTP": "HyperText Transfer Protocol - Giao thá»©c truyá»n siÃªu vÄƒn báº£n",
-  "HTTPS": "HTTP Secure - HTTP cÃ³ mÃ£ hÃ³a",
-  "FTP": "File Transfer Protocol - Giao thá»©c truyá»n tá»‡p",
+  "MAC": "Mandatory Access Control - Kiểm soát truy cập bắt buộc",
+  "DAC": "Discretionary Access Control - Kiểm soát truy cập tùy ý",
+  "RBAC": "Role-Based Access Control - Kiểm soát truy cập theo vai trò",
+  "ABAC": "Attribute-Based Access Control - Kiểm soát truy cập theo thuộc tính",
+  "RuBAC": "Rule-Based Access Control - Kiểm soát truy cập theo quy tắc",
+  "ACL": "Access Control List - Danh sách kiểm soát truy cập",
+  "CL": "Capability List - Danh sách năng lực",
+  "NIDS": "Network-based Intrusion Detection System - Hệ thống phát hiện xâm nhập mức mạng",
+  "HIDS": "Host-based Intrusion Detection System - Hệ thống phát hiện xâm nhập trên máy chủ",
+  "IDS": "Intrusion Detection System - Hệ thống phát hiện xâm nhập",
+  "IPS": "Intrusion Prevention System - Hệ thống ngăn chặn xâm nhập",
+  "NIPS": "Network-based Intrusion Prevention System - Hệ thống ngăn chặn xâm nhập mức mạng",
+  "DLP": "Data Loss Prevention - Phòng chống thất thoát dữ liệu",
+  "VPN": "Virtual Private Network - Mạng riêng ảo",
+  "DMZ": "Demilitarized Zone - Vùng mạng đệm",
+  "VLAN": "Virtual LAN - Mạng LAN ảo",
+  "LAN": "Local Area Network - Mạng nội bộ",
+  "NAT": "Network Address Translation - Biên dịch địa chỉ mạng",
+  "DHCP": "Dynamic Host Configuration Protocol - Giao thức cấp phát IP động",
+  "DNS": "Domain Name System - Hệ thống phân giải tên miền",
+  "ARP": "Address Resolution Protocol - Giao thức phân giải địa chỉ",
+  "NIC": "Network Interface Card - Card giao tiếp mạng",
+  "TCP": "Transmission Control Protocol - Giao thức điều khiển truyền vận",
+  "UDP": "User Datagram Protocol - Giao thức truyền không kết nối",
+  "IP": "Internet Protocol - Giao thức Internet",
+  "OSI": "Open Systems Interconnection - Mô hình kết nối hệ thống mở",
+  "HTTP": "HyperText Transfer Protocol - Giao thức truyền siêu văn bản",
+  "HTTPS": "HTTP Secure - HTTP có mã hóa",
+  "FTP": "File Transfer Protocol - Giao thức truyền tệp",
   "FTPS": "FTP Secure - FTP qua SSL/TLS",
-  "SFTP": "SSH File Transfer Protocol - Truyá»n tá»‡p qua SSH",
-  "SCP": "Secure Copy Protocol - Giao thá»©c sao chÃ©p an toÃ n qua SSH",
-  "SSH": "Secure Shell - Giao thá»©c quáº£n trá»‹ tá»« xa cÃ³ mÃ£ hÃ³a",
-  "SSL": "Secure Sockets Layer - Lá»›p socket báº£o máº­t",
-  "TLS": "Transport Layer Security - Báº£o máº­t táº§ng truyá»n váº­n",
-  "SMTP": "Simple Mail Transfer Protocol - Giao thá»©c gá»­i email",
-  "POP": "Post Office Protocol - Giao thá»©c nháº­n email",
-  "POP3": "Post Office Protocol v3 - Giao thá»©c nháº­n email phiÃªn báº£n 3",
-  "IMAP": "Internet Message Access Protocol - Giao thá»©c truy cáº­p email",
-  "SNMP": "Simple Network Management Protocol - Giao thá»©c quáº£n trá»‹ máº¡ng",
-  "TFTP": "Trivial File Transfer Protocol - Giao thá»©c truyá»n tá»‡p Ä‘Æ¡n giáº£n",
-  "RDP": "Remote Desktop Protocol - Giao thá»©c Ä‘iá»u khiá»ƒn mÃ n hÃ¬nh tá»« xa",
-  "IPSec": "Internet Protocol Security - Báº£o máº­t giao thá»©c IP",
-  "PKI": "Public Key Infrastructure - Háº¡ táº§ng khÃ³a cÃ´ng khai",
-  "RSA": "Rivest-Shamir-Adleman - Thuáº­t toÃ¡n mÃ£ hÃ³a báº¥t Ä‘á»‘i xá»©ng",
-  "AES": "Advanced Encryption Standard - Chuáº©n mÃ£ hÃ³a nÃ¢ng cao",
-  "DES": "Data Encryption Standard - Chuáº©n mÃ£ hÃ³a dá»¯ liá»‡u",
-  "ECC": "Elliptic Curve Cryptography - Máº­t mÃ£ Ä‘Æ°á»ng cong elliptic",
-  "ECDHE": "Elliptic Curve Diffie-Hellman Ephemeral - Trao Ä‘á»•i khÃ³a elliptic táº¡m thá»i",
-  "MD5": "Message Digest 5 - HÃ m bÄƒm 128-bit",
-  "SHA": "Secure Hash Algorithm - Thuáº­t toÃ¡n bÄƒm an toÃ n",
-  "HMAC": "Hash-based Message Authentication Code - MÃ£ xÃ¡c thá»±c thÃ´ng Ä‘iá»‡p dá»±a trÃªn hÃ m bÄƒm",
-  "DSA": "Digital Signature Algorithm - Thuáº­t toÃ¡n chá»¯ kÃ½ sá»‘",
-  "RC4": "Rivest Cipher 4 - MÃ£ hÃ³a luá»“ng",
-  "WEP": "Wired Equivalent Privacy - Chuáº©n báº£o máº­t Wi-Fi cÅ©",
-  "OTP": "One-Time Password - Máº­t kháº©u dÃ¹ng má»™t láº§n",
-  "PIN": "Personal Identification Number - MÃ£ sá»‘ Ä‘á»‹nh danh cÃ¡ nhÃ¢n",
-  "XSS": "Cross-Site Scripting - Táº¥n cÃ´ng chÃ¨n mÃ£ ká»‹ch báº£n",
-  "CSRF": "Cross-Site Request Forgery - Giáº£ máº¡o yÃªu cáº§u liÃªn trang",
-  "CRSF": "Cross-Site Request Forgery - Giáº£ máº¡o yÃªu cáº§u liÃªn trang",
-  "SQL": "Structured Query Language - NgÃ´n ngá»¯ truy váº¥n CSDL",
-  "UAC": "User Account Control - Kiá»ƒm soÃ¡t tÃ i khoáº£n ngÆ°á»i dÃ¹ng",
-  "C&C": "Command and Control - MÃ¡y chá»§ Ä‘iá»u khiá»ƒn tá»« xa",
-  "PLC": "Programmable Logic Controller - Bá»™ Ä‘iá»u khiá»ƒn logic láº­p trÃ¬nh",
-  "MBR": "Master Boot Record - Báº£n ghi khá»Ÿi Ä‘á»™ng chÃ­nh",
-  "USB": "Universal Serial Bus - Chuáº©n káº¿t ná»‘i ngoáº¡i vi",
-  "RAM": "Random Access Memory - Bá»™ nhá»› truy cáº­p ngáº«u nhiÃªn",
-  "P2P": "Peer-to-Peer - Máº¡ng ngang hÃ ng",
-  "AAA": "Authentication, Authorization, Accounting - XÃ¡c thá»±c, Cáº¥p quyá»n, Kiá»ƒm toÃ¡n",
-  "CIA": "Confidentiality, Integrity, Availability - BÃ­ máº­t, ToÃ n váº¹n, Sáºµn sÃ ng",
-  "KPA": "Known-Plaintext Attack - Táº¥n cÃ´ng biáº¿t trÆ°á»›c báº£n rÃµ",
-  "ATM": "Automated Teller Machine - MÃ¡y rÃºt tiá»n tá»± Ä‘á»™ng",
-  "POS": "Point of Sale - MÃ¡y thanh toÃ¡n táº¡i Ä‘iá»ƒm bÃ¡n",
-  "CLI": "Command-Line Interface - Giao diá»‡n dÃ²ng lá»‡nh",
-  "AXFR": "DNS Zone Transfer - Truyá»n toÃ n bá»™ vÃ¹ng DNS"
+  "SFTP": "SSH File Transfer Protocol - Truyền tệp qua SSH",
+  "SCP": "Secure Copy Protocol - Giao thức sao chép an toàn qua SSH",
+  "SSH": "Secure Shell - Giao thức quản trị từ xa có mã hóa",
+  "SSL": "Secure Sockets Layer - Lớp socket bảo mật",
+  "TLS": "Transport Layer Security - Bảo mật tầng truyền vận",
+  "SMTP": "Simple Mail Transfer Protocol - Giao thức gửi email",
+  "POP": "Post Office Protocol - Giao thức nhận email",
+  "POP3": "Post Office Protocol v3 - Giao thức nhận email phiên bản 3",
+  "IMAP": "Internet Message Access Protocol - Giao thức truy cập email",
+  "SNMP": "Simple Network Management Protocol - Giao thức quản trị mạng",
+  "TFTP": "Trivial File Transfer Protocol - Giao thức truyền tệp đơn giản",
+  "RDP": "Remote Desktop Protocol - Giao thức điều khiển màn hình từ xa",
+  "IPSec": "Internet Protocol Security - Bảo mật giao thức IP",
+  "PKI": "Public Key Infrastructure - Hạ tầng khóa công khai",
+  "RSA": "Rivest-Shamir-Adleman - Thuật toán mã hóa bất đối xứng",
+  "AES": "Advanced Encryption Standard - Chuẩn mã hóa nâng cao",
+  "DES": "Data Encryption Standard - Chuẩn mã hóa dữ liệu",
+  "ECC": "Elliptic Curve Cryptography - Mật mã đường cong elliptic",
+  "ECDHE": "Elliptic Curve Diffie-Hellman Ephemeral - Trao đổi khóa elliptic tạm thời",
+  "MD5": "Message Digest 5 - Hàm băm 128-bit",
+  "SHA": "Secure Hash Algorithm - Thuật toán băm an toàn",
+  "HMAC": "Hash-based Message Authentication Code - Mã xác thực thông điệp dựa trên hàm băm",
+  "DSA": "Digital Signature Algorithm - Thuật toán chữ ký số",
+  "RC4": "Rivest Cipher 4 - Mã hóa luồng",
+  "WEP": "Wired Equivalent Privacy - Chuẩn bảo mật Wi-Fi cũ",
+  "OTP": "One-Time Password - Mật khẩu dùng một lần",
+  "PIN": "Personal Identification Number - Mã số định danh cá nhân",
+  "XSS": "Cross-Site Scripting - Tấn công chèn mã kịch bản",
+  "CSRF": "Cross-Site Request Forgery - Giả mạo yêu cầu liên trang",
+  "CRSF": "Cross-Site Request Forgery - Giả mạo yêu cầu liên trang",
+  "SQL": "Structured Query Language - Ngôn ngữ truy vấn CSDL",
+  "UAC": "User Account Control - Kiểm soát tài khoản người dùng",
+  "C&C": "Command and Control - Máy chủ điều khiển từ xa",
+  "PLC": "Programmable Logic Controller - Bộ điều khiển logic lập trình",
+  "MBR": "Master Boot Record - Bản ghi khởi động chính",
+  "USB": "Universal Serial Bus - Chuẩn kết nối ngoại vi",
+  "RAM": "Random Access Memory - Bộ nhớ truy cập ngẫu nhiên",
+  "P2P": "Peer-to-Peer - Mạng ngang hàng",
+  "AAA": "Authentication, Authorization, Accounting - Xác thực, Cấp quyền, Kiểm toán",
+  "CIA": "Confidentiality, Integrity, Availability - Bí mật, Toàn vẹn, Sẵn sàng",
+  "KPA": "Known-Plaintext Attack - Tấn công biết trước bản rõ",
+  "ATM": "Automated Teller Machine - Máy rút tiền tự động",
+  "POS": "Point of Sale - Máy thanh toán tại điểm bán",
+  "CLI": "Command-Line Interface - Giao diện dòng lệnh",
+  "AXFR": "DNS Zone Transfer - Truyền toàn bộ vùng DNS"
 };
-// Chuá»—i viáº¿t hoa KHÃ”NG pháº£i viáº¿t táº¯t ká»¹ thuáº­t (chá»¯ tiáº¿ng Viá»‡t, tÃªn riÃªng, mÃ£ Ä‘á») -> bá» qua
+// Chuỗi viết hoa KHÔNG phải viết tắt kỹ thuật (chữ tiếng Việt, tên riêng, mã đề) -> bỏ qua
 const ACRONYM_SKIP = new Set(["AVI","CSDL","ATTT","IT","OS","WEB","IV","DIP","CMND","CCCD","SMS","OR","AN","TO","NG","KH","KD","LTV","HC","NH","CH","TH","PH","HI","HO","LI","LO","CU","GI","BU","PS","PL","MK","SAI","TRONG","TIN","CHI","TI","OSI"]);
-// dÃ i giáº£m dáº§n Ä‘á»ƒ khá»›p 'C&C' trÆ°á»›c 'C', trÃ¡nh khá»›p lá»“ng
+// dài giảm dần để khớp 'C&C' trước 'C', tránh khớp lồng
 const ACRONYM_KEYS = Object.keys(ACRONYMS).sort((a,b)=>b.length-a.length);
 
-// ChÃ¨n (tÃªn Ä‘áº§y Ä‘á»§) vÃ o Láº¦N Äáº¦U má»—i viáº¿t táº¯t xuáº¥t hiá»‡n trong Ä‘oáº¡n text thuáº§n (chÆ°a escape HTML)
+// Chèn (tên đầy đủ) vào LẦN ĐẦU mỗi viết tắt xuất hiện trong đoạn text thuần (chưa escape HTML)
 function expandAcronyms(text){
   if(!text) return text;
   const seen=new Set();
-  // tÃ¡ch theo ranh giá»›i tá»«, giá»¯ nguyÃªn dáº¥u cÃ¡ch & kÃ½ tá»± Ä‘áº·c biá»‡t
-  // duyá»‡t báº±ng regex: token gá»“m chá»¯-sá»‘-& ; pháº§n cÃ²n láº¡i giá»¯ nguyÃªn
+  // tách theo ranh giới từ, giữ nguyên dấu cách & ký tự đặc biệt
+  // duyệt bằng regex: token gồm chữ-số-& ; phần còn lại giữ nguyên
   return text.replace(/[A-Za-z0-9&]+/g, tok=>{
-    // chá»‰ xÃ©t token viáº¿t HOA toÃ n bá»™ (cho phÃ©p sá»‘), khá»›p Ä‘Ãºng má»™t acronym
+    // chỉ xét token viết HOA toàn bộ (cho phép số), khớp đúng một acronym
     if(seen.has(tok)) return tok;
     if(ACRONYM_SKIP.has(tok)) return tok;
     if(ACRONYMS[tok] && /^[A-Z][A-Z0-9&]*$/.test(tok)){
@@ -365,8 +367,8 @@ function expandAcronyms(text){
 
 /* ====== STATE ====== */
 let deckNum = 1;
-let baseQuiz = null;     // dá»¯ liá»‡u gá»‘c cá»§a Ä‘á»
-let currentQuiz = null;  // báº£n Ä‘ang cháº¡y (Ä‘Ã£ trá»™n/cáº¯t náº¿u cÃ³)
+let baseQuiz = null;     // dữ liệu gốc của đề
+let currentQuiz = null;  // bản đang chạy (đã trộn/cắt nếu có)
 let selections = [];
 let flagged = [];
 let submitted = false;
@@ -375,7 +377,7 @@ let timerInt = null, startTs = 0;
 
 /* ====== HELPERS ====== */
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-// gá»™p: má»Ÿ rá»™ng viáº¿t táº¯t rá»“i escape HTML (dÃ¹ng cho má»i text tá»« Ä‘á»)
+// gộp: mở rộng viết tắt rồi escape HTML (dùng cho mọi text từ đề)
 function esc(s){return escapeHtml(expandAcronyms(s));}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function setEq(set,arr){if(set.size!==arr.length)return false;return arr.every(x=>set.has(x));}
@@ -390,16 +392,16 @@ function setLimit(v){
   document.querySelectorAll('#seg-limit button').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
 }
 
-/* ====== STORAGE (Ä‘iá»ƒm cao nháº¥t) ====== */
+/* ====== STORAGE (điểm cao nhất) ====== */
 async function loadBests(){
   for(const n of [1,2,3]){
     try{
       const r = await window.storage.get('best:'+n);
       if(r && r.value){
         const d = JSON.parse(r.value);
-        document.getElementById('best-'+n).textContent = `ðŸ† Cao nháº¥t: ${d.correct}/${d.total} (${d.score}/10)`;
+        document.getElementById('best-'+n).textContent = `🏆 Cao nhất: ${d.correct}/${d.total} (${d.score}/10)`;
       }
-    }catch(e){/* chÆ°a cÃ³ */}
+    }catch(e){/* chưa có */}
   }
 }
 async function saveBest(n, correct, total, score){
@@ -408,14 +410,14 @@ async function saveBest(n, correct, total, score){
     try{const r=await window.storage.get('best:'+n); if(r&&r.value)prev=JSON.parse(r.value);}catch(e){}
     if(!prev || score>parseFloat(prev.score)){
       await window.storage.set('best:'+n, JSON.stringify({correct,total,score}));
-      document.getElementById('best-'+n).textContent = `ðŸ† Cao nháº¥t: ${correct}/${total} (${score}/10)`;
+      document.getElementById('best-'+n).textContent = `🏆 Cao nhất: ${correct}/${total} (${score}/10)`;
     }
   }catch(e){}
 }
 
 /* ====== BUILD QUIZ ====== */
 function buildRunnable(){
-  // Ã¡p dá»¥ng trá»™n cÃ¢u + cáº¯t giá»›i háº¡n + trá»™n Ä‘Ã¡p Ã¡n
+  // áp dụng trộn câu + cắt giới hạn + trộn đáp án
   let items = baseQuiz.map((it,origIdx)=>({it, origIdx}));
   if(opts.shuffleQ) items = shuffle(items);
   if(opts.limit>0) items = items.slice(0, opts.limit);
@@ -427,7 +429,7 @@ function buildRunnable(){
       const order = shuffle(idx);
       const newOpts = order.map(i=>options[i]);
       const newCorrect = correct.map(c=>order.indexOf(c));
-      // remap giáº£i thÃ­ch sai theo vá»‹ trÃ­ má»›i
+      // remap giải thích sai theo vị trí mới
       const newWrong = {};
       Object.keys(wrongExpl).forEach(oldIdx=>{
         const newIdx = order.indexOf(+oldIdx);
@@ -441,13 +443,13 @@ function buildRunnable(){
 
 function startQuiz(num){
   deckNum=num;
-  // Ä‘á»c tráº¡ng thÃ¡i cÃ¡c cÃ´ng táº¯c táº¡i thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u (trÆ°á»›c Ä‘Ã¢y thiáº¿u nÃªn trá»™n khÃ´ng cháº¡y)
+  // đọc trạng thái các công tắc tại thời điểm bắt đầu (trước đây thiếu nên trộn không chạy)
   opts.shuffleQ = document.getElementById('sw-shuffleQ').checked;
   opts.shuffleO = document.getElementById('sw-shuffleO').checked;
   opts.instant  = document.getElementById('sw-instant').checked;
   baseQuiz=DECKS[num];
   currentQuiz=buildRunnable();
-  document.getElementById('quiz-title').textContent=TITLES[num]+(opts.limit?` Â· ${opts.limit} cÃ¢u`:'');
+  document.getElementById('quiz-title').textContent=TITLES[num]+(opts.limit?` · ${opts.limit} câu`:'');
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('flash').classList.add('hidden');
   document.getElementById('quiz').classList.remove('hidden');
@@ -474,9 +476,9 @@ function resetQuiz(){
   document.getElementById('search-count').textContent='';
   document.getElementById('search-empty').classList.add('hidden');
   document.getElementById('result').classList.add('hidden');
-  document.getElementById('score').textContent='ChÆ°a ná»™p';
+  document.getElementById('score').textContent='Chưa nộp';
   document.getElementById('score').style.color='#555';
-  document.getElementById('grade-btn').textContent='Cháº¥m Ä‘iá»ƒm';
+  document.getElementById('grade-btn').textContent='Chấm điểm';
   renderQuestions();
   if(opts.mode==='exam'){startTimer();}else{stopTimer();document.getElementById('timer').textContent='';}
   window.scrollTo(0,0);
@@ -490,7 +492,7 @@ function startTimer(){
     const s=Math.floor((Date.now()-startTs)/1000);
     const m=String(Math.floor(s/60)).padStart(2,'0');
     const ss=String(s%60).padStart(2,'0');
-    document.getElementById('timer').textContent='â± '+m+':'+ss;
+    document.getElementById('timer').textContent='⏱ '+m+':'+ss;
   },500);
 }
 function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}}
@@ -505,8 +507,8 @@ function renderQuestions(){
     const multi=correct.length>1;
     const card=document.createElement('div');
     card.className='q'; card.id='q-'+qi;
-    let html=`<button class="flag-btn" data-qi="${qi}" onclick="toggleFlag(${qi})" title="ÄÃ¡nh dáº¥u">ðŸš©</button>`;
-    html+=`<div class="q-head"><span class="q-num">CÃ¢u ${qi+1}.</span>${esc(q)}${multi?'<span class="q-multi">(chá»n 2)</span>':''}</div>`;
+    let html=`<button class="flag-btn" data-qi="${qi}" onclick="toggleFlag(${qi})" title="Đánh dấu">🚩</button>`;
+    html+=`<div class="q-head"><span class="q-num">Câu ${qi+1}.</span>${esc(q)}${multi?'<span class="q-multi">(chọn 2)</span>':''}</div>`;
     options.forEach((opt,oi)=>{
       const type=multi?'checkbox':'radio';
       html+=`<label class="opt" data-qi="${qi}" data-oi="${oi}">
@@ -534,31 +536,31 @@ function renderQuestions(){
   if(searchTerm) doSearch(searchTerm);
 }
 
-// dá»±ng ná»™i dung giáº£i thÃ­ch: gá»“m giáº£i thÃ­ch Ä‘Ã¡p Ã¡n Ä‘Ãºng + lÃ½ do sai cho phÆ°Æ¡ng Ã¡n Ä‘Ã£ chá»n
+// dựng nội dung giải thích: gồm giải thích đáp án đúng + lý do sai cho phương án đã chọn
 function buildExplHtml(qi, prefix, correct, expl, chosen){
   const ans=correct.map(i=>LETTERS[i]).join(', ');
-  let html=`${prefix}<b>ÄÃ¡p Ã¡n: ${ans}</b>`;
+  let html=`${prefix}<b>Đáp án: ${ans}</b>`;
   if(expl) html+='<br>'+esc(expl);
-  // lÃ½ do vÃ¬ sao (cÃ¡c) phÆ°Æ¡ng Ã¡n ngÆ°á»i dÃ¹ng chá»n láº¡i sai
+  // lý do vì sao (các) phương án người dùng chọn lại sai
   const wrongExpl=currentQuiz[qi][4]||{};
   const right=new Set(correct);
   const chosenWrong=[...chosen].filter(oi=>!right.has(oi)).sort((a,b)=>a-b);
   if(chosenWrong.length){
     const parts=chosenWrong.map(oi=>{
       const why=wrongExpl[oi];
-      return `<b>${LETTERS[oi]}</b> sai: ${why?esc(why):'khÃ´ng pháº£i Ä‘Ã¡p Ã¡n Ä‘Ãºng.'}`;
+      return `<b>${LETTERS[oi]}</b> sai: ${why?esc(why):'không phải đáp án đúng.'}`;
     });
-    html+=`<div class="why-wrong">âœ— Báº¡n chá»n ${chosenWrong.map(oi=>LETTERS[oi]).join(', ')} â€” ${parts.join('<br>')}</div>`;
+    html+=`<div class="why-wrong">✗ Bạn chọn ${chosenWrong.map(oi=>LETTERS[oi]).join(', ')} — ${parts.join('<br>')}</div>`;
   }
   return html;
 }
 
 function revealOne(qi){
-  // hiá»‡n Ä‘Ã¡p Ã¡n ngay cho 1 cÃ¢u (cháº¿ Ä‘á»™ Ã´n táº­p)
+  // hiện đáp án ngay cho 1 câu (chế độ ôn tập)
   const [,,correct,expl]=currentQuiz[qi];
   const right=new Set(correct);
   const chosen=selections[qi];
-  // vá»›i cÃ¢u chá»n nhiá»u, chá»‰ cháº¥m khi Ä‘Ã£ chá»n Ä‘á»§
+  // với câu chọn nhiều, chỉ chấm khi đã chọn đủ
   if(correct.length>1 && chosen.size<correct.length) return;
   const ok=setEq(chosen,correct);
   document.querySelectorAll(`.opt[data-qi="${qi}"]`).forEach(lbl=>{
@@ -569,7 +571,7 @@ function revealOne(qi){
   });
   const exp=document.getElementById('expl-'+qi);
   exp.className='expl show '+(ok?'ok':'err');
-  exp.innerHTML=buildExplHtml(qi, ok?'âœ“ ÄÃºng. ':'âœ— Sai. ', correct, expl, chosen);
+  exp.innerHTML=buildExplHtml(qi, ok?'✓ Đúng. ':'✗ Sai. ', correct, expl, chosen);
 }
 
 function toggleFlag(qi){
@@ -585,15 +587,15 @@ function updateProgress(){
   document.getElementById('pbar-fill').style.width=(done/n*100)+'%';
 }
 
-/* ====== SEARCH (tÃ¬m theo chá»¯) ====== */
+/* ====== SEARCH (tìm theo chữ) ====== */
 let searchTerm='';
 function normalize(s){
-  // bá» dáº¥u tiáº¿ng Viá»‡t Ä‘á»ƒ tÃ¬m gáº§n Ä‘Ãºng: "ma doc" khá»›p "mÃ£ Ä‘á»™c"
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/Ä‘/g,'d');
+  // bỏ dấu tiếng Việt để tìm gần đúng: "ma doc" khớp "mã độc"
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
 }
 function highlight(html, term){
   if(!term) return html;
-  // html Ä‘Ã£ Ä‘Æ°á»£c escape; chÃ¨n <mark> quanh Ä‘oáº¡n khá»›p, khÃ´ng phÃ¢n biá»‡t dáº¥u
+  // html đã được escape; chèn <mark> quanh đoạn khớp, không phân biệt dấu
   const plain=html; const np=normalize(plain); const nt=normalize(term);
   let out='', last=0, idx;
   while((idx=np.indexOf(nt,last))!==-1){
@@ -617,10 +619,10 @@ function doSearch(val){
     const hit = !term || haystack.includes(nt);
     card.classList.toggle('search-hide', !hit);
     if(hit) matches++;
-    // cáº­p nháº­t highlight trong cÃ¢u há»i + Ä‘Ã¡p Ã¡n
+    // cập nhật highlight trong câu hỏi + đáp án
     const head=card.querySelector('.q-head');
     const multi=item[2].length>1;
-    head.innerHTML=`<span class="q-num">CÃ¢u ${qi+1}.</span>${highlight(esc(q),term)}${multi?'<span class="q-multi">(chá»n 2)</span>':''}`;
+    head.innerHTML=`<span class="q-num">Câu ${qi+1}.</span>${highlight(esc(q),term)}${multi?'<span class="q-multi">(chọn 2)</span>':''}`;
     card.querySelectorAll('.opt').forEach(lbl=>{
       const oi=+lbl.dataset.oi;
       const div=lbl.querySelector('div');
@@ -631,7 +633,7 @@ function doSearch(val){
   const empty=document.getElementById('search-empty');
   if(term){
     cnt.classList.add('show');
-    cnt.textContent=`TÃ¬m tháº¥y ${matches} cÃ¢u khá»›p "${term}"`;
+    cnt.textContent=`Tìm thấy ${matches} câu khớp "${term}"`;
     empty.classList.toggle('hidden', matches>0);
   }else{
     cnt.classList.remove('show'); cnt.textContent='';
@@ -684,63 +686,63 @@ function grade(){
     });
     const exp=document.getElementById('expl-'+qi);
     let prefix='',cls='ok';
-    if(ok)prefix='âœ“ ';
-    else if(chosen.size===0){prefix='â€¢ ChÆ°a chá»n. ';cls='miss';}
-    else {prefix='âœ— Sai. ';cls='err';}
+    if(ok)prefix='✓ ';
+    else if(chosen.size===0){prefix='• Chưa chọn. ';cls='miss';}
+    else {prefix='✗ Sai. ';cls='err';}
     exp.className='expl show '+cls;
     exp.innerHTML=buildExplHtml(qi, prefix, correct, expl, chosen);
   });
 
   const n=currentQuiz.length;
   const score10=(correctCount*10/n).toFixed(2);
-  document.getElementById('score').textContent=`${correctCount}/${n} Â· ${score10}/10`;
+  document.getElementById('score').textContent=`${correctCount}/${n} · ${score10}/10`;
   document.getElementById('score').style.color='#1a1a1a';
 
-  // chá»‰ lÆ°u best khi lÃ m full Ä‘á» (khÃ´ng trá»™n cáº¯t) Ä‘á»ƒ cÃ´ng báº±ng
+  // chỉ lưu best khi làm full đề (không trộn cắt) để công bằng
   if(opts.limit===0) saveBest(deckNum, correctCount, n, score10);
 
   const result=document.getElementById('result');
   const pct=correctCount/n;
   let verdict;
-  if(pct>=0.9)verdict='QuÃ¡ Ä‘á»‰nh! ðŸŽ¯';
-  else if(pct>=0.7)verdict='Ngon, qua mÃ´n thoáº£i mÃ¡i.';
-  else if(pct>=0.5)verdict='Táº¡m á»•n, Ã´n thÃªm chÃºt.';
-  else verdict='CÃ y láº¡i Ä‘i bro.';
+  if(pct>=0.9)verdict='Quá đỉnh! 🎯';
+  else if(pct>=0.7)verdict='Ngon, qua môn thoải mái.';
+  else if(pct>=0.5)verdict='Tạm ổn, ôn thêm chút.';
+  else verdict='Cày lại đi bro.';
   const wrongCount=n-correctCount;
   let timeNote='';
   if(opts.mode==='exam'){
     const s=Math.floor((Date.now()-startTs)/1000);
-    timeNote=` Â· â± ${Math.floor(s/60)}p${String(s%60).padStart(2,'0')}s`;
+    timeNote=` · ⏱ ${Math.floor(s/60)}p${String(s%60).padStart(2,'0')}s`;
   }
-  result.innerHTML=`<div class="num">${correctCount}/${n} cÃ¢u Ä‘Ãºng â€” ${score10}/10 Ä‘iá»ƒm${timeNote}</div>
-    <div class="msg">${verdict} KÃ©o xuá»‘ng xem cÃ¢u xanh / Ä‘á» kÃ¨m giáº£i thÃ­ch.</div>
+  result.innerHTML=`<div class="num">${correctCount}/${n} câu đúng — ${score10}/10 điểm${timeNote}</div>
+    <div class="msg">${verdict} Kéo xuống xem câu xanh / đỏ kèm giải thích.</div>
     <div class="result-actions">
-      ${wrongCount>0?`<button class="btn btn-primary" onclick="retryWrong()">ðŸ” LÃ m láº¡i ${wrongCount} cÃ¢u sai</button>`:''}
-      <button class="btn btn-ghost" onclick="openNav()">âŠž Báº£n Ä‘á»“ káº¿t quáº£</button>
-      <button class="btn btn-secondary" onclick="resetQuiz()">LÃ m láº¡i tá»« Ä‘áº§u</button>
+      ${wrongCount>0?`<button class="btn btn-primary" onclick="retryWrong()">🔁 Làm lại ${wrongCount} câu sai</button>`:''}
+      <button class="btn btn-ghost" onclick="openNav()">⊞ Bản đồ kết quả</button>
+      <button class="btn btn-secondary" onclick="resetQuiz()">Làm lại từ đầu</button>
     </div>`;
   result.classList.remove('hidden');
-  document.getElementById('grade-btn').textContent='ÄÃ£ cháº¥m âœ“';
+  document.getElementById('grade-btn').textContent='Đã chấm ✓';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function retryWrong(){
-  // táº¡o Ä‘á» má»›i chá»‰ gá»“m cÃ¡c cÃ¢u Ä‘Ã£ lÃ m sai
+  // tạo đề mới chỉ gồm các câu đã làm sai
   const wrong=[];
   currentQuiz.forEach((item,qi)=>{ if(!setEq(selections[qi],item[2])) wrong.push(item); });
   if(!wrong.length)return;
   currentQuiz=wrong;
-  document.getElementById('quiz-title').textContent=TITLES[deckNum]+` Â· Ã´n ${wrong.length} cÃ¢u sai`;
+  document.getElementById('quiz-title').textContent=TITLES[deckNum]+` · ôn ${wrong.length} câu sai`;
   resetQuiz();
 }
 
 /* ====== FLASHCARDS ====== */
 let fcDeck=[], fcIdx=0, fcFlipped=false;
 function startFlashcards(){
-  // chá»n Ä‘á» cho flashcard: dÃ¹ng Ä‘á» Ä‘ang chá»n gáº§n nháº¥t, máº·c Ä‘á»‹nh 1
+  // chọn đề cho flashcard: dùng đề đang chọn gần nhất, mặc định 1
   fcDeck=DECKS[deckNum].slice();
   fcIdx=0; fcFlipped=false;
-  document.getElementById('fc-title').textContent='Flashcard â€” '+TITLES[deckNum];
+  document.getElementById('fc-title').textContent='Flashcard — '+TITLES[deckNum];
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('quiz').classList.add('hidden');
   document.getElementById('flash').classList.remove('hidden');
@@ -749,19 +751,19 @@ function startFlashcards(){
 }
 function renderCard(){
   const [q,options,correct,expl]=fcDeck[fcIdx];
-  document.getElementById('fc-q').textContent=`CÃ¢u ${fcIdx+1}. ${expandAcronyms(q)}`;
+  document.getElementById('fc-q').textContent=`Câu ${fcIdx+1}. ${expandAcronyms(q)}`;
   const ans=correct.map(i=>LETTERS[i]+'. '+expandAcronyms(options[i])).join('  |  ');
   document.getElementById('fc-a').textContent=ans;
   document.getElementById('fc-ex').textContent=expandAcronyms(expl||'');
   document.getElementById('fc-pos').textContent=`${fcIdx+1} / ${fcDeck.length}`;
   fcFlipped=false;
   document.getElementById('fc-back').classList.add('hidden');
-  document.getElementById('fc-hint').textContent='Cháº¡m Ä‘á»ƒ láº­t tháº»';
+  document.getElementById('fc-hint').textContent='Chạm để lật thẻ';
 }
 function flipCard(){
   fcFlipped=!fcFlipped;
   document.getElementById('fc-back').classList.toggle('hidden',!fcFlipped);
-  document.getElementById('fc-hint').textContent=fcFlipped?'Cháº¡m Ä‘á»ƒ áº©n Ä‘Ã¡p Ã¡n':'Cháº¡m Ä‘á»ƒ láº­t tháº»';
+  document.getElementById('fc-hint').textContent=fcFlipped?'Chạm để ẩn đáp án':'Chạm để lật thẻ';
 }
 function fcNext(){fcIdx=(fcIdx+1)%fcDeck.length;renderCard();}
 function fcPrev(){fcIdx=(fcIdx-1+fcDeck.length)%fcDeck.length;renderCard();}
@@ -779,7 +781,7 @@ document.addEventListener('keydown',e=>{
 /* init */
 setMode('study');
 loadBests();
-/* ====== CHá»¤P CÃ‚U ÄÃNH Dáº¤U â†’ CLIPBOARD ====== */
+/* ====== CHỤP CÂU ĐÁNH DẤU → CLIPBOARD ====== */
 (function(){
   const st=document.createElement('style');
   st.textContent=`
@@ -823,19 +825,19 @@ loadBests();
     const W=820,PAD=30,CW=W-PAD*2,IND=18;
     const LH={head:32,q:25,opt:23,ex:21};
     const ops=[]; let y=PAD;
-    ops.push({t:'head',s:`ðŸ“Œ ${idxs.length} cÃ¢u Ä‘Ã£ Ä‘Ã¡nh dáº¥u â€” ${TITLES[deckNum]}`,y}); y+=LH.head;
+    ops.push({t:'head',s:`📌 ${idxs.length} câu đã đánh dấu — ${TITLES[deckNum]}`,y}); y+=LH.head;
     ops.push({t:'rule',y:y-8}); y+=8;
     idxs.forEach((qi,n)=>{
       const [q,options,correct,expl]=currentQuiz[qi];
-      wrap(`CÃ¢u ${qi+1}. ${q}`,FONT.q,CW).forEach(l=>{ops.push({t:'q',s:l,y});y+=LH.q;});
+      wrap(`Câu ${qi+1}. ${q}`,FONT.q,CW).forEach(l=>{ops.push({t:'q',s:l,y});y+=LH.q;});
       y+=4;
       options.forEach((opt,oi)=>{
         const isC=correct.includes(oi);
-        wrap(`${isC?'âœ“ ':''}${LETTERS[oi]}. ${opt}`,isC?FONT.optB:FONT.opt,CW-IND)
+        wrap(`${isC?'✓ ':''}${LETTERS[oi]}. ${opt}`,isC?FONT.optB:FONT.opt,CW-IND)
           .forEach(l=>{ops.push({t:'opt',s:l,y,ok:isC});y+=LH.opt;});
       });
       y+=3;
-      ops.push({t:'ans',s:`â†’ ÄÃ¡p Ã¡n Ä‘Ãºng: ${correct.map(i=>LETTERS[i]).join(', ')}`,y}); y+=LH.opt;
+      ops.push({t:'ans',s:`→ Đáp án đúng: ${correct.map(i=>LETTERS[i]).join(', ')}`,y}); y+=LH.opt;
       if(expl) wrap(expl,FONT.ex,CW).forEach(l=>{ops.push({t:'ex',s:l,y});y+=LH.ex;});
       y+=16;
       if(n<idxs.length-1) ops.push({t:'sep',y:y-9});
@@ -858,14 +860,14 @@ loadBests();
   }
 
   window.captureFlagged=async function(){
-    if(typeof flagged==='undefined'||!flagged){showToast('Má»Ÿ má»™t Ä‘á» trÆ°á»›c Ä‘Ã£.');return;}
+    if(typeof flagged==='undefined'||!flagged){showToast('Mở một đề trước đã.');return;}
     const idxs=[]; flagged.forEach((f,i)=>{if(f)idxs.push(i);});
-    if(!idxs.length){showToast('âš ï¸ ChÆ°a Ä‘Ã¡nh dáº¥u cÃ¢u nÃ o. Báº¥m ðŸš© á»Ÿ gÃ³c má»—i cÃ¢u trÆ°á»›c.');return;}
+    if(!idxs.length){showToast('⚠️ Chưa đánh dấu câu nào. Bấm 🚩 ở góc mỗi câu trước.');return;}
     const cv=drawCanvas(idxs);
     const toBlob=()=>new Promise(r=>cv.toBlob(r,'image/png'));
     try{
       await navigator.clipboard.write([new ClipboardItem({'image/png':toBlob()})]);
-      showToast(`âœ“ ÄÃ£ copy ${idxs.length} cÃ¢u kÃ¨m Ä‘Ã¡p Ã¡n vÃ o clipboard.`);
+      showToast(`✓ Đã copy ${idxs.length} câu kèm đáp án vào clipboard.`);
     }catch(err){
       try{
         const blob=await toBlob();
@@ -873,15 +875,15 @@ loadBests();
         a.href=URL.createObjectURL(blob); a.download=`danh-dau-de${deckNum}.png`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-        showToast('TrÃ¬nh duyá»‡t cháº·n copy áº£nh â€” Ä‘Ã£ táº£i PNG vá» mÃ¡y.');
-      }catch(e2){showToast('KhÃ´ng táº¡o Ä‘Æ°á»£c áº£nh: '+e2.message);}
+        showToast('Trình duyệt chặn copy ảnh — đã tải PNG về máy.');
+      }catch(e2){showToast('Không tạo được ảnh: '+e2.message);}
     }
   };
 
   const btn=document.createElement('button');
   btn.className='cap-toggle';
-  btn.title='Chá»¥p cÃ¡c cÃ¢u Ä‘Ã£ Ä‘Ã¡nh dáº¥u (kÃ¨m Ä‘Ã¡p Ã¡n) â†’ clipboard';
-  btn.textContent='ðŸ“¸';
+  btn.title='Chụp các câu đã đánh dấu (kèm đáp án) → clipboard';
+  btn.textContent='📸';
   btn.onclick=window.captureFlagged;
   document.getElementById('quiz').appendChild(btn);
 })();
@@ -908,7 +910,7 @@ loadBests();
           const container = document.getElementById('decks-container');
           container.innerHTML = '';
           if (decks.length === 0) {
-            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;">Chưa có đề nào. Hãy click \"Nhập đề từ Excel\" ở thanh công cụ phía trên.</div>';
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;">Chưa có đề nào. Hãy click "Nhập đề từ Excel" ở thanh công cụ phía trên.</div>';
             return;
           }
           decks.forEach(deck => {
@@ -918,21 +920,21 @@ loadBests();
             const count = deck.questionCount || 0;
             const desc = deck.shortDescription || '';
             
-            const cardHtml = \
-              <div class="card" onclick="fetchAndStart('\', false)">
-                <div class="accent" style="background:\"></div>
+            const cardHtml = `
+              <div class="card" onclick="fetchAndStart('${deck.id}', false)">
+                <div class="accent" style="background:${color}"></div>
                 <div class="body">
-                  <div class="big" style="color:\">\</div>
-                  <div class="mid">\ câu trắc nghiệm</div>
-                  <div class="desc">\</div>
-                  <div class="best" id="best-\"></div>
-                  <div class="go" style="background:\">Bắt đầu →</div>
+                  <div class="big" style="color:${color}">${escapeHtml(title)}</div>
+                  <div class="mid">${count} câu trắc nghiệm</div>
+                  <div class="desc">${escapeHtml(desc)}</div>
+                  <div class="best" id="best-${deck.id}"></div>
+                  <div class="go" style="background:${color}">Bắt đầu →</div>
                 </div>
               </div>
-            \;
+            `;
             container.innerHTML += cardHtml;
           });
-          loadBests(); // We will modify loadBests below
+          loadBests(); 
         } catch (e) {
           console.error("Lỗi parse list decks", e);
         }
@@ -985,7 +987,7 @@ loadBests();
       opts.shuffleO = document.getElementById('sw-shuffleO').checked;
       opts.instant  = document.getElementById('sw-instant').checked;
       currentQuiz=buildRunnable();
-      document.getElementById('quiz-title').textContent=TITLES[deckNum]+(opts.limit?\ · \ câu\:'');
+      document.getElementById('quiz-title').textContent=TITLES[deckNum]+(opts.limit?` · ${opts.limit} câu`:'');
       document.getElementById('menu').classList.add('hidden');
       document.getElementById('flash').classList.add('hidden');
       document.getElementById('quiz').classList.remove('hidden');
@@ -1003,7 +1005,6 @@ loadBests();
       window.scrollTo(0,0);
   }
   
-  // Override startFlashcards 
   startFlashcards = function() {
       const deckIds = Object.keys(decksMeta);
       if (deckIds.length === 0) return alert("Chưa có đề nào!");
@@ -1011,7 +1012,6 @@ loadBests();
       fetchAndStart(target, true);
   };
   
-  // Override loadBests to use cefQuery
   loadBests = function() {
       const deckIds = Object.keys(decksMeta);
       deckIds.forEach(id => {
@@ -1022,7 +1022,7 @@ loadBests();
                       try {
                           const d = JSON.parse(res);
                           const el = document.getElementById('best-'+id);
-                          if(el) el.textContent = \🏆 Cao nhất: \/\ (\/10)\;
+                          if(el) el.textContent = `🏆 Cao nhất: ${d.correct}/${d.total} (${d.score}/10)`;
                       } catch(e) {}
                   }
               }
@@ -1030,18 +1030,16 @@ loadBests();
       });
   };
   
-  // Override saveBest to use cefQuery
   saveBest = function(n, correct, total, score) {
       window.cefQuery({
           request: 'SAVE_BEST_SCORE:' + n + '|' + JSON.stringify({correct,total,score}),
           onSuccess: function(res) {
               const el = document.getElementById('best-'+n);
-              if(el) el.textContent = \🏆 Cao nhất: \/\ (\/10)\;
+              if(el) el.textContent = `🏆 Cao nhất: ${correct}/${total} (${score}/10)`;
           }
       });
   };
 </script>
 </body>
+
 </html>
-
-
