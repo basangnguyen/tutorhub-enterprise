@@ -43,16 +43,36 @@
 <script src="luckyexcel/luckyexcel.umd.js"></script>
 <script src="luckysheet/plugins/js/plugin.js"></script>
 <script src="luckysheet/luckysheet.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 
 <script>
-  var COL_NAMES  = ['Tên chứng chỉ','Đơn vị cấp','Ngày cấp','Hạn sử dụng','Ghi chú','Tệp đính kèm'];
-  var COL_WIDTHS = { 0:220, 1:180, 2:130, 3:130, 4:220, 5:150 };
+try {
+  var COL_NAMES  = ['Tên chứng chỉ','Đơn vị cấp','Ngày cấp','Hạn sử dụng','Tệp đính kèm'];
+  var COL_WIDTHS = { 0:220, 1:180, 2:130, 3:130, 4:150 };
   var HEADER_STYLE = { bl:1, fs:12, ht:0, vt:0,
                        bg:'#7B5EA7', fc:'#FFFFFF' };
 
   var headerCells = COL_NAMES.map((h,i) => ({
     r:0, c:i, v:{ ...HEADER_STYLE, v:h, m:h, ct:{fa:'General',t:'g'} }
   }));
+
+  var allCells = [].concat(headerCells);
+  var urlParams = new URLSearchParams(window.location.search);
+  var editJson = urlParams.get('edit');
+  if (editJson) {
+    try {
+      var rows = JSON.parse(editJson);
+      rows.forEach(function(r, ri) {
+        if (r.col0) allCells.push({ r: ri+1, c: 0, v: r.col0 });
+        if (r.col1) allCells.push({ r: ri+1, c: 1, v: r.col1 });
+        if (r.col2) allCells.push({ r: ri+1, c: 2, v: r.col2 });
+        if (r.col3) allCells.push({ r: ri+1, c: 3, v: r.col3 });
+        if (r.col4) allCells.push({ r: ri+1, c: 4, v: r.col4 });
+      });
+    } catch(e) {
+      alert("Lỗi parse dữ liệu edit: " + e.message);
+    }
+  }
 
   luckysheet.create({
     container: 'luckysheet',
@@ -67,10 +87,14 @@
     data: [{
       name: 'Chứng chỉ', color: '#7B5EA7',
       status: 1, order: 0,
-      celldata: headerCells,
+      celldata: allCells,
       config: { columnlen: COL_WIDTHS, rowlen: { 0:38 } }
     }]
   });
+} catch(err) {
+  alert("Lỗi khởi tạo Excel: " + err.message + "\n\n" + err.stack);
+}
+
 
   // ══════════════════════════════════════════════════════
   // LƯU — dùng JCEF cefQuery thay vì javaConnector
@@ -90,8 +114,7 @@
         col1: getVal(row[1]),
         col2: getVal(row[2]),
         col3: getVal(row[3]),
-        col4: getVal(row[4]),
-        col5: getVal(row[5])
+        col4: getVal(row[4])
       });
     }
 
@@ -111,23 +134,57 @@
   // XUẤT .XLSX — cefQuery để Java mở JFileChooser lưu file
   // ══════════════════════════════════════════════════════
   function exportXLSX() {
-    LuckyExcel.transformLuckyToExcel(
-      luckysheet.getAllSheets(),
-      'ChungChi_TutorHub',
-      function(blob) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          var base64 = e.target.result.split(',')[1];
-          // ✅ Gửi base64 về Java để lưu file
-          window.cefQuery({
-            request  : 'EXPORT_XLSX:' + base64,
-            onSuccess: function(r) { console.log('Exported'); },
-            onFailure: function(c, m) { alert('Lỗi xuất: ' + m); }
-          });
-        };
-        reader.readAsDataURL(blob);
+    if (typeof ExcelJS === 'undefined') {
+      alert('Thư viện xuất Excel đang tải. Vui lòng thử lại sau vài giây.');
+      return;
+    }
+    var workbook = new ExcelJS.Workbook();
+    var sheet = workbook.addWorksheet('BangCap');
+    
+    // Thêm header
+    sheet.addRow(COL_NAMES);
+    var headerRow = sheet.getRow(1);
+    headerRow.eachCell(function(cell) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7B5EA7' } };
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+    });
+
+    // Lấy dữ liệu
+    var rows = luckysheet.getSheetData();
+    for (var r = 1; r < rows.length; r++) {
+      var rowData = [];
+      var hasData = false;
+      for (var c = 0; c < COL_NAMES.length; c++) {
+        var cellObj = rows[r][c];
+        var val = cellObj ? (cellObj.v || cellObj.m || '') : '';
+        rowData.push(val);
+        if (val) hasData = true;
       }
-    );
+      if (hasData) {
+        sheet.addRow(rowData);
+      }
+    }
+    
+    // Điều chỉnh độ rộng cột
+    sheet.columns.forEach(function(column, i) {
+        var val = Object.values(COL_WIDTHS)[i];
+        column.width = val ? val / 7 : 20; 
+    });
+
+    workbook.xlsx.writeBuffer().then(function(buffer) {
+        var base64 = '';
+        var bytes = new Uint8Array(buffer);
+        var len = bytes.byteLength;
+        for (var i = 0; i < len; i++) {
+            base64 += String.fromCharCode(bytes[i]);
+        }
+        var b64str = btoa(base64);
+        window.cefQuery({
+            request: 'EXPORT_XLSX:' + b64str,
+            onSuccess: function(r) { console.log('Exported'); },
+            onFailure: function(code, msg) { alert('Lỗi xuất: ' + msg); }
+        });
+    });
   }
 
   // ══════════════════════════════════════════════════════
@@ -146,15 +203,15 @@
     }
     var r = range[0].row[0];
     var c = range[0].column[0];
-    if (c !== 5) {
-      alert("Bạn phải chọn 1 ô trong cột 'Tệp đính kèm' (Cột F)!");
+    if (c !== 4) {
+      alert("Bạn phải chọn 1 ô trong cột 'Tệp đính kèm' (Cột E)!");
       return;
     }
     
     window.cefQuery({
       request: 'OPEN_FILE_CHOOSER:' + r,
       onSuccess: function(fileName) {
-        luckysheet.setCellValue(r, 5, fileName);
+        luckysheet.setCellValue(r, 4, fileName);
       },
       onFailure: function(code, msg) {
         if (code !== 0) alert('Lỗi đính kèm: ' + msg);
@@ -177,20 +234,7 @@
       });
     });
   }
-
-  // Java gọi hàm này khi mở dialog edit lại
-  function loadExistingData(jsonStr) {
-    var rows = JSON.parse(jsonStr);
-    var cells = [...headerCells];
-    rows.forEach(function(r, ri) {
-      [r.col0, r.col1, r.col2, r.col3, r.col4, r.col5].forEach(function(v,ci) {
-        if (v) cells.push({ r:ri+1, c:ci, v:{v:v,m:v} });
-      });
-    });
-    luckysheet.setSheetData(cells);
-  }
-
-  function getVal(cell) {
+  function getStr(cell) {
     if (!cell) return '';
     return String(cell.m || cell.v || '').trim();
   }

@@ -7,6 +7,7 @@ import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
 import org.cef.callback.CefQueryCallback;
 import org.cef.handler.CefMessageRouterHandlerAdapter;
+import org.cef.handler.CefLoadHandlerAdapter;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -27,9 +28,18 @@ public class ExcelEditorDialog extends JDialog {
     private final CefMessageRouter msgRouter;
     private static File extractAssetsDir = null;
     private final Map<String, byte[]> fileCache = new java.util.HashMap<>();
+    private CefLoadHandlerAdapter loadHandler;
+    private String editOldName;
+    private String editJson;
 
     public ExcelEditorDialog(Frame owner, DefaultTableModel tableModel, boolean isDegree) {
+        this(owner, tableModel, isDegree, null, null);
+    }
+
+    public ExcelEditorDialog(Frame owner, DefaultTableModel tableModel, boolean isDegree, String editOldName, String editJson) {
         super(owner, isDegree ? "Quản lý Bằng cấp (Excel)" : "Quản lý Chứng chỉ (Excel)", true);
+        this.editOldName = editOldName;
+        this.editJson = editJson;
         setSize(1100, 750);
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
@@ -39,6 +49,14 @@ public class ExcelEditorDialog extends JDialog {
         String htmlFileName = isDegree ? "deg_excel.html" : "cert_excel.html";
         File htmlFile = new File(assetsDir, htmlFileName);
         String htmlUrl = htmlFile.toURI().toString();
+        
+        if (editJson != null && !editJson.isEmpty()) {
+            try {
+                htmlUrl += "?edit=" + java.net.URLEncoder.encode(editJson, "UTF-8");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
 
         System.out.println("[EXCEL_EDITOR] Loading UI from: " + htmlUrl);
         browser = JcefManager.getClient().createBrowser(htmlUrl, false, false);
@@ -157,8 +175,7 @@ public class ExcelEditorDialog extends JDialog {
                         String uni = r.get("col1") != null ? r.get("col1") : "";
                         String major = r.get("col2") != null ? r.get("col2") : "";
                         String year = r.get("col3") != null ? r.get("col3") : "";
-                        String rank = r.get("col4") != null ? r.get("col4") : "";
-                        String fileName = r.get("col5") != null ? r.get("col5") : "";
+                        String fileName = r.get("col4") != null ? r.get("col4") : "";
                         
                         String b64 = "NO_FILE";
                         if (!fileName.isEmpty() && fileCache.containsKey(fileName)) {
@@ -174,7 +191,6 @@ public class ExcelEditorDialog extends JDialog {
                                 name + " - " + major, 
                                 uni, 
                                 year, 
-                                rank, 
                                 finalFileName.equals("Excel_Data.xlsx") ? "" : finalFileName,            
                                 "Chờ duyệt"    
                             });
@@ -182,14 +198,18 @@ public class ExcelEditorDialog extends JDialog {
                         
                         // Payload: Tên bằng cấp | Chuyên ngành | Trường/Đơn vị | Năm TN | fileName | b64
                         String payload = name + "|" + major + "|" + uni + "|" + year + "|" + fileName + "|" + b64;
-                        com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_DEGREE", payload));
+                        if (ExcelEditorDialog.this.editOldName != null) {
+                            payload = ExcelEditorDialog.this.editOldName + "|||" + payload;
+                            com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("UPDATE_DEGREE", payload));
+                        } else {
+                            com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_DEGREE", payload));
+                        }
                     } else {
                         String name = r.get("col0") != null ? r.get("col0") : "";
                         String prov = r.get("col1") != null ? r.get("col1") : "";
                         String issue = r.get("col2") != null ? r.get("col2") : "";
                         String exp = r.get("col3") != null ? r.get("col3") : "";
-                        String note = r.get("col4") != null ? r.get("col4") : "";
-                        String fileName = r.get("col5") != null ? r.get("col5") : "";
+                        String fileName = r.get("col4") != null ? r.get("col4") : "";
                         
                         String b64 = "NO_FILE";
                         if (!fileName.isEmpty() && fileCache.containsKey(fileName)) {
@@ -213,7 +233,12 @@ public class ExcelEditorDialog extends JDialog {
                         
                         // Payload: Tên chứng chỉ | Đơn vị cấp | Ngày cấp | Hạn SD | fileName | b64
                         String payload = name + "|" + prov + "|" + issue + "|" + exp + "|" + fileName + "|" + b64;
-                        com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_CERTIFICATE", payload));
+                        if (ExcelEditorDialog.this.editOldName != null) {
+                            payload = ExcelEditorDialog.this.editOldName + "|||" + payload;
+                            com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("UPDATE_CERTIFICATE", payload));
+                        } else {
+                            com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_CERTIFICATE", payload));
+                        }
                     }
                 }
                 
@@ -248,6 +273,7 @@ public class ExcelEditorDialog extends JDialog {
 
     @Override
     public void dispose() {
+
         if (msgRouter != null) {
             JcefManager.getClient().removeMessageRouter(msgRouter);
             msgRouter.dispose();

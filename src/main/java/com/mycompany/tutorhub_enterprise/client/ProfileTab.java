@@ -76,6 +76,9 @@ public class ProfileTab extends JPanel {
     private JPanel[] tabButtons;
     
    
+    private java.util.List<String> rawDegreesData = new java.util.ArrayList<>();
+    private java.util.List<String> rawCertificatesData = new java.util.ArrayList<>();
+    
     public static Consumer<byte[]> pdfPreviewCallback = null; // Callback để nhận byte file khi xem
     private String currentServerCvFileName = ""; // Lưu tên CV đang có trên server
     
@@ -1467,7 +1470,21 @@ public class ProfileTab extends JPanel {
         btnAdd.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnAdd.addActionListener(e -> {
-            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(this), degTableModel, true);
+            StringBuilder jsonBuilder = new StringBuilder("[");
+            for (int i = 0; i < rawDegreesData.size(); i++) {
+                String[] parts = rawDegreesData.get(i).split("\\|");
+                if (parts.length >= 6) {
+                    if (i > 0) jsonBuilder.append(",");
+                    jsonBuilder.append("{\"col0\":\"").append(parts[0])
+                               .append("\",\"col1\":\"").append(parts[2])
+                               .append("\",\"col2\":\"").append(parts[1])
+                               .append("\",\"col3\":\"").append(parts[3])
+                               .append("\",\"col4\":\"").append(parts[4])
+                               .append("\"}");
+                }
+            }
+            jsonBuilder.append("]");
+            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(this), degTableModel, true, null, jsonBuilder.toString());
             dialog.setVisible(true);
         });
 
@@ -1475,8 +1492,8 @@ public class ProfileTab extends JPanel {
         top.add(btnAdd, BorderLayout.EAST);
         p.add(top, BorderLayout.NORTH);
 
-        // --- 1. THÊM CỘT TỆP ĐÍNH KÈM VÀO MODEL (Tổng 7 cột) ---
-        String[] cols = {"Tên bằng cấp, Chuyên ngành", "Trường đào tạo", "Năm TN", "Xếp loại", "Tệp đính kèm", "Trạng thái", "Thao tác"};
+        // --- 1. THÊM CỘT TỆP ĐÍNH KÈM VÀO MODEL (Tổng 6 cột) ---
+        String[] cols = {"Tên bằng cấp, Chuyên ngành", "Trường đào tạo", "Năm TN", "Tệp đính kèm", "Trạng thái", "Thao tác"};
         degTableModel = new DefaultTableModel(null, cols) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -1489,6 +1506,7 @@ public class ProfileTab extends JPanel {
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         table.setSelectionBackground(Color.decode("#F8FAFC"));
+        table.setSelectionForeground(Color.decode("#1E293B"));
 
         JTableHeader header = table.getTableHeader();
         header.setPreferredSize(new Dimension(0, 40));
@@ -1509,12 +1527,12 @@ public class ProfileTab extends JPanel {
                 return c;
             }
         };
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
             table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
 
-        // --- 2. RENDER CỘT 4: TỆP ĐÍNH KÈM (Đcenter) ---
-        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+        // --- 2. RENDER CỘT 3: TỆP ĐÍNH KÈM (Đcenter) ---
+        table.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 15));
@@ -1543,8 +1561,8 @@ public class ProfileTab extends JPanel {
             }
         });
 
-        // --- 3. RENDER CỘT 5: TRẠNG THÁI ---
-        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+        // --- 3. RENDER CỘT 4: TRẠNG THÁI ---
+        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 String status = (value != null) ? value.toString() : "";
@@ -1569,8 +1587,8 @@ public class ProfileTab extends JPanel {
             }
         });
 
-        // --- 4. RENDER CỘT 6: THAO TÁC ---
-        table.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+        // --- 4. RENDER CỘT 5: THAO TÁC ---
+        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
@@ -1589,7 +1607,7 @@ public class ProfileTab extends JPanel {
                 return cell;
             }
         });
-        table.getColumnModel().getColumn(6).setMaxWidth(100);
+        table.getColumnModel().getColumn(5).setMaxWidth(100);
 
         // --- 5. XỬ LÝ SỰ KIỆN CLICK (Tải xuống & Thao tác) ---
         table.addMouseListener(new MouseAdapter() {
@@ -1598,31 +1616,49 @@ public class ProfileTab extends JPanel {
                 int row = table.rowAtPoint(e.getPoint());
                 int col = table.columnAtPoint(e.getPoint());
                 if (row >= 0) {
-                    // Cột 4: Tải file đính kèm
-                    if (col == 4) {
-                        String fileName = (String) degTableModel.getValueAt(row, 4);
+                    // Cột 3: Tải file đính kèm
+                    if (col == 3) {
+                        String fileName = (String) degTableModel.getValueAt(row, 3);
                         downloadAttachedFile(fileName);
                     }
-                    // Cột 6: Sửa / Xóa
-                    else if (col == 6) {
+                    // Cột 5: Sửa / Xóa
+                    else if (col == 5) {
                         Rectangle cellRect = table.getCellRect(row, col, false);
                         int clickX = e.getPoint().x - cellRect.x;
                         String htmlName = (String) degTableModel.getValueAt(row, 0);
                         String uni = (String) degTableModel.getValueAt(row, 1);
 
                         if (clickX < cellRect.width / 2) {
-                            String certName = null;
-                            showEditCertificateDialog(row, certName);
+                            // Lấy thông tin từ raw data tương ứng với dòng này
+                            String rawRow = rawDegreesData.get(row);
+                            String[] rawParts = rawRow.split("\\|");
+                            String editOldName = rawParts.length > 0 ? rawParts[0] + "|" + rawParts[1] + "|" + rawParts[2] : "";
+                            
+                            StringBuilder jsonBuilder = new StringBuilder("[");
+                            for (int i = 0; i < rawDegreesData.size(); i++) {
+                                String[] parts = rawDegreesData.get(i).split("\\|");
+                                if (parts.length >= 6) {
+                                    if (i > 0) jsonBuilder.append(",");
+                                    jsonBuilder.append("{\"col0\":\"").append(parts[0])
+                                               .append("\",\"col1\":\"").append(parts[2])
+                                               .append("\",\"col2\":\"").append(parts[1])
+                                               .append("\",\"col3\":\"").append(parts[3])
+                                               .append("\",\"col4\":\"").append(parts[4])
+                                               .append("\"}");
+                                }
+                            }
+                            jsonBuilder.append("]");
+                            
+                            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(ProfileTab.this), degTableModel, true, editOldName, jsonBuilder.toString());
+                            dialog.setVisible(true);
                         } else {
-                            int confirm = JOptionPane.showConfirmDialog(ProfileTab.this, "Bạn có chắc chắn muốn xóa chứng chỉ này?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+                            int confirm = JOptionPane.showConfirmDialog(ProfileTab.this, "Bạn có chắc chắn muốn xóa bằng cấp này?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
                             if (confirm == JOptionPane.YES_OPTION) {
-                                // Lấy chính xác tên chứng chỉ gốc chưa bị cắt ngắn từ TableModel
-                                String fullCertName = (String) certTableModel.getValueAt(row, 0);
-                                certTableModel.removeRow(row);
+                                String fullDegName = (String) degTableModel.getValueAt(row, 0);
+                                degTableModel.removeRow(row);
                                 new Thread(() -> {
                                     try { 
-                                        // GỬI CHUẨN TÊN CHỨNG CHỈ SANG SERVER
-                                        NetworkManager.getInstance().sendPacket(new Packet("DELETE_CERTIFICATE", fullCertName)); 
+                                        NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("DELETE_DEGREE", fullDegName)); 
                                     } catch (Exception ex) {}
                                 }).start();
                             }
@@ -1706,7 +1742,21 @@ public class ProfileTab extends JPanel {
         btnAdd.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnAdd.addActionListener(e -> {
-            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(this), certTableModel, false);
+            StringBuilder jsonBuilder = new StringBuilder("[");
+            for (int i = 0; i < rawCertificatesData.size(); i++) {
+                String[] parts = rawCertificatesData.get(i).split("\\|");
+                if (parts.length >= 6) {
+                    if (i > 0) jsonBuilder.append(",");
+                    jsonBuilder.append("{\"col0\":\"").append(parts[0])
+                               .append("\",\"col1\":\"").append(parts[1])
+                               .append("\",\"col2\":\"").append(parts[2])
+                               .append("\",\"col3\":\"").append(parts[3])
+                               .append("\",\"col4\":\"").append(parts[4])
+                               .append("\"}");
+                }
+            }
+            jsonBuilder.append("]");
+            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(this), certTableModel, false, null, jsonBuilder.toString());
             dialog.setVisible(true);
         });
         
@@ -1722,6 +1772,7 @@ public class ProfileTab extends JPanel {
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         table.setSelectionBackground(Color.decode("#F8FAFC"));
+        table.setSelectionForeground(Color.decode("#1E293B"));
         table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         // -- HEADER TÍM NHẠT, CHỮ TÍM ĐẬM --
@@ -1815,13 +1866,33 @@ public class ProfileTab extends JPanel {
                         String certName = (String) certTableModel.getValueAt(row, 0);
 
                         if (clickX < cellRect.width / 2) {
-                            showEditCertificateDialog(row, certName);
+                            String rawRow = rawCertificatesData.get(row);
+                            String[] rawParts = rawRow.split("\\|");
+                            String editOldName = rawParts.length > 0 ? rawParts[0] : certName;
+                            
+                            StringBuilder jsonBuilder = new StringBuilder("[");
+                            for (int i = 0; i < rawCertificatesData.size(); i++) {
+                                String[] parts = rawCertificatesData.get(i).split("\\|");
+                                if (parts.length >= 6) {
+                                    if (i > 0) jsonBuilder.append(",");
+                                    jsonBuilder.append("{\"col0\":\"").append(parts[0])
+                                               .append("\",\"col1\":\"").append(parts[1])
+                                               .append("\",\"col2\":\"").append(parts[2])
+                                               .append("\",\"col3\":\"").append(parts[3])
+                                               .append("\",\"col4\":\"").append(parts[4])
+                                               .append("\"}");
+                                }
+                            }
+                            jsonBuilder.append("]");
+                            
+                            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(ProfileTab.this), certTableModel, false, editOldName, jsonBuilder.toString());
+                            dialog.setVisible(true);
                         } else {
                             int confirm = JOptionPane.showConfirmDialog(ProfileTab.this, "Bạn có chắc chắn muốn xóa chứng chỉ này?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
                             if (confirm == JOptionPane.YES_OPTION) {
                                 certTableModel.removeRow(row);
                                 new Thread(() -> {
-                                    try { NetworkManager.getInstance().sendPacket(new Packet("DELETE_CERTIFICATE", certName)); } catch (Exception ex) {}
+                                    try { NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("DELETE_CERTIFICATE", certName)); } catch (Exception ex) {}
                                 }).start();
                             }
                         }
@@ -2733,84 +2804,7 @@ public class ProfileTab extends JPanel {
         JPanel bottom = new JPanel(); bottom.add(btnSave); bottom.setBorder(new EmptyBorder(0,0,20,0)); 
         dialog.add(form, BorderLayout.CENTER); dialog.add(bottom, BorderLayout.SOUTH); dialog.setVisible(true);
     }
-    private void showAddCertificateDialog() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Thêm Chứng Chỉ", true); dialog.setSize(400, 450); dialog.setLocationRelativeTo(this); dialog.setLayout(new BorderLayout(10, 10));
-        JPanel form = new JPanel(new GridLayout(5, 2, 10, 15)); form.setBorder(new EmptyBorder(20, 20, 10, 20));
-        JTextField txtCName = new JTextField(); JTextField txtProv = new JTextField(); JTextField txtIssue = new JTextField("DD/MM/YYYY"); JTextField txtExp = new JTextField("Vĩnh viễn");
-        form.add(new JLabel("Tên chứng chỉ:")); form.add(txtCName); form.add(new JLabel("Đơn vị cấp:")); form.add(txtProv);
-        form.add(new JLabel("Ngày cấp:")); form.add(txtIssue); form.add(new JLabel("Hạn sử dụng:")); form.add(txtExp);
-        JButton btnSelectFile = new JButton("Chọn File (PDF/Ảnh)"); JLabel lblFileName = new JLabel("Chưa chọn file");
-        final byte[][] fileData = {null}; final String[] fileName = {""};
-        btnSelectFile.addActionListener(e -> { JFileChooser jfc = new JFileChooser(); if (jfc.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) { try { File f = jfc.getSelectedFile(); if(f.length() > 5 * 1024 * 1024) { JOptionPane.showMessageDialog(dialog, "File tối đa 5MB"); return; } fileData[0] = Files.readAllBytes(f.toPath()); fileName[0] = f.getName(); lblFileName.setText(f.getName()); } catch (Exception ex) { ex.printStackTrace(); } } });
-        form.add(btnSelectFile); form.add(lblFileName);
-        JButton btnSave = new JButton("Lưu & Gửi duyệt"); btnSave.setBackground(PRIMARY); btnSave.setForeground(Color.WHITE);
-        btnSave.addActionListener(e -> {
-            if (fileData[0] == null || txtCName.getText().isEmpty()) { JOptionPane.showMessageDialog(dialog, "Vui lòng nhập tên chứng chỉ và chọn file!"); return; }
-            btnSave.setText("Đang tải lên..."); btnSave.setEnabled(false);
-            new Thread(() -> { try { String b64 = Base64.getEncoder().encodeToString(fileData[0]); String payload = txtCName.getText() + "|" + txtProv.getText() + "|" + txtIssue.getText() + "|" + txtExp.getText() + "|" + fileName[0] + "|" + b64; NetworkManager.getInstance().sendPacket(new Packet("ADD_CERTIFICATE", payload)); SwingUtilities.invokeLater(() -> dialog.dispose()); } catch (Exception ex) { ex.printStackTrace(); } }).start();
-        });
-        JPanel bottom = new JPanel(); bottom.add(btnSave); bottom.setBorder(new EmptyBorder(0,0,20,0)); dialog.add(form, BorderLayout.CENTER); dialog.add(bottom, BorderLayout.SOUTH); dialog.setVisible(true);
-    }
-    
-    private void showEditCertificateDialog(int row, String oldName) {
-        String oldProv = (String) certTableModel.getValueAt(row, 1);
-        String oldIssue = (String) certTableModel.getValueAt(row, 2);
-        String oldExp = (String) certTableModel.getValueAt(row, 3);
 
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Chỉnh Sửa Chứng Chỉ", true); 
-        dialog.setSize(400, 450); dialog.setLocationRelativeTo(this); dialog.setLayout(new BorderLayout(10, 10));
-        JPanel form = new JPanel(new GridLayout(5, 2, 10, 15)); form.setBorder(new EmptyBorder(20, 20, 10, 20));
-        
-        JTextField txtCName = new JTextField(oldName); 
-        JTextField txtProv = new JTextField(oldProv); 
-        JTextField txtIssue = new JTextField(oldIssue); 
-        JTextField txtExp = new JTextField(oldExp);
-        
-        form.add(new JLabel("Tên chứng chỉ:")); form.add(txtCName); 
-        form.add(new JLabel("Đơn vị cấp:")); form.add(txtProv);
-        form.add(new JLabel("Ngày cấp:")); form.add(txtIssue); 
-        form.add(new JLabel("Hạn sử dụng:")); form.add(txtExp);
-        
-        JButton btnSelectFile = new JButton("Chọn File Mới"); 
-        JLabel lblFileName = new JLabel("Giữ nguyên file cũ");
-        final byte[][] fileData = {null}; final String[] fileName = {""};
-        
-        btnSelectFile.addActionListener(e -> { 
-            JFileChooser jfc = new JFileChooser(); 
-            if (jfc.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) { 
-                try { 
-                    File f = jfc.getSelectedFile(); 
-                    if(f.length() > 5 * 1024 * 1024) { JOptionPane.showMessageDialog(dialog, "File tối đa 5MB"); return; } 
-                    fileData[0] = Files.readAllBytes(f.toPath()); 
-                    fileName[0] = f.getName(); 
-                    lblFileName.setText(f.getName()); 
-                } catch (Exception ex) { ex.printStackTrace(); } 
-            } 
-        });
-        
-        form.add(btnSelectFile); form.add(lblFileName);
-        
-        JButton btnSave = new JButton("Lưu Cập Nhật"); btnSave.setBackground(PRIMARY); btnSave.setForeground(Color.WHITE);
-        btnSave.addActionListener(e -> {
-            if (txtCName.getText().isEmpty()) { JOptionPane.showMessageDialog(dialog, "Vui lòng nhập tên chứng chỉ!"); return; }
-            btnSave.setText("Đang lưu..."); btnSave.setEnabled(false);
-            new Thread(() -> { 
-                try { 
-                    String b64 = fileData[0] != null ? Base64.getEncoder().encodeToString(fileData[0]) : "NO_FILE"; 
-                    // Gửi lên Server: oldName để tìm bản ghi cũ ||| dữ liệu mới
-                    String payload = oldName + "|||" + txtCName.getText() + "|" + txtProv.getText() + "|" + txtIssue.getText() + "|" + txtExp.getText() + "|" + fileName[0] + "|" + b64; 
-                    NetworkManager.getInstance().sendPacket(new Packet("UPDATE_CERTIFICATE", payload)); 
-                    SwingUtilities.invokeLater(() -> {
-                        dialog.dispose();
-                        JOptionPane.showMessageDialog(this, "Đã gửi yêu cầu cập nhật!");
-                    }); 
-                } catch (Exception ex) { ex.printStackTrace(); } 
-            }).start();
-        });
-        
-        JPanel bottom = new JPanel(); bottom.add(btnSave); bottom.setBorder(new EmptyBorder(0,0,20,0)); 
-        dialog.add(form, BorderLayout.CENTER); dialog.add(bottom, BorderLayout.SOUTH); dialog.setVisible(true);
-    }
     
     private void showAddExperienceDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Thêm Kinh Nghiệm", true);
@@ -2909,6 +2903,7 @@ public class ProfileTab extends JPanel {
         SwingUtilities.invokeLater(() -> {
             if (degTableModel == null) return;
             degTableModel.setRowCount(0);
+            this.rawDegreesData = new java.util.ArrayList<>(data);
             for (String row : data) {
                 String[] parts = row.split("\\|");
                 // Giả định server gửi: Tên bằng | Chuyên ngành | Trường | Năm | Tên_File | Trạng thái
@@ -2935,6 +2930,7 @@ public class ProfileTab extends JPanel {
         SwingUtilities.invokeLater(() -> {
             if (certTableModel == null) return;
             certTableModel.setRowCount(0);
+            this.rawCertificatesData = new java.util.ArrayList<>(data);
             for (String row : data) {
                 String[] parts = row.split("\\|");
                 if (parts.length >= 6) {
