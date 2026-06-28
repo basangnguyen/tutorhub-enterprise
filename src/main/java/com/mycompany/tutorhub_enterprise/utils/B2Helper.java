@@ -150,4 +150,51 @@ public class B2Helper {
     private static boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
+
+    public static boolean uploadJsonData(String jsonData, String objectKey) {
+        try {
+            software.amazon.awssdk.services.s3.model.PutObjectRequest putObjectRequest = software.amazon.awssdk.services.s3.model.PutObjectRequest.builder()
+                .bucket(BUCKET_NAME)
+                .key(objectKey)
+                .contentType("application/json")
+                .build();
+            getS3Client().putObject(putObjectRequest, software.amazon.awssdk.core.sync.RequestBody.fromString(jsonData));
+            return true;
+        } catch (Exception e) {
+            System.err.println("[B2Helper] Upload JSON failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static String downloadJsonData(String objectKey) {
+        try {
+            software.amazon.awssdk.services.s3.model.GetObjectRequest getObjectRequest = software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                .bucket(BUCKET_NAME)
+                .key(objectKey)
+                .build();
+            software.amazon.awssdk.core.ResponseBytes<software.amazon.awssdk.services.s3.model.GetObjectResponse> objectBytes = 
+                getS3Client().getObjectAsBytes(getObjectRequest);
+            return objectBytes.asUtf8String();
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            return null; // Not found
+        } catch (Exception e) {
+            System.err.println("[B2Helper] Download JSON failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public static boolean deleteObject(String objectKey) {
+        try {
+            software.amazon.awssdk.services.s3.model.DeleteObjectRequest deleteObjectRequest = software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
+                .bucket(BUCKET_NAME)
+                .key(objectKey)
+                .build();
+            getS3Client().deleteObject(deleteObjectRequest);
+            return true;
+        } catch (Exception e) {
+            System.err.println("[B2Helper] Delete Object failed: " + e.getMessage());
+            return false;
+        }
+    }
+
 }

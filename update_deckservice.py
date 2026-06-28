@@ -1,38 +1,16 @@
-// File: src/main/java/com/mycompany/tutorhub_enterprise/client/quizhub/service/QuizHubDeckService.java
-package com.mycompany.tutorhub_enterprise.client.quizhub.service;
+﻿import re
 
-import com.mycompany.tutorhub_enterprise.client.quizhub.importer.QuizHubExcelImportService;
-import com.mycompany.tutorhub_enterprise.client.quizhub.importer.QuizHubImportResult;
-import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubDeck;
-import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubDeckSummary;
-import com.mycompany.tutorhub_enterprise.client.quizhub.storage.QuizHubDataDir;
-import com.mycompany.tutorhub_enterprise.client.quizhub.storage.QuizHubJsonStorage;
-import com.mycompany.tutorhub_enterprise.utils.B2Helper;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import java.lang.reflect.Type;
+file_path = "d:/Ban_sao_du_an/src/main/java/com/mycompany/tutorhub_enterprise/client/quizhub/service/QuizHubDeckService.java"
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-public class QuizHubDeckService {
+# I need to add B2Helper and Gson imports
+if "B2Helper" not in content:
+    content = content.replace("import com.mycompany.tutorhub_enterprise.client.quizhub.storage.QuizHubJsonStorage;",
+                              "import com.mycompany.tutorhub_enterprise.client.quizhub.storage.QuizHubJsonStorage;\nimport com.mycompany.tutorhub_enterprise.utils.B2Helper;\nimport com.google.gson.Gson;\nimport com.google.gson.reflect.TypeToken;\nimport java.lang.reflect.Type;")
 
-    private final QuizHubExcelImportService importService;
-
-    public QuizHubDeckService() {
-        this(new QuizHubExcelImportService());
-    }
-
-    public QuizHubDeckService(QuizHubExcelImportService importService) {
-        this.importService = importService;
-    }
-
-    
+new_methods = """
     private static final Gson GSON = new Gson();
     private static final String INDEX_KEY = "quizhub/decks_index.json";
 
@@ -187,7 +165,10 @@ public class QuizHubDeckService {
         QuizHubDeck deck = importService.buildDeckFromImport(result);
         return saveDeck(deck);
     }
-private Path deckFile(String deckId) {
-        return QuizHubDataDir.getDecksDir().resolve(deckId + ".json");
-    }
-}
+"""
+
+content = re.sub(r"public List<QuizHubDeckSummary> listDecks\(\) \{.*?(?=private Path deckFile)", new_methods, content, flags=re.DOTALL)
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("Updated QuizHubDeckService successfully")

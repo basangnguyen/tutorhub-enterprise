@@ -905,7 +905,7 @@ loadBests();
       request: 'LIST_DECKS:',
       onSuccess: function(res) {
         try {
-          const decks = JSON.parse(res);
+          const decks = JSON.parse(res).data || [];
           decksMeta = {};
           const container = document.getElementById('decks-container');
           container.innerHTML = '';
@@ -952,7 +952,7 @@ loadBests();
         request: 'GET_DECK:' + deckId,
         onSuccess: function(res) {
             try {
-                const deckData = JSON.parse(res);
+                const deckData = JSON.parse(res).data;
                 deckNum = deckId;
                 
                 baseQuiz = deckData.questions.map(q => {
@@ -1020,7 +1020,8 @@ loadBests();
               onSuccess: function(res) {
                   if (res) {
                       try {
-                          const d = JSON.parse(res);
+                          const parsed = JSON.parse(res);
+                          const d = typeof parsed.data === 'string' ? JSON.parse(parsed.data) : parsed.data;
                           const el = document.getElementById('best-'+id);
                           if(el) el.textContent = `🏆 Cao nhất: ${d.correct}/${d.total} (${d.score}/10)`;
                       } catch(e) {}

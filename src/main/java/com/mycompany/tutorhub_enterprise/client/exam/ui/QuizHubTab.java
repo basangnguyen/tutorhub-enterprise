@@ -22,6 +22,14 @@ public class QuizHubTab extends JPanel {
         
         // --- ADD TOOLBAR FOR IMPORT ---
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnRefreshCloud = new JButton("🔄 Làm mới từ Cloud");
+        btnRefreshCloud.addActionListener(e -> {
+            if (browser != null) {
+                browser.reload(); // Reload CefBrowser will call LIST_DECKS again and refresh from B2
+            }
+        });
+        topPanel.add(btnRefreshCloud);
+        
         JButton btnImportExcel = new JButton("Nhập đề từ Excel");
         btnImportExcel.addActionListener(e -> {
             com.mycompany.tutorhub_enterprise.client.quizhub.bridge.QuizExcelImportDialog dialog = 
