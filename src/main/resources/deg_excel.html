@@ -47,7 +47,7 @@
   var COL_NAMES  = ['Tên bằng cấp','Trường/Đơn vị','Chuyên ngành','Năm tốt nghiệp','Xếp loại'];
   var COL_WIDTHS = { 0:220, 1:220, 2:180, 3:130, 4:130 };
   var HEADER_STYLE = { bl:1, fs:12, ht:0, vt:0,
-                       bg:{rgb:'7B5EA7'}, fc:{rgb:'FFFFFF'} };
+                       bg:'#7B5EA7', fc:'#FFFFFF' };
 
   var headerCells = COL_NAMES.map((h,i) => ({
     r:0, c:i, v:{ ...HEADER_STYLE, v:h, m:h, ct:{fa:'General',t:'g'} }
@@ -65,6 +65,7 @@
     allowEdit: true,
     data: [{
       name: 'Bằng cấp', color: '#7B5EA7',
+      status: 1, order: 0,
       celldata: headerCells,
       config: { columnlen: COL_WIDTHS, rowlen: { 0:38 } }
     }]
