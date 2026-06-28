@@ -1491,29 +1491,41 @@ public class ProfileTab extends JPanel {
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.decode("#C7D2FE"))); 
         header.setReorderingAllowed(false);
 
-        // --- 2. RENDER CỘT 4: TỆP ĐÍNH KÈM (ĐÃ SỬA CÁCH LẤY TÊN FILE) ---
+        // --- 1. CENTER STANDARDS ---
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (c instanceof JLabel) {
+                    ((JLabel) c).setHorizontalAlignment(JLabel.CENTER);
+                }
+                return c;
+            }
+        };
+        for (int i = 0; i < 4; i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
+        // --- 2. RENDER CỘT 4: TỆP ĐÍNH KÈM (Đcenter) ---
         table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JPanel cell = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 15));
+                JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 15));
                 cell.setOpaque(true);
                 cell.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
                 
                 if (value != null && !value.toString().isEmpty() && !value.toString().equals("NO_FILE")) {
                     String fullPath = value.toString();
-                    // Lấy ra tên file cuối cùng để hiển thị (loại bỏ phần thư mục server_uploads...)
                     String displayFileName = new java.io.File(fullPath).getName();
                     
-                    // Rút gọn nếu tên quá dài
                     if (displayFileName.length() > 18) {
                         displayFileName = displayFileName.substring(0, 15) + "...";
                     }
                     
-                    // Dùng thẻ HTML <u> để gạch chân giống link
                     JLabel lblFile = new JLabel("<html><u>" + displayFileName + "</u></html>");
                     lblFile.setFont(new Font("Segoe UI", Font.PLAIN, 12));
                     lblFile.setForeground(PRIMARY);
-                    lblFile.setCursor(new Cursor(Cursor.HAND_CURSOR)); // Hiện bàn tay khi trỏ vào
+                    lblFile.setCursor(new Cursor(Cursor.HAND_CURSOR));
                     cell.add(lblFile);
                 } else {
                     JLabel lblEmpty = new JLabel("-");
@@ -1529,7 +1541,7 @@ public class ProfileTab extends JPanel {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 String status = (value != null) ? value.toString() : "";
-                JPanel cell = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15));
+                JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 15));
                 cell.setOpaque(true);
                 cell.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
@@ -1711,10 +1723,25 @@ public class ProfileTab extends JPanel {
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.decode("#C7D2FE")));
         header.setReorderingAllowed(false);
 
+        // --- 1. CENTER STANDARDS ---
+        DefaultTableCellRenderer centerRendererCert = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (c instanceof JLabel) {
+                    ((JLabel) c).setHorizontalAlignment(JLabel.CENTER);
+                }
+                return c;
+            }
+        };
+        for (int i = 0; i < 4; i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(centerRendererCert);
+        }
+
         table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                JPanel cell = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 15));
+                JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 15));
                 cell.setOpaque(true); cell.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
                 if (value != null && !value.toString().isEmpty()) {
                     JLabel lblFile = new JLabel(value.toString());
@@ -1729,7 +1756,7 @@ public class ProfileTab extends JPanel {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 String status = (value != null) ? value.toString() : "";
-                JPanel cell = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 15));
+                JPanel cell = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 15));
                 cell.setOpaque(true); cell.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
                 JLabel badge = new JLabel(status); badge.setFont(new Font("Segoe UI", Font.BOLD, 11)); badge.setBorder(new EmptyBorder(4, 10, 4, 10)); badge.setOpaque(true);
                 
@@ -2091,13 +2118,35 @@ public class ProfileTab extends JPanel {
         
         titleWrap.add(iconWrap); titleWrap.add(textWrap);
         
-        JButton btnAdd = new JButton("+ Thêm kinh nghiệm");
+        JButton btnAdd = new JButton("+ Thêm kinh nghiệm") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226));
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                
+                g2.setColor(Color.decode("#FCA5A5")); 
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 14, 14);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
+        btnAdd.setBackground(Color.WHITE);
+        btnAdd.setForeground(Color.decode("#DC2626")); 
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnAdd.setForeground(Color.WHITE);
-        btnAdd.setBackground(PRIMARY);
-        btnAdd.setBorder(new EmptyBorder(6, 12, 6, 12));
-        btnAdd.setFocusPainted(false);
+        btnAdd.setContentAreaFilled(false);
+        btnAdd.setBorderPainted(false);
+        btnAdd.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnAdd.setFocusPainted(false);
         btnAdd.addActionListener(e -> showAddExperienceDialog());
         
         header.add(titleWrap, BorderLayout.WEST);

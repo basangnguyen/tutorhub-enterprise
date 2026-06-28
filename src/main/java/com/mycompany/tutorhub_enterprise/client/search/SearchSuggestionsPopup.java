@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
  * Thay thế {@link #filter(String)} bằng lời gọi API thực tế để lấy gợi ý
  * từ server (chạy trong SwingWorker để không block EDT).
  */
+@Deprecated
 public class SearchSuggestionsPopup {
 
     // ─── Layout constants ────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ public class SearchSuggestionsPopup {
     private final GlobalSearchBar owner;
     private Consumer<String>   onSelect;
     private List<String>       currentItems = Collections.emptyList();
+    private boolean enabled = false;
 
     // ─────────────────────────────────────────────────────────────────────────
     public SearchSuggestionsPopup(GlobalSearchBar owner) {
@@ -85,6 +87,10 @@ public class SearchSuggestionsPopup {
      * Gọi từ DocumentListener của JTextField (đang trên EDT, an toàn).
      */
     public void update(String query) {
+        if (!enabled) {
+            hide();
+            return;
+        }
         if (query == null || query.isBlank()) {
             hide();
             return;
@@ -108,6 +114,21 @@ public class SearchSuggestionsPopup {
     /** Callback khi người dùng chọn một gợi ý. */
     public void setOnSelect(Consumer<String> handler) {
         this.onSelect = handler;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        if (!enabled) {
+            hide();
+        }
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public Component getPopupComponent() {
+        return menu;
     }
 
     // ─── Private ──────────────────────────────────────────────────────────────

@@ -346,7 +346,7 @@ public class ChatTab extends JPanel {
         this.txtGlobalSearch = searchInput;
         this.globalSearchContainer = searchContainer;
 
-        txtGlobalSearch.putClientProperty("JTextField.placeholderText", "Tìm kiếm Biểu tượng");
+        txtGlobalSearch.putClientProperty("JTextField.placeholderText", "Tìm kiếm trong TutorHub...");
 
         txtGlobalSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { handleTyping(); }
@@ -843,7 +843,6 @@ public class ChatTab extends JPanel {
     
     private void updatePopupSelection() {
         for(int i = 0; i < popupClickableItems.size(); i++) {
-            int selectedPopupIndex = 0;
             popupClickableItems.get(i).setBackground(i == selectedPopupIndex ? Color.decode("#F1F5F9") : Color.WHITE);
         }
         popupContentPanel.repaint();
@@ -876,8 +875,10 @@ public class ChatTab extends JPanel {
         p.add(right, BorderLayout.EAST);
 
         p.addMouseListener(new MouseAdapter() { 
-            @Override public void mouseEntered(MouseEvent e) { p.setBackground(Color.decode("#F1F5F9")); int selectedPopupIndex = popupClickableItems.indexOf(p);
-updatePopupSelection(); } 
+            @Override public void mouseEntered(MouseEvent e) {
+                selectedPopupIndex = popupClickableItems.indexOf(p);
+                updatePopupSelection();
+            } 
             @Override public void mouseExited(MouseEvent e) { p.setBackground(Color.WHITE); } 
             @Override public void mouseClicked(MouseEvent e) { openChatWithStranger(u); }
         });
@@ -905,8 +906,10 @@ updatePopupSelection(); }
         }
 
         p.addMouseListener(new MouseAdapter() { 
-            @Override public void mouseEntered(MouseEvent e) { p.setBackground(Color.decode("#F1F5F9")); int selectedPopupIndex = popupClickableItems.indexOf(p);
-updatePopupSelection(); } 
+            @Override public void mouseEntered(MouseEvent e) {
+                selectedPopupIndex = popupClickableItems.indexOf(p);
+                updatePopupSelection();
+            } 
             @Override public void mouseExited(MouseEvent e) { p.setBackground(Color.WHITE); } 
             @Override public void mouseClicked(MouseEvent e) { openChatWith(c); }
         });

@@ -6,17 +6,20 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.AffineTransform;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class GlobalSearchBar extends JPanel {
 
     private final JTextField searchField;
     private final ThumbnailPane thumbnailPane;
-    private final SearchSuggestionsPopup suggestionsPopup;
     private SearchHighlight currentHighlight;
+    private final List<Consumer<String>> queryChangeListeners = new ArrayList<>();
+    private final List<Consumer<String>> submitListeners = new ArrayList<>();
+    private final List<Consumer<Boolean>> focusChangeListeners = new ArrayList<>();
     
     private boolean isFocused = false;
     private boolean isHovered = false;
@@ -64,7 +67,7 @@ public class GlobalSearchBar extends JPanel {
 
         // 2. Search Field (Middle)
         searchField = new JTextField();
-        searchField.putClientProperty("JTextField.placeholderText", "Tìm kiếm");
+        searchField.putClientProperty("JTextField.placeholderText", "Tìm kiếm trong TutorHub...");
         searchField.putClientProperty("JTextField.showClearButton", true);
         searchField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         searchField.setForeground(new Color(0x111827));
@@ -77,16 +80,12 @@ public class GlobalSearchBar extends JPanel {
             @Override
             public void focusGained(FocusEvent e) {
                 isFocused = true;
-                if (!searchField.getText().isEmpty()) {
-                    suggestionsPopup.update(searchField.getText());
-                }
+                notifyFocusChanged(true);
             }
             @Override
             public void focusLost(FocusEvent e) {
                 isFocused = false;
-                Timer hideTimer = new Timer(150, evt -> suggestionsPopup.hide());
-                hideTimer.setRepeats(false);
-                hideTimer.start();
+                notifyFocusChanged(false);
             }
         });
         add(searchField);
@@ -184,8 +183,6 @@ public class GlobalSearchBar extends JPanel {
         });
         rotationTimer.start();
 
-        // 4. Suggestions Popup
-        suggestionsPopup = new SearchSuggestionsPopup(this);
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) { updatePopup(); }
             @Override public void removeUpdate(DocumentEvent e) { updatePopup(); }
@@ -193,21 +190,12 @@ public class GlobalSearchBar extends JPanel {
             private void updatePopup() {
                 String text = searchField.getText();
                 thumbnailPane.fade(text.isEmpty());
-                if (isFocused && isExpanded) {
-                    suggestionsPopup.update(text);
-                }
+                notifyQueryChanged(text);
             }
         });
 
-        suggestionsPopup.setOnSelect(text -> {
-            System.out.println("Selected: " + text);
-        });
-        
-        addHierarchyBoundsListener(new HierarchyBoundsAdapter() {
-            @Override
-            public void ancestorMoved(HierarchyEvent e) {
-                suggestionsPopup.hide();
-            }
+        searchField.addActionListener(e -> {
+            notifySubmitted(searchField.getText());
         });
 
         // Global AWT listener to detect outside clicks and collapse
@@ -217,18 +205,7 @@ public class GlobalSearchBar extends JPanel {
                 if (me.getID() == MouseEvent.MOUSE_PRESSED) {
                     Component clickedComponent = me.getComponent();
                     if (clickedComponent != null) {
-                        // Ignore if clicking on the popup component if it exists
-                        Component popupComp = null;
-                        try {
-                            if (suggestionsPopup != null) {
-                                java.lang.reflect.Method m = suggestionsPopup.getClass().getDeclaredMethod("getPopupComponent");
-                                m.setAccessible(true);
-                                popupComp = (Component) m.invoke(suggestionsPopup);
-                            }
-                        } catch (Exception ex) {}
-
-                        if (!SwingUtilities.isDescendingFrom(clickedComponent, GlobalSearchBar.this)
-                                && (popupComp == null || !SwingUtilities.isDescendingFrom(clickedComponent, popupComp))) {
+                        if (!SwingUtilities.isDescendingFrom(clickedComponent, GlobalSearchBar.this)) {
                             // Clicked outside!
                             if (isExpanded) {
                                 // Clear focus but do NOT collapse
@@ -250,6 +227,46 @@ public class GlobalSearchBar extends JPanel {
     
     public JTextField getField() {
         return searchField;
+    }
+
+    public JTextField getSearchField() {
+        return searchField;
+    }
+
+    public void addQueryChangeListener(Consumer<String> listener) {
+        if (listener != null) {
+            queryChangeListeners.add(listener);
+        }
+    }
+
+    public void addSubmitListener(Consumer<String> listener) {
+        if (listener != null) {
+            submitListeners.add(listener);
+        }
+    }
+
+    public void addFocusChangeListener(Consumer<Boolean> listener) {
+        if (listener != null) {
+            focusChangeListeners.add(listener);
+        }
+    }
+
+    private void notifyQueryChanged(String query) {
+        for (Consumer<String> listener : queryChangeListeners) {
+            listener.accept(query);
+        }
+    }
+
+    private void notifySubmitted(String query) {
+        for (Consumer<String> listener : submitListeners) {
+            listener.accept(query);
+        }
+    }
+
+    private void notifyFocusChanged(boolean focused) {
+        for (Consumer<Boolean> listener : focusChangeListeners) {
+            listener.accept(focused);
+        }
     }
 
     private Color blendColor(Color c1, Color c2, float ratio) {
