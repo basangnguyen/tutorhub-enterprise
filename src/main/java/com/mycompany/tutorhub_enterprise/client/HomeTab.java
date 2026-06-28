@@ -938,10 +938,18 @@ public class HomeTab extends JPanel {
         if (displayList.isEmpty()) { 
             classGridPanel.setLayout(new BorderLayout()); classGridPanel.add(emptyStatePanel, BorderLayout.CENTER); 
         } else { 
-            if (isGridView) {
-                // ĐÃ CHỈNH SỬA: Đổi sang 5 cột và giảm khoảng cách (gap) xuống 16px
-                classGridPanel.setLayout(new GridLayout(0, 5, 16, 16)); 
-                for (ClassModel m : displayList) classGridPanel.add(createCompactGridCard(m)); 
+          if (isGridView) {
+                classGridPanel.setLayout(new GridLayout(0, 5, 20, 20));
+                ClassCardActions cardActions = new ClassCardActions() {
+                    @Override public void onAccept(ClassModel m) {
+                        showClassDetailModal(m.id, m.subj, m.sal, m.addr,
+                            m.time, m.req, m.tagText, m.tagColor, m);
+                    }
+                    @Override public void onToggleSaved(ClassModel m) {
+                        applyFilterAndSort();
+                    }
+                };
+                for (ClassModel m : displayList) classGridPanel.add(new ClassCardPanel(m, cardActions));
             } else {
                 classGridPanel.setLayout(new BoxLayout(classGridPanel, BoxLayout.Y_AXIS));
                 for (ClassModel m : displayList) { classGridPanel.add(createListCard(m)); classGridPanel.add(Box.createVerticalStrut(12)); }
@@ -1138,4 +1146,299 @@ public class HomeTab extends JPanel {
         @Override public boolean getScrollableTracksViewportWidth() { return true; } 
         @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
+    // =========================================================
+    //  INTERFACE: ClassCardActions
+    //  Callback để ClassCardPanel gọi ngược về HomeTab
+    // =========================================================
+    interface ClassCardActions {
+        void onAccept(ClassModel model);
+        void onToggleSaved(ClassModel model);
+    }
+
+    // =========================================================
+    //  INNER CLASS: ClassCardPanel
+    //  Card lớp học hiện đại – tinh thần ClassIn, pure Swing
+    // =========================================================
+    class ClassCardPanel extends JPanel {
+
+        // ---- Hằng số thiết kế ----
+        private static final int CARD_ARC   = 20;   // bo góc card (px)
+        private static final int COVER_H    = 132;  // chiều cao ảnh cover (px)
+        private static final int SHADOW_PAD = 12;   // khoảng trống dưới để shadow không bị cắt
+
+        // ---- State ----
+        private final ClassModel       model;
+        private final ClassCardActions actions;
+        private boolean hovered = false;
+
+        // Giữ tham chiếu để syncHeartButton() / syncAcceptButton() refresh không rebuild
+        private RoundedButton btnHeart;
+        private RoundedButton btnAccept;
+
+        // ---- Constructor ----
+        ClassCardPanel(ClassModel model, ClassCardActions actions) {
+            this.model   = model;
+            this.actions = actions;
+            setLayout(new BorderLayout());
+            setOpaque(false);
+            // Padding dưới dành cho shadow (không cắt bóng)
+            setBorder(new EmptyBorder(0, 0, SHADOW_PAD, 0));
+            buildUI();
+            installHover();
+        }
+
+        // =========================================================
+        //  PAINT: shadow / background / border / clip rounded
+        //  Dùng đúng pattern của code hiện tại (override paint,
+        //  clip g2 rồi gọi super.paint(g2) để children bị clip theo)
+        // =========================================================
+        @Override
+        public void paint(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,  RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING,     RenderingHints.VALUE_RENDER_QUALITY);
+
+            int arc = CARD_ARC;
+            int w   = getWidth();
+            int h   = getHeight() - SHADOW_PAD; // chiều cao visible (bỏ phần shadow)
+
+            // ---- Shadow (layered alpha – nhẹ, không đen) ----
+            if (hovered) {
+                // Hover: shadow xanh nhạt + nâng card 2px
+                g2.setColor(new Color(59, 130, 246, 9));
+                g2.fillRoundRect(3, 8, w - 6, h, arc, arc);
+                g2.setColor(new Color(0, 0, 0, 8));
+                g2.fillRoundRect(2, 5, w - 4, h, arc, arc);
+                g2.setColor(new Color(0, 0, 0, 4));
+                g2.fillRoundRect(1, 3, w - 2, h, arc, arc);
+                g2.translate(0, -2); // lift effect 2px
+            } else {
+                g2.setColor(new Color(0, 0, 0, 6));
+                g2.fillRoundRect(2, 4, w - 4, h, arc, arc);
+                g2.setColor(new Color(0, 0, 0, 3));
+                g2.fillRoundRect(1, 2, w - 2, h, arc, arc);
+            }
+
+            // ---- Background card ----
+            g2.setColor(CARD_BG);
+            g2.fillRoundRect(0, 0, w - 1, h - 1, arc, arc);
+
+            // ---- Border (xanh khi hover, xám nhạt khi thường) ----
+            g2.setColor(hovered ? Color.decode("#BFDBFE") : BORDER);
+            g2.setStroke(new BasicStroke(hovered ? 1.5f : 1.0f));
+            g2.drawRoundRect(0, 0, w - 1, h - 1, arc, arc);
+
+            // ---- Clip toàn bộ children vào hình rounded rect ----
+            Shape savedClip = g2.getClip();
+            g2.setClip(new java.awt.geom.RoundRectangle2D.Double(0, 0, w, h, arc, arc));
+            super.paint(g2);
+            g2.setClip(savedClip);
+            g2.dispose();
+        }
+
+        // =========================================================
+        //  BUILD UI
+        // =========================================================
+        private void buildUI() {
+            add(buildCover(),  BorderLayout.NORTH);
+            add(buildBody(),   BorderLayout.CENTER);
+            add(buildFooter(), BorderLayout.SOUTH);
+        }
+
+        /** Ảnh cover + badge overlay có padding và bo góc */
+        private JPanel buildCover() {
+            JPanel wrapper = new JPanel(new BorderLayout());
+            wrapper.setOpaque(false);
+            // Thêm khoảng hở: 10px trên, trái, phải
+            wrapper.setBorder(new EmptyBorder(10, 10, 0, 10));
+
+            ImageHeaderPanel cover = new ImageHeaderPanel(
+                getSubjectImagePath(model.subj),
+                Color.decode("#1F2937"),
+                Color.decode("#475569")
+            );
+            // Giữ nguyên chiều cao cover hoặc giảm nhẹ để bù padding
+            cover.setPreferredSize(new Dimension(0, COVER_H - 8));
+            // Bo góc mượt mà cho chính bức ảnh
+            cover.putClientProperty("JComponent.arc", 16);
+            cover.setLayout(new BorderLayout());
+
+            // Badge row đặt lên trên ảnh
+            JPanel badgeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 8));
+            badgeRow.setOpaque(false);
+
+            // Badge môn học
+            badgeRow.add(new TagBadge(model.tagText, model.tagColor, "#FFFFFF"));
+
+            // Badge trạng thái lớp
+            if (model.isTaken) {
+                badgeRow.add(new TagBadge("Đã chốt", "#FEE2E2", "#DC2626"));
+            } else {
+                badgeRow.add(new TagBadge("Còn lớp", "#DCFCE7", "#059669"));
+            }
+
+            cover.add(badgeRow, BorderLayout.NORTH);
+            wrapper.add(cover, BorderLayout.CENTER);
+            return wrapper;
+        }
+
+        /** Phần nội dung văn bản dưới ảnh */
+        private JPanel buildBody() {
+            JPanel body = new JPanel();
+            body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+            body.setOpaque(false);
+            body.setBorder(new EmptyBorder(12, 14, 6, 14));
+
+            // ── Tên môn / lớp ──
+            JLabel titleLbl = new JLabel(
+                "<html><div style='width:180px; line-height:1.35;'>" + model.subj + "</div></html>");
+            titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            titleLbl.setForeground(Color.decode("#0F172A"));
+            titleLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+            body.add(titleLbl);
+            body.add(Box.createVerticalStrut(12));
+
+            // ── Địa chỉ ──
+            body.add(mkRow(
+                "https://img.icons8.com/fluency/48/marker.png",
+                truncate(model.addr, 22), Color.decode("#475569"), 12, false));
+            body.add(Box.createVerticalStrut(6));
+
+            // ── Lương (nổi bật) ──
+            body.add(mkSalRow(model.sal));
+            body.add(Box.createVerticalStrut(6));
+
+            // ── Lịch học ──
+            body.add(mkRow(
+                "https://img.icons8.com/fluency/48/clock.png",
+                truncate(model.time, 22), Color.decode("#475569"), 12, false));
+            body.add(Box.createVerticalStrut(5));
+
+            // ── Yêu cầu ──
+            body.add(mkRow(
+                "https://img.icons8.com/fluency/48/note.png",
+                truncate(model.req, 22), Color.decode("#64748B"), 12, false));
+
+            return body;
+        }
+
+        /** Footer: nút tim (trái) + nút Nhận lớp (phải) */
+        private JPanel buildFooter() {
+            JPanel footer = new JPanel(new BorderLayout(10, 0));
+            footer.setOpaque(false);
+            footer.setBorder(new EmptyBorder(6, 14, 14, 14));
+
+            // ── Nút tim ──
+            btnHeart = new RoundedButton("", 10);
+            // EmptyBorder nhỏ hơn default để icon không bị chèn ép
+            btnHeart.setBorder(new EmptyBorder(4, 8, 4, 8));
+            btnHeart.setPreferredSize(new Dimension(36, 34));
+            syncHeartButton();
+            btnHeart.addActionListener(e -> {
+                model.isSaved = !model.isSaved;
+                syncHeartButton();
+                if (actions != null) actions.onToggleSaved(model);
+            });
+
+            // ── Nút Nhận lớp ──
+            btnAccept = new RoundedButton(model.isTaken ? "Đã nhận" : "Nhận lớp", 12);
+            btnAccept.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            syncAcceptButton();
+            if (!model.isTaken) {
+                btnAccept.addActionListener(e -> {
+                    if (actions != null) actions.onAccept(model);
+                });
+            }
+
+            footer.add(btnHeart,  BorderLayout.WEST);
+            footer.add(btnAccept, BorderLayout.CENTER);
+            return footer;
+        }
+
+        // =========================================================
+        //  SYNC HELPERS – refresh trạng thái button mà không rebuild card
+        // =========================================================
+        private void syncHeartButton() {
+            if (btnHeart == null) return;
+            if (model.isSaved) {
+                setNetworkIcon(btnHeart,
+                    "https://img.icons8.com/fluency/48/like.png", 16, 16);
+                btnHeart.setBackground(Color.decode("#FFF1F2"));
+                btnHeart.setBorderColor(Color.decode("#FECACA"));
+            } else {
+                setNetworkIcon(btnHeart,
+                    "https://img.icons8.com/fluency-systems-regular/48/94a3b8/like--v1.png", 16, 16);
+                btnHeart.setBackground(Color.WHITE);
+                btnHeart.setBorderColor(BORDER);
+            }
+            btnHeart.repaint();
+        }
+
+        private void syncAcceptButton() {
+            if (btnAccept == null) return;
+            if (model.isTaken) {
+                btnAccept.setBackground(Color.decode("#F1F5F9"));
+                btnAccept.setForeground(MUTED);
+                btnAccept.setBorderColor(Color.decode("#E2E8F0"));
+            } else {
+                btnAccept.setBackground(PRIMARY);
+                btnAccept.setForeground(Color.WHITE);
+                btnAccept.setBorderColor(PRIMARY);
+            }
+            btnAccept.repaint();
+        }
+
+        // =========================================================
+        //  ROW BUILDERS
+        // =========================================================
+        /** Icon (URL async) + text, dùng icon 16×16 cho card nhỏ */
+        private JPanel mkRow(String iconUrl, String text,
+                             Color textColor, int fontSize, boolean bold) {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            row.setOpaque(false);
+            row.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel iconLbl = new JLabel();
+            setNetworkIcon(iconLbl, iconUrl, 16, 16);   // dùng iconCache từ HomeTab
+            JLabel txtLbl  = new JLabel(text);
+            txtLbl.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, fontSize));
+            txtLbl.setForeground(textColor);
+            row.add(iconLbl);
+            row.add(txtLbl);
+            return row;
+        }
+
+        /** Dòng lương – icon xanh, chữ bold, size 14 */
+        private JPanel mkSalRow(String sal) {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            row.setOpaque(false);
+            row.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel iconLbl = new JLabel();
+            setNetworkIcon(iconLbl,
+                "https://img.icons8.com/fluency/48/money-bag.png", 16, 16);
+            JLabel salLbl  = new JLabel(sal);
+            salLbl.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            salLbl.setForeground(Color.decode("#059669"));
+            row.add(iconLbl);
+            row.add(salLbl);
+            return row;
+        }
+
+        // =========================================================
+        //  HOVER
+        // =========================================================
+        private void installHover() {
+            addMouseListener(new MouseAdapter() {
+                @Override public void mouseEntered(MouseEvent e) {
+                    hovered = true;
+                    setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    repaint();
+                }
+                @Override public void mouseExited(MouseEvent e) {
+                    hovered = false;
+                    setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+                    repaint();
+                }
+            });
+        }
+    } // end ClassCardPanel
 }

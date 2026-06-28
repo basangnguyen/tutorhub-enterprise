@@ -368,7 +368,7 @@ public class MainDashboard extends JFrame {
         menuPanel.setBorder(new EmptyBorder(15, 0, 0, 0));
 
         // Theo thứ tự menu hình mẫu
-        menuPanel.add(createMenuItem("Bảng tin", "home.png", "Home", 0)); 
+        menuPanel.add(createMenuItem("Bảng tin", "home_minus_icon_rounded.svg", "Home", 0)); 
         menuPanel.add(createMenuItem("Reels", "reel.svg", "Reels", 0));
         msgMenuItem = createMenuItem("Tin nhắn", "lucide-message-circle.svg", "Chat", 0); 
         menuPanel.add(msgMenuItem); 
@@ -533,17 +533,22 @@ public class MainDashboard extends JFrame {
                     }
                 } catch (Exception e) {}
             }
-            Color iconColor = active ? Color.decode("#F43F5E") : Color.decode("#475569");
+            final Color finalIconColor;
+            if ("home_minus_icon_rounded.svg".equals(name)) {
+                finalIconColor = Color.decode("#F43F5E");
+            } else {
+                finalIconColor = active ? Color.decode("#F43F5E") : Color.decode("#475569");
+            }
             try {
                 String cleanName = name.replace(".svg", "");
                 com.formdev.flatlaf.extras.FlatSVGIcon svgIc = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/" + cleanName + ".svg", 18, 18);
-                svgIc.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> iconColor));
+                svgIc.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> finalIconColor));
                 label.setIcon(svgIc);
             } catch(Exception ex) {
                 try {
                     String cleanName = name.replace(".svg", "");
                     com.formdev.flatlaf.extras.FlatSVGIcon svgIc2 = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon_svg/" + cleanName + ".svg", 18, 18);
-                    svgIc2.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> iconColor));
+                    svgIc2.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> finalIconColor));
                     label.setIcon(svgIc2);
                 } catch(Exception ex2) {
                     String colorHex = active ? "F43F5E" : "475569";

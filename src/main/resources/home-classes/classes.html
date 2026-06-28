@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TutorHub - Lớp học nổi bật</title>
+<link rel="stylesheet" href="classes.css" />
+</head>
+<body>
+  <!--
+    Toàn bộ vùng "Lớp học nổi bật" được render ở đây bởi classes.js.
+    Java (HomeTab.java) gọi window.TutorHubClasses.updateData(jsonOrArray, view)
+    để đẩy danh sách classModels đã filter/sort xuống render.
+  -->
+  <div id="classGrid" class="cards-grid" hidden></div>
+
+  <div id="emptyState" class="empty-state" hidden>
+    <div class="empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+        <rect x="10" y="24" width="44" height="28" rx="6" stroke="#CBD5E1" stroke-width="2.5"/>
+        <path d="M10 30 L32 16 L54 30" stroke="#CBD5E1" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+        <circle cx="32" cy="38" r="5" stroke="#CBD5E1" stroke-width="2.5"/>
+      </svg>
+    </div>
+    <div class="empty-title">Không tìm thấy lớp học phù hợp</div>
+    <div class="empty-sub">Hãy thử thay đổi bộ lọc hoặc bỏ chọn bớt tiêu chí để xem nhiều lớp hơn.</div>
+  </div>
+
+  <script src="classes.js"></script>
+</body>
+</html>

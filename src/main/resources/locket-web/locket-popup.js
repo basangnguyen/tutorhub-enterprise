@@ -6,6 +6,10 @@
   var mode = "viewer"; // "viewer" | "cameraPreview" | "draft"
   var slideshowTimer = null;
   var uploadBusy = false;
+  var isCommentsOpen = false;
+  var currentComments = [];
+  var cUserName = "Bạn";
+  var cUserAvatar = "";
 
   /* ===== UTILS ===== */
   function $(id) { return document.getElementById(id); }
@@ -400,6 +404,73 @@
     setStatus("Đã gửi cảm xúc.", "success");
   }
 
+  /* ===== COMMENTS ===== */
+  function toggleComments() {
+    isCommentsOpen = !isCommentsOpen;
+    var shell = $("locketShell");
+    if (shell) {
+      shell.className = isCommentsOpen ? "locket-shell show-comments" : "locket-shell";
+    }
+    if (isCommentsOpen) {
+      requestComments();
+    }
+  }
+
+  function requestComments() {
+    var post = getCurrentPost();
+    if (!post) return;
+    var list = $("commentList");
+    if (list) {
+      list.innerHTML = '<div class="empty-comments">Đang tải...</div>';
+    }
+    emit("LOCKET_COMMENT_OPEN", { postId: post.id });
+  }
+
+  function submitComment() {
+    var cInput = $("commentInput");
+    if (!cInput) return;
+    var text = (cInput.value || "").trim();
+    if (!text) return;
+    var post = getCurrentPost();
+    if (!post) return;
+    
+    emit("LOCKET_COMMENT_CREATE", { postId: post.id, text: text });
+    cInput.value = "";
+  }
+
+  function renderCommentList() {
+    var list = $("commentList");
+    if (!list) return;
+    
+    if (!currentComments || currentComments.length === 0) {
+      list.innerHTML = '<div class="empty-comments">Chưa có bình luận nào.</div>';
+      return;
+    }
+    
+    var html = "";
+    for (var i = 0; i < currentComments.length; i++) {
+      var c = currentComments[i];
+      var avatarContent = c.authorAvatar 
+        ? "" 
+        : escapeHtml(c.authorInitials || initials(c.authorName || "TH"));
+      var avatarStyle = c.authorAvatar 
+        ? " style=\"background-image:url('data:image/png;base64," + cssUrl(c.authorAvatar) + "');background-size:cover;\"" 
+        : "";
+        
+      html += '<div class="comment-item">'
+           +  '  <div class="comment-avatar"' + avatarStyle + '>' + avatarContent + '</div>'
+           +  '  <div class="comment-content">'
+           +  '    <div class="comment-author">' + escapeHtml(c.authorName || "TutorHub") + '</div>'
+           +  '    <div class="comment-text">' + escapeHtml(c.text || "") + '</div>'
+           +  '    <div class="comment-time">' + escapeHtml(c.timeText || "Vừa xong") + '</div>'
+           +  '  </div>'
+           +  '</div>';
+    }
+    
+    list.innerHTML = html;
+    list.scrollTop = list.scrollHeight;
+  }
+
   /* ===== WIRE EVENTS ===== */
   function wire() {
     $("createPostButton").onclick = function () {
@@ -421,7 +492,7 @@
       setStatus("Tùy chọn nâng cao sẽ được bổ sung sau.", "");
     };
     $("messageButton").onclick = function () {
-      emit("LOCKET_MESSAGE_OPEN", {});
+      toggleComments();
     };
 
     var reactionBtns = document.getElementsByClassName("reaction");
@@ -430,6 +501,15 @@
         react(this.getAttribute("data-reaction") || "HEART");
       };
     }
+    
+    var closeBtn = $("closeCommentButton");
+    if (closeBtn) closeBtn.onclick = function() { toggleComments(); };
+    
+    var sendBtn = $("sendCommentButton");
+    if (sendBtn) sendBtn.onclick = submitComment;
+    
+    var cInput = $("commentInput");
+    if (cInput) cInput.onkeypress = function(e) { if (e.key === 'Enter') submitComment(); };
   }
 
   /* ===== PUBLIC API (called from Java) ===== */
@@ -461,14 +541,41 @@
         }
       }
     },
-    setState: function (state) {
-      var safeState = state || {};
-      posts = normalizeItems(safeState.items);
-      currentIndex = num(safeState.startIndex, 0);
-      window.tutorhubState = safeState;
+    setState: function (stateObj) {
+      if (!stateObj) return;
+      posts = normalizeItems(stateObj.items);
+      currentIndex = num(stateObj.startIndex, 0);
+      window.tutorhubState = stateObj;
       if (currentIndex < 0 || currentIndex >= posts.length) currentIndex = 0;
+      
+      if (stateObj.openComments) {
+        isCommentsOpen = true;
+        $("locketShell").className = "locket-shell show-comments";
+        requestComments();
+      }
+      
       mode = "viewer";
       render();
+    },
+    updateComments: function(commentsBase64) {
+      try {
+        var jsonStr = decodeURIComponent(escape(window.atob(commentsBase64)));
+        currentComments = JSON.parse(jsonStr);
+        renderCommentList();
+      } catch(e) {}
+    },
+    addComment: function(commentBase64) {
+      try {
+        var jsonStr = decodeURIComponent(escape(window.atob(commentBase64)));
+        var c = JSON.parse(jsonStr);
+        currentComments.push(c);
+        renderCommentList();
+        var post = getCurrentPost();
+        if (post && post.id) {
+           post.commentCount++;
+           renderViewer();
+        }
+      } catch(e) {}
     },
     onPickedImage: function (dataUrl, fileName) {
       setUploadBusy(false);

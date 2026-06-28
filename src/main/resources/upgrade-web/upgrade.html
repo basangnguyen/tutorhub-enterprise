@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Nâng cấp — TutorHub</title>
+  <link rel="stylesheet" href="upgrade.css">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ════════════════════════════════════════════
+       HEADER
+  ════════════════════════════════════════════ -->
+  <header class="page-header">
+    <div class="header-inner">
+
+      <button class="btn-back" onclick="handleGoBack()" title="Quay lại" aria-label="Quay lại">
+        <!-- Arrow-left (Lucide-style) -->
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5M12 5l-7 7 7 7"/>
+        </svg>
+      </button>
+
+      <div class="header-text">
+        <span class="header-badge">
+          <!-- Sparkle icon -->
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+          </svg>
+          TutorHub Premium
+        </span>
+        <h1 class="header-title">Nâng cấp tài khoản</h1>
+        <p class="header-sub">Chọn gói phù hợp để trải nghiệm đầy đủ tính năng cao cấp của TutorHub</p>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="page-main">
+
+    <!-- ════════════════════════════════════════════
+         FEATURES BAR
+    ════════════════════════════════════════════ -->
+    <section class="features-bar" aria-label="Lợi ích chính">
+      <div class="feature-item">
+        <span class="feature-icon feature-icon--blue">
+          <!-- Clock icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </span>
+        <div class="feature-text">
+          <span class="feature-title">Tiết kiệm thời gian</span>
+          <span class="feature-desc">Quản lý lớp học hiệu quả</span>
+        </div>
+      </div>
+
+      <div class="feature-divider" aria-hidden="true"></div>
+
+      <div class="feature-item">
+        <span class="feature-icon feature-icon--green">
+          <!-- TrendingUp icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+        </span>
+        <div class="feature-text">
+          <span class="feature-title">Tăng thu nhập</span>
+          <span class="feature-desc">Nhận nhiều lớp phù hợp</span>
+        </div>
+      </div>
+
+      <div class="feature-divider" aria-hidden="true"></div>
+
+      <div class="feature-item">
+        <span class="feature-icon feature-icon--amber">
+          <!-- Star icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </span>
+        <div class="feature-text">
+          <span class="feature-title">Ưu tiên hiển thị</span>
+          <span class="feature-desc">Tìm kiếm dễ dàng hơn</span>
+        </div>
+      </div>
+
+      <div class="feature-divider" aria-hidden="true"></div>
+
+      <div class="feature-item">
+        <span class="feature-icon feature-icon--purple">
+          <!-- Headphones icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+          </svg>
+        </span>
+        <div class="feature-text">
+          <span class="feature-title">Hỗ trợ 24/7</span>
+          <span class="feature-desc">Đội ngũ chuyên nghiệp</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         BILLING TOGGLE
+    ════════════════════════════════════════════ -->
+    <section class="billing-section">
+      <div class="billing-toggle" role="group" aria-label="Chu kỳ thanh toán">
+        <button
+          id="btn-monthly"
+          class="billing-btn billing-btn--active"
+          onclick="setBilling('monthly')"
+          aria-pressed="true">
+          Theo tháng
+        </button>
+        <button
+          id="btn-yearly"
+          class="billing-btn"
+          onclick="setBilling('yearly')"
+          aria-pressed="false">
+          Theo năm
+        </button>
+        <div class="billing-pill" id="billing-pill" aria-hidden="true"></div>
+      </div>
+      <span class="billing-save-badge" id="save-badge">Tiết kiệm 20%</span>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         PRICING CARDS
+    ════════════════════════════════════════════ -->
+    <section class="pricing-section" aria-label="Các gói cước">
+      <div class="pricing-grid">
+
+        <!-- ── Gói Miễn phí ── -->
+        <article class="card card--free"
+                 data-plan="free"
+                 data-monthly-amount="0"
+                 data-yearly-amount="0">
+          <div class="card-badge-placeholder" aria-hidden="true"></div>
+          <div class="card-header">
+            <h2 class="card-name">Miễn phí</h2>
+            <p class="card-desc">Dành cho gia sư mới bắt đầu</p>
+          </div>
+          <div class="card-price-wrap">
+            <span class="card-price" data-monthly="0đ" data-yearly="0đ">0đ</span>
+            <span class="card-period" data-monthly="/ tháng" data-yearly="/ tháng">&thinsp;/ tháng</span>
+          </div>
+          <ul class="feature-list">
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span>Nhận tối đa 3 lớp / tháng</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span>Tìm kiếm lớp học cơ bản</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span>Nhắn tin với phụ huynh</span>
+            </li>
+            <li class="feature-row feature-row--off">
+              <span class="check-icon check-icon--off" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </span>
+              <span>Ưu tiên hiển thị lớp học</span>
+            </li>
+            <li class="feature-row feature-row--off">
+              <span class="check-icon check-icon--off" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </span>
+              <span>Thống kê thu nhập chi tiết</span>
+            </li>
+            <li class="feature-row feature-row--off">
+              <span class="check-icon check-icon--off" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </span>
+              <span>Hỗ trợ ưu tiên</span>
+            </li>
+          </ul>
+          <button class="btn-cta btn-cta--ghost" disabled aria-disabled="true">
+            Gói hiện tại
+          </button>
+        </article>
+
+        <!-- ── Gói Basic ── -->
+        <article class="card card--basic"
+                 data-plan="basic"
+                 data-monthly-amount="59000"
+                 data-yearly-amount="566400">
+          <div class="card-badge-placeholder" aria-hidden="true"></div>
+          <div class="card-header">
+            <h2 class="card-name">Basic</h2>
+            <p class="card-desc">Mở rộng cơ hội nhận lớp</p>
+          </div>
+          <div class="card-price-wrap">
+            <span class="card-price" data-monthly="59.000đ" data-yearly="47.200đ">59.000đ</span>
+            <span class="card-period" data-monthly="/ tháng" data-yearly="/ tháng, thanh toán năm">&thinsp;/ tháng</span>
+          </div>
+          <ul class="feature-list">
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Nhận tối đa 15 lớp / tháng</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Tìm kiếm lớp học nâng cao</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Nhắn tin không giới hạn</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Ưu tiên hiển thị lớp học</span>
+            </li>
+            <li class="feature-row feature-row--off">
+              <span class="check-icon check-icon--off"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span>Thống kê thu nhập chi tiết</span>
+            </li>
+            <li class="feature-row feature-row--off">
+              <span class="check-icon check-icon--off"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span>Hỗ trợ ưu tiên</span>
+            </li>
+          </ul>
+          <button class="btn-cta btn-cta--basic"
+                  onclick="handleSelectPlan('basic')">
+            Nâng cấp Basic
+          </button>
+        </article>
+
+        <!-- ── Gói Premium (Popular) ── -->
+        <article class="card card--premium"
+                 data-plan="premium"
+                 data-monthly-amount="129000"
+                 data-yearly-amount="1238400">
+          <div class="popular-badge" role="note">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+            </svg>
+            Phổ biến nhất
+          </div>
+          <div class="card-header">
+            <h2 class="card-name card-name--premium">Premium</h2>
+            <p class="card-desc">Trải nghiệm toàn diện</p>
+          </div>
+          <div class="card-price-wrap">
+            <span class="card-price card-price--premium" data-monthly="129.000đ" data-yearly="103.200đ">129.000đ</span>
+            <span class="card-period" data-monthly="/ tháng" data-yearly="/ tháng, thanh toán năm">&thinsp;/ tháng</span>
+          </div>
+          <ul class="feature-list">
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--premium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Nhận không giới hạn lớp</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--premium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Tìm kiếm lớp học nâng cao</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--premium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Nhắn tin không giới hạn</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--premium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Ưu tiên hiển thị lớp học</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--premium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Thống kê thu nhập chi tiết</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--premium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Hỗ trợ ưu tiên 24/7</span>
+            </li>
+          </ul>
+          <button class="btn-cta btn-cta--premium"
+                  onclick="handleSelectPlan('premium')">
+            Nâng cấp Premium
+          </button>
+        </article>
+
+        <!-- ── Gói VIP ── -->
+        <article class="card card--vip"
+                 data-plan="vip"
+                 data-monthly-amount="249000"
+                 data-yearly-amount="2390400">
+          <div class="vip-badge" role="note">
+            <!-- Crown icon -->
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M2 20h20v2H2zM2 7l5 7 5-7 5 7 5-7v11H2z"/>
+            </svg>
+            Dành cho chuyên gia
+          </div>
+          <div class="card-header">
+            <h2 class="card-name card-name--vip">VIP</h2>
+            <p class="card-desc">Gia sư chuyên nghiệp hàng đầu</p>
+          </div>
+          <div class="card-price-wrap">
+            <span class="card-price card-price--vip" data-monthly="249.000đ" data-yearly="199.200đ">249.000đ</span>
+            <span class="card-period" data-monthly="/ tháng" data-yearly="/ tháng, thanh toán năm">&thinsp;/ tháng</span>
+          </div>
+          <ul class="feature-list">
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--vip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Nhận không giới hạn lớp</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--vip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Tìm kiếm lớp học nâng cao</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--vip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Nhắn tin không giới hạn</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--vip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Ưu tiên hiển thị Top (VIP)</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--vip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Thống kê thu nhập chi tiết</span>
+            </li>
+            <li class="feature-row feature-row--on">
+              <span class="check-icon check-icon--on check-icon--vip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span>Hỗ trợ riêng 1-1 chuyên biệt</span>
+            </li>
+          </ul>
+          <button class="btn-cta btn-cta--vip"
+                  onclick="handleSelectPlan('vip')">
+            Nâng cấp VIP
+          </button>
+        </article>
+
+      </div><!-- /pricing-grid -->
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         FOOTER GUARANTEES
+    ════════════════════════════════════════════ -->
+    <section class="guarantees-section" aria-label="Cam kết dịch vụ">
+      <div class="guarantee-item">
+        <span class="guarantee-icon">
+          <!-- Shield-check -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+        </span>
+        <div class="guarantee-text">
+          <span class="guarantee-title">Thanh toán an toàn</span>
+          <span class="guarantee-desc">Thông tin của bạn được mã hoá và bảo mật tuyệt đối</span>
+        </div>
+      </div>
+
+      <div class="guarantee-divider" aria-hidden="true"></div>
+
+      <div class="guarantee-item">
+        <span class="guarantee-icon">
+          <!-- RotateCCW -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 2v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/>
+          </svg>
+        </span>
+        <div class="guarantee-text">
+          <span class="guarantee-title">Hủy bất kỳ lúc nào</span>
+          <span class="guarantee-desc">Nâng cấp hoặc hủy gói mà không có phí ẩn</span>
+        </div>
+      </div>
+
+      <div class="guarantee-divider" aria-hidden="true"></div>
+
+      <div class="guarantee-item">
+        <span class="guarantee-icon">
+          <!-- DollarSign -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </span>
+        <div class="guarantee-text">
+          <span class="guarantee-title">Hoàn tiền 100%</span>
+          <span class="guarantee-desc">Không hài lòng trong 7 ngày? Hoàn tiền không điều kiện</span>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- /page-main -->
+</div><!-- /page -->
+
+<script src="upgrade.js"></script>
+</body>
+</html>

@@ -60,6 +60,8 @@ public class LocketWebPopupDialog extends JDialog {
         return thread;
     });
 
+    private final boolean openComments;
+
     private WebEngine webEngine;
     private Webcam webcam;
     private Thread cameraThread;
@@ -69,7 +71,7 @@ public class LocketWebPopupDialog extends JDialog {
     private String selectedImageName = "locket.jpg";
 
     public LocketWebPopupDialog(Frame parent) {
-        this(parent, new ArrayList<>(), 0, null, null);
+        this(parent, new ArrayList<>(), 0, null, null, false);
     }
 
     public LocketWebPopupDialog(
@@ -79,11 +81,23 @@ public class LocketWebPopupDialog extends JDialog {
             Runnable refreshCallback,
             Runnable messageCallback
     ) {
+        this(parent, items, startIndex, refreshCallback, messageCallback, false);
+    }
+
+    public LocketWebPopupDialog(
+            Frame parent,
+            List<HomeLocketItem> items,
+            int startIndex,
+            Runnable refreshCallback,
+            Runnable messageCallback,
+            boolean openComments
+    ) {
         super(parent, "TutorHub Locket", true);
         this.locketItems = items == null ? new ArrayList<>() : new ArrayList<>(items);
         this.initialIndex = Math.max(0, startIndex);
         this.refreshCallback = refreshCallback;
         this.messageCallback = messageCallback;
+        this.openComments = openComments;
 
         setMinimumSize(new Dimension(880, 600));
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -120,6 +134,22 @@ public class LocketWebPopupDialog extends JDialog {
         LocketWebPopupDialog instance = activeInstance;
         if (instance != null) {
             instance.notifyUploadError(msg == null ? "Khong dang duoc anh." : msg);
+        }
+    }
+
+    public static void passCommentsList(String payload) {
+        LocketWebPopupDialog instance = activeInstance;
+        if (instance != null) {
+            String b64 = Base64.getEncoder().encodeToString(payload.getBytes());
+            instance.executePopupScript("updateComments", b64);
+        }
+    }
+
+    public static void passNewComment(String payload) {
+        LocketWebPopupDialog instance = activeInstance;
+        if (instance != null) {
+            String b64 = Base64.getEncoder().encodeToString(payload.getBytes());
+            instance.executePopupScript("addComment", b64);
         }
     }
 
@@ -182,6 +212,7 @@ public class LocketWebPopupDialog extends JDialog {
         state.put("startIndex", Math.min(initialIndex, Math.max(0, locketItems.size() - 1)));
         state.put("currentUserName", com.mycompany.tutorhub_enterprise.client.MainDashboard.currentStaticUserName);
         state.put("currentUserAvatarBase64", com.mycompany.tutorhub_enterprise.client.MainDashboard.currentStaticUserAvatarBase64);
+        state.put("openComments", openComments);
         executePopupScript("setState", state);
     }
 
@@ -481,6 +512,54 @@ public class LocketWebPopupDialog extends JDialog {
         }
     }
 
+    private void handleLocketCommentOpen(String payloadJson) {
+        try {
+            JsonObject json = JsonParser.parseString(payloadJson == null ? "{}" : payloadJson).getAsJsonObject();
+            if (json.has("id")) {
+                String rawId = json.get("id").getAsString();
+                if (rawId.startsWith("locket-")) {
+                    executePopupScript("updateComments", Base64.getEncoder().encodeToString("[]".getBytes()));
+                    return;
+                }
+                long postId = Long.parseLong(rawId);
+                JsonObject reqPayload = new JsonObject();
+                reqPayload.addProperty("postId", postId);
+                reqPayload.addProperty("limit", 20);
+                NetworkManager.getInstance().sendPacket(new Packet("LOCKET_COMMENT_LIST", reqPayload.toString()));
+            }
+        } catch (Exception e) {
+            System.err.println("[LOCKET_POPUP] Error in LOCKET_COMMENT_OPEN: " + e.getMessage());
+        }
+    }
+
+    private void handleLocketCommentCreate(String payloadJson) {
+        try {
+            JsonObject json = JsonParser.parseString(payloadJson == null ? "{}" : payloadJson).getAsJsonObject();
+            if (json.has("id") && json.has("content")) {
+                String rawId = json.get("id").getAsString();
+                String content = json.get("content").getAsString();
+                if (rawId.startsWith("locket-")) {
+                    // Mock comment for local test
+                    JsonObject mockComment = new JsonObject();
+                    mockComment.addProperty("id", System.currentTimeMillis());
+                    mockComment.addProperty("authorName", com.mycompany.tutorhub_enterprise.client.MainDashboard.currentStaticUserName);
+                    mockComment.addProperty("authorAvatar", com.mycompany.tutorhub_enterprise.client.MainDashboard.currentStaticUserAvatarBase64);
+                    mockComment.addProperty("content", content);
+                    mockComment.addProperty("timeAgo", "Vừa xong");
+                    executePopupScript("addComment", Base64.getEncoder().encodeToString(mockComment.toString().getBytes()));
+                    return;
+                }
+                long postId = Long.parseLong(rawId);
+                JsonObject reqPayload = new JsonObject();
+                reqPayload.addProperty("postId", postId);
+                reqPayload.addProperty("content", content);
+                NetworkManager.getInstance().sendPacket(new Packet("LOCKET_COMMENT_CREATE", reqPayload.toString()));
+            }
+        } catch (Exception e) {
+            System.err.println("[LOCKET_POPUP] Error in LOCKET_COMMENT_CREATE: " + e.getMessage());
+        }
+    }
+
     public class LocketBridge {
         public void onEvent(String type, String payloadJson) {
             String eventType = type == null ? "" : type;
@@ -514,6 +593,12 @@ public class LocketWebPopupDialog extends JDialog {
                     break;
                 case "LOCKET_REACTION":
                     reactToCurrentPost(payload);
+                    break;
+                case "LOCKET_COMMENT_OPEN":
+                    handleLocketCommentOpen(payload);
+                    break;
+                case "LOCKET_COMMENT_CREATE":
+                    handleLocketCommentCreate(payload);
                     break;
                 case "LOCKET_CLOSE":
                     disposeDialog();
