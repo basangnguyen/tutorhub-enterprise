@@ -712,6 +712,15 @@ public class MainDashboard extends JFrame {
         profileTab.setAvatarUpdateListener(newAvatar -> {
             if (headerPanel != null) headerPanel.updateAvatar(newAvatar);
         });
+
+        byte[] cachedAvatar = AvatarCache.loadAvatar(String.valueOf(this.currentUserId));
+        if (cachedAvatar != null) {
+            try {
+                java.awt.Image rawImg = new javax.swing.ImageIcon(cachedAvatar).getImage();
+                if (headerPanel != null) headerPanel.updateAvatar(rawImg);
+                profileTab.updateAvatarFromBase64(java.util.Base64.getEncoder().encodeToString(cachedAvatar));
+            } catch (Exception ex) {}
+        }
         
         todoTab = new TodoListTab();
         todoTab.setOnBackListener(() -> { if (!menuItems.isEmpty()) { switchTab(menuItems.get(0), "Home"); } });

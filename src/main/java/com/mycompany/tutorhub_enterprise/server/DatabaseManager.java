@@ -478,6 +478,7 @@ public class DatabaseManager {
                 String cvName = "";
                 String ekycFrontB64 = "";
                 String ekycBackB64 = "";
+                String avatarUrlStr = rs.getString("avatar_url") != null ? rs.getString("avatar_url") : "null";
                 
                 try {
                     String cvUrl = rs.getString("cv_url");
@@ -501,7 +502,7 @@ public class DatabaseManager {
                     phoneVerified = rs.getBoolean("phone_verified");
                 } catch (Exception ignored) {}
 
-                return id + ";;" + email + ";;" + name + ";;" + dob + ";;" + gender + ";;" + phone + ";;" + address + ";;" + location + ";;" + subject + ";;" + bio + ";;" + cvName + ";;" + ekycFrontB64 + ";;" + ekycBackB64 + ";;" + phoneVerified;
+                return id + ";;" + email + ";;" + name + ";;" + dob + ";;" + gender + ";;" + phone + ";;" + address + ";;" + location + ";;" + subject + ";;" + bio + ";;" + cvName + ";;" + ekycFrontB64 + ";;" + ekycBackB64 + ";;" + phoneVerified + ";;" + avatarUrlStr;
             }
         } catch (Exception e) { e.printStackTrace(); }
         return "";

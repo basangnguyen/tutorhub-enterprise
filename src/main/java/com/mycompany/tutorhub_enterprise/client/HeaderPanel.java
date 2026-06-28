@@ -762,6 +762,7 @@ public class HeaderPanel extends JPanel {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 
             if (avatarImg != null) {
@@ -769,8 +770,10 @@ public class HeaderPanel extends JPanel {
                 BufferedImage circleBuffer = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
                 Graphics2D g2d = circleBuffer.createGraphics();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
                 g2d.fillOval(0, 0, size, size);
-                g2d.setComposite(AlphaComposite.SrcIn); 
+                g2d.setComposite(AlphaComposite.SrcIn);
                 
                 int imgW = avatarImg.getWidth(null); 
                 int imgH = avatarImg.getHeight(null);
@@ -780,9 +783,11 @@ public class HeaderPanel extends JPanel {
                     int drawH = (int) (imgH * scale);
                     int x = (size - drawW) / 2; 
                     int y = (size - drawH) / 2;
-                    g2d.drawImage(avatarImg, x, y, drawW, drawH, null);
+                    Image scaledImage = avatarImg.getScaledInstance(drawW, drawH, Image.SCALE_SMOOTH);
+                    g2d.drawImage(scaledImage, x, y, drawW, drawH, null);
                 } else {
-                    g2d.drawImage(avatarImg, 0, 0, size, size, null);
+                    Image scaledImage = avatarImg.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+                    g2d.drawImage(scaledImage, 0, 0, size, size, null);
                 }
                 g2d.dispose();
                 g2.drawImage(circleBuffer, 0, 0, null);

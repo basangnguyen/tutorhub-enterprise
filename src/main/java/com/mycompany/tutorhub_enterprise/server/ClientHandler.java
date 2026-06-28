@@ -682,10 +682,10 @@ public class ClientHandler {
                     String profileDataStr = DatabaseManager.getFullProfile(uidProf);
                     
                     String[] pParts = profileDataStr.split(";;", -1);
-                    if (pParts.length < 13) {
-                        String[] expanded = new String[13];
+                    if (pParts.length < 15) {
+                        String[] expanded = new String[15];
                         System.arraycopy(pParts, 0, expanded, 0, pParts.length);
-                        for(int i = pParts.length; i < 13; i++) expanded[i] = "null";
+                        for(int i = pParts.length; i < 15; i++) expanded[i] = "null";
                         pParts = expanded;
                     }
                     
@@ -1167,6 +1167,25 @@ public class ClientHandler {
                         pst.close();
                     }
                     sendPacket(new Packet("UPDATE_AVATAR_SUCCESS", base64Image));
+                    break;
+               }
+
+               case "UPDATE_AVATAR_URL": {
+                    String avatarUrl = packet.payload;
+                    Connection connAva = DatabaseManager.getConnection();
+                    if (connAva != null) {
+                        try {
+                            String sql = "UPDATE users SET avatar_url = ? WHERE email = ?";
+                            PreparedStatement pst = connAva.prepareStatement(sql);
+                            pst.setString(1, avatarUrl);
+                            pst.setString(2, this.clientId); 
+                            pst.executeUpdate();
+                            pst.close();
+                            sendPacket(new Packet("UPDATE_AVATAR_URL_SUCCESS", avatarUrl));
+                        } catch (Exception ex) {
+                            System.err.println("[SERVER LỖI] Cập nhật Avatar URL: " + ex.getMessage());
+                        }
+                    }
                     break;
                }
 

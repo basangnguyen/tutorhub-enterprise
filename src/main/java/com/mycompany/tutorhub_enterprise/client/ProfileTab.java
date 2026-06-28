@@ -853,6 +853,23 @@ public class ProfileTab extends JPanel {
                                    + txtSubject.getText() + ";;" + bioSafe;
                     NetworkManager.getInstance().sendPacket(new Packet("UPDATE_PROFILE", payload));
                     NetworkManager.getInstance().sendPacket(new Packet("GET_FULL_PROFILE", ""));
+                    if (pendingAvatarBytes != null) {
+                        String base64Image = java.util.Base64.getEncoder().encodeToString(pendingAvatarBytes);
+                        String avatarUrl = com.mycompany.tutorhub_enterprise.utils.B2Helper.uploadBase64Image(base64Image, ".jpg");
+                        if (avatarUrl != null) {
+                            NetworkManager.getInstance().sendPacket(new Packet("UPDATE_AVATAR_URL", avatarUrl));
+                        } else {
+                            NetworkManager.getInstance().sendPacket(new Packet("UPDATE_AVATAR", base64Image));
+                        }
+                        AvatarCache.saveAvatar(txtEmail.getText(), pendingAvatarBytes);
+                        if (avatarListener != null) {
+                            try {
+                                java.awt.Image newAvatar = new ImageIcon(pendingAvatarBytes).getImage();
+                                avatarListener.onAvatarUpdated(newAvatar);
+                            } catch (Exception ex) {}
+                        }
+                        pendingAvatarBytes = null;
+                    }
                     SwingUtilities.invokeLater(() -> {
                         btnSaveProfile.setText("Lưu thay đổi");
                         lblLeftName.setText(txtName.getText()); lblLeftRole.setText("Gia sư " + txtSubject.getText()); lblLeftLocation.setText(cbLocation.getSelectedItem().toString());
@@ -1196,30 +1213,40 @@ public class ProfileTab extends JPanel {
     
     private ImageIcon getShadowedCircularImageIcon(Image rawImage, int size) {
         int padding = 4;
-        int totalSize = size + padding * 2;
+        int shadowOffset = 2;
+        int totalSize = size + padding * 2 + shadowOffset * 2;
         BufferedImage buffer = new BufferedImage(totalSize, totalSize, BufferedImage.TYPE_INT_ARGB); 
         Graphics2D g2 = buffer.createGraphics(); 
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        
+        int centerX = totalSize / 2;
+        int centerY = totalSize / 2;
         
         for (int i = 0; i < padding; i++) {
             g2.setColor(new Color(0, 0, 0, 8)); 
-            g2.fillOval(padding - i, padding - i + 2, size + i * 2, size + i * 2);
+            int shadowSize = size + i * 2;
+            g2.fillOval(centerX - shadowSize / 2, centerY - shadowSize / 2 + shadowOffset, shadowSize, shadowSize);
         }
         
         BufferedImage circleImg = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D cg2 = circleImg.createGraphics();
         cg2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        cg2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        cg2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         cg2.fillOval(0, 0, size, size);
         cg2.setComposite(AlphaComposite.SrcIn);
         int imgW = rawImage.getWidth(null); int imgH = rawImage.getHeight(null); 
         if (imgW > 0 && imgH > 0) { 
             double scale = Math.max((double) size / imgW, (double) size / imgH); 
             int drawW = (int) (imgW * scale); int drawH = (int) (imgH * scale); 
-            cg2.drawImage(rawImage, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH, null); 
+            Image scaledImage = rawImage.getScaledInstance(drawW, drawH, Image.SCALE_SMOOTH);
+            cg2.drawImage(scaledImage, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH, null); 
         }
         cg2.dispose();
         
-        g2.drawImage(circleImg, padding, padding, null);
+        g2.drawImage(circleImg, centerX - size / 2, centerY - size / 2, null);
         g2.dispose(); 
         return new ImageIcon(buffer);
     }
@@ -1412,6 +1439,28 @@ public class ProfileTab extends JPanel {
                             lblEkycBackPreview.setIcon(new ImageIcon(scaledImg));
                         }
                     } catch (Exception ex) { System.err.println("Lỗi render eKYC Back"); }
+                }
+
+                if (data.length > 14 && data[14] != null && !data[14].trim().isEmpty() && !data[14].equals("null")) {
+                    final String avatarUrl = data[14];
+                    new Thread(() -> {
+                        try {
+                            java.net.URL url = new java.net.URL(avatarUrl);
+                            java.awt.Image image = javax.imageio.ImageIO.read(url);
+                            if (image != null) {
+                                SwingUtilities.invokeLater(() -> {
+                                    if (avatarListener != null) {
+                                        avatarListener.onAvatarUpdated(image);
+                                    }
+                                    if (bigAvatarLabel != null) bigAvatarLabel.setIcon(getShadowedCircularImageIcon(image, 115));
+                                    if (miniAvatarLabel != null) miniAvatarLabel.setIcon(getShadowedCircularImageIcon(image, 64));
+                                    hasCustomAvatar = true;
+                                });
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }).start();
                 }
                 
                 setEditMode(false);
