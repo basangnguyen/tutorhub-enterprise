@@ -124,42 +124,66 @@ public class ExcelEditorDialog extends JDialog {
     }
 
     private void handleSaveData(String json, DefaultTableModel tableModel, boolean isDegree) {
-        SwingUtilities.invokeLater(() -> {
+        new Thread(() -> {
             try {
                 Gson gson = new Gson();
                 List<Map<String, String>> rows = gson.fromJson(json, new TypeToken<List<Map<String, String>>>(){}.getType());
                 
-                // Xóa dữ liệu cũ trong bảng
-                tableModel.setRowCount(0);
-
                 for (Map<String, String> r : rows) {
                     if (isDegree) {
-                        // Cột bằng cấp: Tên bằng cấp, Trường/Đơn vị, Chuyên ngành, Năm tốt nghiệp, Xếp loại, Tệp đính kèm, Trạng thái
-                        tableModel.addRow(new Object[]{
-                            r.get("col0") + " - " + r.get("col2"), // Tên bằng cấp, Chuyên ngành
-                            r.get("col1"), // Trường đào tạo
-                            r.get("col3"), // Năm TN
-                            r.get("col4"), // Xếp loại
-                            "",            // Tệp đính kèm (trống khi mới nhập Excel)
-                            "Chờ duyệt"    // Trạng thái mặc định
+                        String name = r.get("col0") != null ? r.get("col0") : "";
+                        String uni = r.get("col1") != null ? r.get("col1") : "";
+                        String major = r.get("col2") != null ? r.get("col2") : "";
+                        String year = r.get("col3") != null ? r.get("col3") : "";
+                        String rank = r.get("col4") != null ? r.get("col4") : "";
+                        
+                        SwingUtilities.invokeLater(() -> {
+                            tableModel.addRow(new Object[]{
+                                name + " - " + major, 
+                                uni, 
+                                year, 
+                                rank, 
+                                "",            
+                                "Chờ duyệt"    
+                            });
                         });
+                        
+                        // Payload: Tên bằng cấp | Chuyên ngành | Trường/Đơn vị | Năm TN | fileName | b64
+                        String payload = name + "|" + major + "|" + uni + "|" + year + "|Excel_Data.xlsx|NO_FILE";
+                        com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_DEGREE", payload));
                     } else {
-                        // Cột chứng chỉ: Tên chứng chỉ, Đơn vị cấp, Ngày cấp, Hạn SD, Tệp đính kèm, Trạng thái
-                        tableModel.addRow(new Object[]{
-                            r.get("col0"),
-                            r.get("col1"),
-                            r.get("col2"),
-                            r.get("col3"),
-                            "",             // Tệp đính kèm
-                            "Chờ duyệt"     // Trạng thái mặc định
+                        String name = r.get("col0") != null ? r.get("col0") : "";
+                        String prov = r.get("col1") != null ? r.get("col1") : "";
+                        String issue = r.get("col2") != null ? r.get("col2") : "";
+                        String exp = r.get("col3") != null ? r.get("col3") : "";
+                        String note = r.get("col4") != null ? r.get("col4") : "";
+                        
+                        SwingUtilities.invokeLater(() -> {
+                            tableModel.addRow(new Object[]{
+                                name,
+                                prov,
+                                issue,
+                                exp,
+                                "",             
+                                "Chờ duyệt"     
+                            });
                         });
+                        
+                        // Payload: Tên chứng chỉ | Đơn vị cấp | Ngày cấp | Hạn SD | fileName | b64
+                        String payload = name + "|" + prov + "|" + issue + "|" + exp + "|Excel_Data.xlsx|NO_FILE";
+                        com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(new com.mycompany.tutorhub_enterprise.models.Packet("ADD_CERTIFICATE", payload));
                     }
                 }
-                JOptionPane.showMessageDialog(this, "Đã lưu " + rows.size() + (isDegree ? " bằng cấp!" : " chứng chỉ!"), "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this, "Đã lưu " + rows.size() + (isDegree ? " bằng cấp!" : " chứng chỉ!"), "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                });
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Lỗi phân tích dữ liệu: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this, "Lỗi phân tích dữ liệu: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                });
             }
-        });
+        }).start();
     }
 
     private void handleExportXlsx(String base64) {
