@@ -1196,15 +1196,9 @@ public class MainDashboard extends JFrame {
                             byte[] fileBytes = java.util.Base64.getDecoder().decode(base64Data);
                             
                             // NẾU ĐANG BẬT CỜ XEM TRƯỚC (PREVIEW)
-                            if (com.mycompany.tutorhub_enterprise.client.ProfileTab.isPreviewingFile) {
-                                java.io.File tempFile = java.io.File.createTempFile("cv_preview_", ".pdf");
-                                tempFile.deleteOnExit(); 
-                                java.nio.file.Files.write(tempFile.toPath(), fileBytes);
-                                
-                                if (Desktop.isDesktopSupported()) {
-                                    Desktop.getDesktop().open(tempFile);
-                                }
-                                com.mycompany.tutorhub_enterprise.client.ProfileTab.isPreviewingFile = false; // Tắt cờ
+                            if (com.mycompany.tutorhub_enterprise.client.ProfileTab.pdfPreviewCallback != null) {
+                                com.mycompany.tutorhub_enterprise.client.ProfileTab.pdfPreviewCallback.accept(fileBytes);
+                                com.mycompany.tutorhub_enterprise.client.ProfileTab.pdfPreviewCallback = null; // Tắt cờ
                             } 
                             // NẾU LÀ TẢI XUỐNG BÌNH THƯỜNG
                             else {
@@ -1222,7 +1216,7 @@ public class MainDashboard extends JFrame {
                             JOptionPane.showMessageDialog(MainDashboard.this, "Lỗi khi xử lý file!", "Lỗi hệ thống", JOptionPane.ERROR_MESSAGE);
                         }
                     } else {
-                        com.mycompany.tutorhub_enterprise.client.ProfileTab.isPreviewingFile = false; // Reset cờ nếu lỗi
+                        com.mycompany.tutorhub_enterprise.client.ProfileTab.pdfPreviewCallback = null; // Reset cờ nếu lỗi
                         JOptionPane.showMessageDialog(MainDashboard.this, "Lỗi: Không tìm thấy file trên server!", "Thất bại", JOptionPane.ERROR_MESSAGE);
                     }
                 }

@@ -10,11 +10,13 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.Base64;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
+import java.util.function.Consumer;
 
 public class ProfileTab extends JPanel {
 
@@ -74,8 +76,11 @@ public class ProfileTab extends JPanel {
     private JPanel[] tabButtons;
     
    
-    public static boolean isPreviewingFile = false; // Thêm cờ đánh dấu đang muốn xem file
+    public static Consumer<byte[]> pdfPreviewCallback = null; // Callback để nhận byte file khi xem
     private String currentServerCvFileName = ""; // Lưu tên CV đang có trên server
+    
+    private JPanel pdfContainer;
+    private JScrollPane pdfScrollPane;
 
     public interface AvatarUpdateListener { void onAvatarUpdated(Image newAvatar); }
     private AvatarUpdateListener avatarListener;
@@ -1372,7 +1377,6 @@ public class ProfileTab extends JPanel {
                 if(data.length > 10 && data[10] != null && !data[10].isEmpty() && !data[10].equals("null")) {
                     File f = new File(data[10]);
                     currentServerCvFileName = f.getName(); // Lưu lại tên file để tải/xem
-                    lblCvPreview.setText("<html><div style='text-align: center;'><br><b style='color:#2563EB;'>Đã tải lên:<br>" + currentServerCvFileName + "</b></div></html>");
                 }
                 
                 // QUAN TRỌNG: Load ảnh Mặt trước eKYC
@@ -1462,7 +1466,10 @@ public class ProfileTab extends JPanel {
         btnAdd.setBorderPainted(false);
         btnAdd.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnAdd.addActionListener(e -> showAddDegreeDialog());
+        btnAdd.addActionListener(e -> {
+            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(this), degTableModel, true);
+            dialog.setVisible(true);
+        });
 
         top.add(titleWrap, BorderLayout.WEST);
         top.add(btnAdd, BorderLayout.EAST);
@@ -1698,7 +1705,10 @@ public class ProfileTab extends JPanel {
         btnAdd.setBorderPainted(false); // Bắt buộc tắt viền mặc định
         btnAdd.setBorder(new EmptyBorder(6, 15, 6, 15));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnAdd.addActionListener(e -> showAddCertificateDialog());
+        btnAdd.addActionListener(e -> {
+            ExcelEditorDialog dialog = new ExcelEditorDialog((Frame) SwingUtilities.getWindowAncestor(this), certTableModel, false);
+            dialog.setVisible(true);
+        });
         
         top.add(titleWrap, BorderLayout.WEST);
         top.add(btnAdd, BorderLayout.EAST);
@@ -1992,40 +2002,60 @@ public class ProfileTab extends JPanel {
         JPanel rightCol = new JPanel(new BorderLayout());
         rightCol.setOpaque(false);
         
-        JLabel lblPreviewTitle = new JLabel("Xem trước CV");
-        lblPreviewTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblPreviewTitle.setForeground(Color.decode("#1E293B"));
-        lblPreviewTitle.setBorder(new EmptyBorder(0, 0, 8, 0));
-        
         RoundedPanel previewCard = new RoundedPanel(12);
         previewCard.setLayout(new BorderLayout());
         
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
-        toolbar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
-        toolbar.setBackground(Color.decode("#FAFAFA"));
-        toolbar.add(new JLabel("1 / 1"));
-        toolbar.add(new JLabel("100%"));
+        // Header for Preview Card
+        JPanel previewHeader = new JPanel(new BorderLayout());
+        previewHeader.setOpaque(false);
+        previewHeader.setBorder(new EmptyBorder(10, 15, 10, 15));
         
-        JPanel previewBody = new JPanel(new GridBagLayout()); 
-        previewBody.setBackground(Color.decode("#F1F5F9")); 
-        previewBody.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JLabel lblPreviewTitle = new JLabel("Xem trước CV");
+        lblPreviewTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblPreviewTitle.setForeground(Color.decode("#1E293B"));
         
-        lblCvPreview = new JLabel("Chưa có bản xem trước", SwingConstants.CENTER);
-        lblCvPreview.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/file-pdf-color-red-icon.svg", 48, 48));
-        lblCvPreview.setHorizontalTextPosition(SwingConstants.CENTER);
-        lblCvPreview.setVerticalTextPosition(SwingConstants.BOTTOM);
-        lblCvPreview.setIconTextGap(10);
-        lblCvPreview.setOpaque(true);
-        lblCvPreview.setBackground(Color.WHITE);
-        lblCvPreview.setBorder(BorderFactory.createLineBorder(Color.decode("#E2E8F0")));
-        lblCvPreview.setPreferredSize(new Dimension(240, 300)); 
+        JButton btnTogglePreview = createUploadButton("Tắt");
+        // Remove padding from the button to make it more compact
+        btnTogglePreview.setBorder(new EmptyBorder(5, 15, 5, 15));
         
-        previewBody.add(lblCvPreview);
+        previewHeader.add(lblPreviewTitle, BorderLayout.WEST);
+        previewHeader.add(btnTogglePreview, BorderLayout.EAST);
         
-        previewCard.add(toolbar, BorderLayout.NORTH);
-        previewCard.add(previewBody, BorderLayout.CENTER);
+        previewCard.add(previewHeader, BorderLayout.NORTH);
         
-        rightCol.add(lblPreviewTitle, BorderLayout.NORTH);
+        pdfContainer = new JPanel();
+        pdfContainer.setLayout(new BoxLayout(pdfContainer, BoxLayout.Y_AXIS));
+        pdfContainer.setBackground(Color.decode("#F1F5F9")); // Nền xám nhạt cho khoảng trống giữa các trang
+        
+        pdfScrollPane = new JScrollPane(pdfContainer);
+        pdfScrollPane.getVerticalScrollBar().setUnitIncrement(20); // Cuộn mượt hơn
+        pdfScrollPane.setBorder(null);
+        
+        // Placeholder when PDF is off
+        JPanel placeholder = new JPanel(new GridBagLayout());
+        placeholder.setOpaque(false);
+        JLabel lblOff = new JLabel("Chế độ xem trước đang tắt");
+        lblOff.setForeground(TEXT_MUTED);
+        placeholder.add(lblOff);
+        
+        JPanel centerCard = new JPanel(new CardLayout());
+        centerCard.setOpaque(false);
+        centerCard.add(pdfScrollPane, "ON");
+        centerCard.add(placeholder, "OFF");
+        
+        previewCard.add(centerCard, BorderLayout.CENTER);
+        
+        CardLayout cl = (CardLayout) centerCard.getLayout();
+        btnTogglePreview.addActionListener(e -> {
+            if (btnTogglePreview.getText().equals("Tắt")) {
+                btnTogglePreview.setText("Bật");
+                cl.show(centerCard, "OFF");
+            } else {
+                btnTogglePreview.setText("Tắt");
+                cl.show(centerCard, "ON");
+            }
+        });
+        
         rightCol.add(previewCard, BorderLayout.CENTER);
 
         centerPanel.add(leftCol);
@@ -2053,7 +2083,8 @@ public class ProfileTab extends JPanel {
                     lblBadgeText.setText("Sẵn sàng lưu");
                     badge.bg = Color.decode("#FEF3C7"); 
                     
-                    lblCvPreview.setText("<html><div style='text-align: center; max-width: 180px;'><br><b style='color:#2563EB;'>" + cvFileNameStr + "</b></div></html>");
+                    // Hiển thị trực tiếp bằng PDFBox
+                    renderPdf(cvFileBytes);
                 } catch (Exception ex) { ex.printStackTrace(); }
             }
         });
@@ -2067,20 +2098,56 @@ public class ProfileTab extends JPanel {
             downloadAttachedFile(currentServerCvFileName);
         });
 
-        // Xử lý Xem CV
+        // Xử lý Xem CV (Nội tuyến)
         btnViewCV.addActionListener(e -> {
             if (currentServerCvFileName.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Chưa có CV nào trên hệ thống để xem!");
                 return;
             }
-            // Bật cờ Preview và gọi hàm tải file
-            isPreviewingFile = true;
+            
+            // Đăng ký callback để nhận dữ liệu khi tải xong
+            pdfPreviewCallback = (bytes) -> {
+                if (bytes != null) {
+                    renderPdf(bytes);
+                }
+            };
+            
             try {
                 NetworkManager.getInstance().sendPacket(new Packet("DOWNLOAD_FILE", currentServerCvFileName));
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
+
+        JButton btnFullscreen = createUploadButton("Toàn màn hình");
+        setNetworkIcon(btnFullscreen, "https://img.icons8.com/fluency-systems-regular/48/DC2626/fit-to-page.png", 14, 14);
+        
+        // Xử lý Xem CV Toàn màn hình
+        btnFullscreen.addActionListener(e -> {
+            if (cvFileBytes != null) {
+                // Nếu đang có file tải lên cục bộ
+                showFullscreenPDF(cvFileBytes);
+            } else if (!currentServerCvFileName.isEmpty()) {
+                // Lấy từ server
+                pdfPreviewCallback = (bytes) -> {
+                    if (bytes != null) {
+                        showFullscreenPDF(bytes);
+                    }
+                };
+                try {
+                    NetworkManager.getInstance().sendPacket(new Packet("DOWNLOAD_FILE", currentServerCvFileName));
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Chưa có CV nào để xem!");
+            }
+        });
+        
+        // Sắp xếp lại thứ tự các nút cho hợp lý
+        actionRow.removeAll();
+        actionRow.add(btnViewCV); actionRow.add(btnFullscreen); actionRow.add(btnDownload);
+
 
         return p;
     }
@@ -2979,5 +3046,113 @@ public class ProfileTab extends JPanel {
                 }
             }).start();
         }
+    }
+    
+    private org.cef.browser.CefBrowser inlinePdfBrowser = null;
+    
+    // --- HÀM RENDER PDF BẰNG JCEF ---
+    private void renderPdf(byte[] pdfData) {
+        SwingUtilities.invokeLater(() -> {
+            if (pdfContainer == null) return;
+            pdfContainer.removeAll();
+            
+            try {
+                java.io.File tempPdf = java.io.File.createTempFile("cv_inline_", ".pdf");
+                tempPdf.deleteOnExit();
+                java.nio.file.Files.write(tempPdf.toPath(), pdfData);
+                
+                String url = tempPdf.toURI().toString() + "#toolbar=0&navpanes=0&scrollbar=0";
+                
+                if (inlinePdfBrowser == null) {
+                    inlinePdfBrowser = JcefManager.getClient().createBrowser(url, false, false);
+                } else {
+                    inlinePdfBrowser.loadURL(url);
+                }
+                
+                pdfContainer.setLayout(new BorderLayout());
+                pdfContainer.add(inlinePdfBrowser.getUIComponent(), BorderLayout.CENTER);
+                pdfContainer.revalidate();
+                pdfContainer.repaint();
+                
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JLabel err = new JLabel("Không thể hiển thị PDF: " + ex.getMessage());
+                err.setForeground(Color.RED);
+                err.setAlignmentX(Component.CENTER_ALIGNMENT);
+                pdfContainer.add(err);
+                pdfContainer.revalidate();
+                pdfContainer.repaint();
+            }
+        });
+    }
+
+    private void showFullscreenPDF(byte[] pdfData) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                java.io.File tempPdf = java.io.File.createTempFile("cv_fullscreen_", ".pdf");
+                tempPdf.deleteOnExit();
+                java.nio.file.Files.write(tempPdf.toPath(), pdfData);
+
+                JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), true);
+                dialog.setUndecorated(true);
+                dialog.setBackground(new Color(0, 0, 0, 220)); // Nền đen trong suốt
+                dialog.setLayout(new BorderLayout());
+                
+                JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 10));
+                topBar.setOpaque(false);
+                JButton btnExit = new JButton("Thoát (Esc)") {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        if (getModel().isPressed()) {
+                            g2.setColor(new Color(185, 28, 28)); // Đỏ đậm hơn khi nhấn
+                        } else if (getModel().isRollover()) {
+                            g2.setColor(new Color(239, 68, 68)); // Đỏ nhạt hơn khi hover
+                        } else {
+                            g2.setColor(new Color(220, 38, 38)); // Đỏ gốc
+                        }
+                        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                        super.paintComponent(g);
+                        g2.dispose();
+                    }
+                };
+                btnExit.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                btnExit.setForeground(Color.WHITE);
+                btnExit.setFocusPainted(false);
+                btnExit.setContentAreaFilled(false);
+                btnExit.setBorder(new EmptyBorder(8, 20, 8, 20));
+                btnExit.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                
+                topBar.add(btnExit);
+
+                org.cef.browser.CefBrowser browser = JcefManager.getClient().createBrowser(tempPdf.toURI().toString(), false, false);
+                
+                JPanel wrapper = new JPanel(new BorderLayout());
+                wrapper.setOpaque(false);
+                wrapper.setBorder(new EmptyBorder(5, 50, 20, 50)); // Giảm khoảng cách viền trên để dịch PDF lên cân đối hơn
+                wrapper.add(topBar, BorderLayout.NORTH);
+                wrapper.add(browser.getUIComponent(), BorderLayout.CENTER);
+
+                dialog.add(wrapper, BorderLayout.CENTER);
+                dialog.setBounds(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
+                
+                // Add ESC key listener to exit
+                dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "closeDialog");
+                dialog.getRootPane().getActionMap().put("closeDialog", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent e) {
+                        dialog.dispose();
+                    }
+                });
+                
+                btnExit.addActionListener(e -> dialog.dispose());
+
+                dialog.setVisible(true);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Không thể mở chế độ toàn màn hình!");
+            }
+        });
     }
 }

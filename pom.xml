@@ -172,6 +172,8 @@
             <artifactId>ikonli-fontawesome-pack</artifactId>
             <version>12.3.1</version>
         </dependency>
+
+
     </dependencies>
 
     <build>

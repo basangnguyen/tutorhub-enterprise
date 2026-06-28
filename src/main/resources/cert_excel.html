@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="stylesheet" href="luckysheet/plugins/css/pluginsCss.css"/>
+  <link rel="stylesheet" href="luckysheet/plugins/plugins.css"/>
+  <link rel="stylesheet" href="luckysheet/css/luckysheet.css"/>
+  <link rel="stylesheet" href="luckysheet/assets/iconfont/iconfont.css"/>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { display:flex; flex-direction:column; height:100vh; overflow:hidden;
+           font-family:'Segoe UI',sans-serif; }
+    #topBar {
+      height:44px; background:#7B5EA7; display:flex;
+      align-items:center; gap:8px; padding:0 14px;
+      flex-shrink:0; z-index:9999;
+    }
+    #topBar .title { color:white; font-size:14px; font-weight:600; flex:1; }
+    .btn { padding:5px 14px; border:none; border-radius:6px;
+           cursor:pointer; font-size:12.5px; font-weight:500; }
+    .btn-white { background:white; color:#7B5EA7; }
+    .btn-green { background:#28a745; color:white; }
+    .btn-ghost { background:rgba(255,255,255,0.18); color:white;
+                 border:1px solid rgba(255,255,255,0.35); }
+    .btn:hover { opacity:0.88; }
+    #luckysheet { flex:1; }
+  </style>
+</head>
+<body>
+
+<div id="topBar">
+  <span class="title">📋 Nhập Chứng Chỉ Chuyên Môn</span>
+  <button class="btn btn-ghost" onclick="importXLSX()">⬆ Mở .xlsx</button>
+  <button class="btn btn-green" onclick="exportXLSX()">⬇ Xuất .xlsx</button>
+  <button class="btn btn-white" onclick="saveToTutorHub()">💾 Lưu vào TutorHub</button>
+</div>
+
+<div id="luckysheet"></div>
+<input type="file" id="fileInput" accept=".xlsx,.xls"
+       style="display:none" onchange="handleImport(event)"/>
+
+<script src="luckyexcel/luckyexcel.umd.js"></script>
+<script src="luckysheet/plugins/js/plugin.js"></script>
+<script src="luckysheet/luckysheet.umd.js"></script>
+
+<script>
+  var COL_NAMES  = ['Tên chứng chỉ','Đơn vị cấp','Ngày cấp','Hạn sử dụng','Ghi chú'];
+  var COL_WIDTHS = { 0:220, 1:180, 2:130, 3:130, 4:220 };
+  var HEADER_STYLE = { bl:1, fs:12, ht:0, vt:0,
+                       bg:{rgb:'7B5EA7'}, fc:{rgb:'FFFFFF'} };
+
+  var headerCells = COL_NAMES.map((h,i) => ({
+    r:0, c:i, v:{ ...HEADER_STYLE, v:h, m:h, ct:{fa:'General',t:'g'} }
+  }));
+
+  luckysheet.create({
+    container: 'luckysheet',
+    title: 'Chứng chỉ TutorHub',
+    lang: 'en',
+    showtoolbar: true,
+    sheetFormulaBar: true,
+    showinfobar: false,
+    showstatisticBar: true,
+    allowCopy: true,
+    allowEdit: true,
+    data: [{
+      name: 'Chứng chỉ', color: '#7B5EA7',
+      celldata: headerCells,
+      config: { columnlen: COL_WIDTHS, rowlen: { 0:38 } }
+    }]
+  });
+
+  // ══════════════════════════════════════════════════════
+  // LƯU — dùng JCEF cefQuery thay vì javaConnector
+  // ══════════════════════════════════════════════════════
+  function saveToTutorHub() {
+    var sheetData = luckysheet.getSheetData();
+    if (!sheetData) { alert('Không có dữ liệu!'); return; }
+
+    var rows = [];
+    for (var r = 1; r < sheetData.length; r++) {
+      var row = sheetData[r];
+      if (!row) continue;
+      var certName = getVal(row[0]);
+      if (!certName) continue;
+      rows.push({
+        col0: getVal(row[0]),
+        col1: getVal(row[1]),
+        col2: getVal(row[2]),
+        col3: getVal(row[3]),
+        col4: getVal(row[4])
+      });
+    }
+
+    if (rows.length === 0) {
+      alert('Vui lòng nhập ít nhất 1 chứng chỉ!'); return;
+    }
+
+    // ✅ JCEF bridge — cefQuery
+    window.cefQuery({
+      request  : 'SAVE:' + JSON.stringify(rows),
+      onSuccess: function(res) { console.log('OK:', res); },
+      onFailure: function(code, msg) { alert('Lỗi lưu: ' + msg); }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════
+  // XUẤT .XLSX — cefQuery để Java mở JFileChooser lưu file
+  // ══════════════════════════════════════════════════════
+  function exportXLSX() {
+    LuckyExcel.transformLuckyToExcel(
+      luckysheet.getAllSheets(),
+      'ChungChi_TutorHub',
+      function(blob) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var base64 = e.target.result.split(',')[1];
+          // ✅ Gửi base64 về Java để lưu file
+          window.cefQuery({
+            request  : 'EXPORT_XLSX:' + base64,
+            onSuccess: function(r) { console.log('Exported'); },
+            onFailure: function(c, m) { alert('Lỗi xuất: ' + m); }
+          });
+        };
+        reader.readAsDataURL(blob);
+      }
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  // NHẬP .XLSX
+  // ══════════════════════════════════════════════════════
+  function importXLSX() { document.getElementById('fileInput').click(); }
+
+  function handleImport(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    LuckyExcel.transformExcelToLucky(file, function(exportJson) {
+      if (!exportJson.sheets || exportJson.sheets.length === 0) {
+        alert('Không đọc được file!'); return;
+      }
+      luckysheet.destroy();
+      luckysheet.create({
+        container:'luckysheet', data:exportJson.sheets,
+        title:exportJson.info.name,
+        showtoolbar:true, sheetFormulaBar:true, showinfobar:false
+      });
+    });
+  }
+
+  // Java gọi hàm này khi mở dialog edit lại
+  function loadExistingData(jsonStr) {
+    var rows = JSON.parse(jsonStr);
+    var cells = [...headerCells];
+    rows.forEach(function(r, ri) {
+      [r.col0, r.col1, r.col2, r.col3, r.col4].forEach(function(v,ci) {
+        if (v) cells.push({ r:ri+1, c:ci, v:{v:v,m:v} });
+      });
+    });
+    luckysheet.setSheetData(cells);
+  }
+
+  function getVal(cell) {
+    if (!cell) return '';
+    return String(cell.m || cell.v || '').trim();
+  }
+</script>
+</body>
+</html>
