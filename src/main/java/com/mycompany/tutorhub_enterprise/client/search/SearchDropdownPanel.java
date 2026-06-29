@@ -15,21 +15,20 @@ import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
 public class SearchDropdownPanel {
     private static final int POPUP_WIDTH = 520;
-    private static final int ROW_HEIGHT = 58;
+    private static final int ROW_HEIGHT = 54;
     private static final Color BG = Color.WHITE;
     private static final Color BORDER = new Color(0xE5E7EB);
     private static final Color TEXT = new Color(0x111827);
@@ -62,7 +61,7 @@ public class SearchDropdownPanel {
     }
 
     public void showDemo(Component invoker, int x, int y, SearchQuery query) {
-        show(invoker, x, y, createDemoResults(query), query);
+        show(invoker, x, y, Collections.emptyList(), query);
     }
 
     public void setResults(List<SearchResult> results, SearchQuery query) {
@@ -95,7 +94,8 @@ public class SearchDropdownPanel {
             updateSelection();
         }
 
-        int height = Math.min(420, 40 + rowPanels.size() * ROW_HEIGHT + grouped.size() * 28);
+        int groupCount = grouped.size();
+        int height = Math.min(480, 38 + rowPanels.size() * ROW_HEIGHT + groupCount * 28);
         refreshSize(Math.max(150, height));
     }
 
@@ -121,7 +121,9 @@ public class SearchDropdownPanel {
         }
         SearchResult selected = visibleResults.get(selectedIndex);
         hide();
-        selected.getAction().execute();
+        if (selected.getAction() != null) {
+            selected.getAction().execute();
+        }
     }
 
     public void hide() {
@@ -179,35 +181,6 @@ public class SearchDropdownPanel {
         return grouped;
     }
 
-    private static List<SearchResult> createDemoResults(SearchQuery query) {
-        String rawQuery = query == null ? "" : query.getRawText();
-        return Arrays.asList(
-                command("Mở Tin nhắn", "Xem hội thoại và tìm bạn bè", "MSG"),
-                command("Mở Lịch", "Xem lịch học và lịch dạy", "CAL"),
-                command("Mở Lớp học", "Quản lý lớp học của bạn", "CLS"),
-                command("Mở Hồ sơ", "Xem thông tin tài khoản", "USR"),
-                SearchResult.builder()
-                        .title(rawQuery.isBlank() ? "Tìm trên web" : "Tìm trên web: " + rawQuery)
-                        .subtitle("Dòng demo cho phase sau, chưa mở trình duyệt")
-                        .type(SearchResultType.WEB)
-                        .score(0.1)
-                        .iconText("WEB")
-                        .action(SearchAction.noop())
-                        .build()
-        );
-    }
-
-    private static SearchResult command(String title, String subtitle, String iconText) {
-        return SearchResult.builder()
-                .title(title)
-                .subtitle(subtitle)
-                .type(SearchResultType.COMMAND)
-                .score(1.0)
-                .iconText(iconText)
-                .action(SearchAction.noop())
-                .build();
-    }
-
     private static JComponent createGroupTitle(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.BOLD, 11));
@@ -221,11 +194,13 @@ public class SearchDropdownPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
         panel.setBorder(BorderFactory.createEmptyBorder(26, 24, 26, 24));
-        String raw = query == null || query.isBlank() ? "Nhập từ khóa để tìm kiếm" : "Không tìm thấy kết quả cho \"" + query.getRawText() + "\"";
+        String raw = query == null || query.isBlank()
+                ? "Nhập từ khóa để tìm kiếm"
+                : "Không tìm thấy trong TutorHub";
         JLabel title = new JLabel(raw, SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.BOLD, 14));
         title.setForeground(TEXT);
-        JLabel subtitle = new JLabel("TutorHub sẽ hỗ trợ tìm lớp học, tin nhắn, tài liệu và lệnh nhanh ở các phase sau.", SwingConstants.CENTER);
+        JLabel subtitle = new JLabel("Phase này chỉ hỗ trợ lệnh nhanh nội bộ, chưa gọi server hoặc web.", SwingConstants.CENTER);
         subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         subtitle.setForeground(MUTED);
         panel.add(title, BorderLayout.CENTER);
@@ -252,7 +227,7 @@ public class SearchDropdownPanel {
             case PROFILE:
                 return "Hồ sơ";
             case WEB:
-                return "Web";
+                return "Tìm trong TutorHub";
             default:
                 return "Khác";
         }
@@ -266,13 +241,13 @@ public class SearchDropdownPanel {
             this.result = result;
             setOpaque(false);
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+            setBorder(BorderFactory.createEmptyBorder(7, 10, 7, 10));
             setLayout(new BorderLayout(12, 0));
 
             JLabel icon = new JLabel(result.getIconText(), SwingConstants.CENTER);
             icon.setFont(new Font("Segoe UI", Font.BOLD, 11));
             icon.setForeground(ACCENT);
-            icon.setPreferredSize(new Dimension(42, 42));
+            icon.setPreferredSize(new Dimension(42, 40));
             add(icon, BorderLayout.WEST);
 
             JPanel textPanel = new JPanel();

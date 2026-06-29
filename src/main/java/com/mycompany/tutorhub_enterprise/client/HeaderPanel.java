@@ -1,6 +1,10 @@
 package com.mycompany.tutorhub_enterprise.client;
 
 import com.mycompany.tutorhub_enterprise.models.ConversationInfo;
+import com.mycompany.tutorhub_enterprise.client.search.SearchAction;
+import com.mycompany.tutorhub_enterprise.client.search.SearchQuery;
+import com.mycompany.tutorhub_enterprise.client.search.SearchResult;
+import com.mycompany.tutorhub_enterprise.client.search.SearchResultType;
 
 import javax.swing.*;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -74,6 +78,7 @@ public class HeaderPanel extends JPanel {
         globalSearchContainer.setPreferredSize(new Dimension(460, 52)); 
         
         globalSearchBar = new com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar();
+        configureGlobalSearchCommands();
         globalSearchContainer.add(globalSearchBar, BorderLayout.CENTER);
         searchWrapper.add(globalSearchContainer);
 
@@ -248,6 +253,71 @@ public class HeaderPanel extends JPanel {
     public JPanel getGlobalSearchContainer() { return globalSearchContainer; }
     public void updateAvatar(Image img) { this.hasCustomAvatar = true; if (avatarPanel != null) { avatarPanel.setAvatar(img); } }
     public Image getAvatar() { return avatarPanel != null ? avatarPanel.getAvatarImage() : null; }
+
+    private void configureGlobalSearchCommands() {
+        globalSearchBar.setGlobalDropdownEnabledSupplier(() -> dashboard != null && !dashboard.isCurrentCard("Chat"));
+        globalSearchBar.setDropdownResultsProvider(this::buildGlobalCommandResults);
+    }
+
+    private List<SearchResult> buildGlobalCommandResults(SearchQuery query) {
+        List<SearchResult> results = new ArrayList<>();
+        addCommandIfMatches(results, query, "Mở Bảng tin", "Đi tới màn hình tổng quan", "HOME", "Home", "bang tin home dashboard tong quan");
+        addCommandIfMatches(results, query, "Mở Tin nhắn", "Mở hội thoại và tìm bạn bè", "MSG", "Chat", "tin nhan chat message hoi thoai");
+        addCommandIfMatches(results, query, "Mở Lớp học", "Quản lý lớp học của tôi", "CLS", "Saved", "lop hoc class classroom quan ly");
+        addCommandIfMatches(results, query, "Mở Lịch", "Xem lịch học và lịch dạy", "CAL", "Schedule", "lich calendar schedule");
+        addCommandIfMatches(results, query, "Mở QuizHub", "Ôn tập và luyện quiz", "QUIZ", "QuizHub", "quiz quizhub on tap luyen tap");
+        addCommandIfMatches(results, query, "Mở Tài liệu", "Mở drive tài liệu học tập", "DOC", "Docs", "tai lieu document docs drive");
+        addCommandIfMatches(results, query, "Mở Hồ sơ", "Xem thông tin tài khoản", "USR", "Profile", "ho so profile tai khoan user");
+        addCommandIfMatches(results, query, "Mở Nâng cấp", "Xem các gói TutorHub Premium", "PRO", "Upgrade", "nang cap upgrade premium vip");
+
+        if (query != null && !query.isBlank()) {
+            results.add(SearchResult.builder()
+                    .title("Tìm trong TutorHub: " + query.getRawText())
+                    .subtitle("Kết quả nội bộ đầy đủ sẽ được mở ở phase sau")
+                    .type(SearchResultType.WEB)
+                    .score(0.05)
+                    .iconText("TH")
+                    .action(SearchAction.noop())
+                    .build());
+        }
+        return results;
+    }
+
+    private void addCommandIfMatches(List<SearchResult> results, SearchQuery query, String title,
+                                     String subtitle, String iconText, String cardKey, String aliases) {
+        if (!matchesSearch(query, title, subtitle, aliases)) {
+            return;
+        }
+        results.add(SearchResult.builder()
+                .title(title)
+                .subtitle(subtitle)
+                .type(SearchResultType.COMMAND)
+                .score(1.0)
+                .iconText(iconText)
+                .action(switchCardAction(cardKey))
+                .build());
+    }
+
+    private boolean matchesSearch(SearchQuery query, String title, String subtitle, String aliases) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        String haystack = SearchQuery.of(title + " " + subtitle + " " + aliases).getNormalizedText();
+        return haystack.contains(query.getNormalizedText());
+    }
+
+    private SearchAction switchCardAction(String cardKey) {
+        return () -> SwingUtilities.invokeLater(() -> {
+            if (dashboard != null) {
+                dashboard.switchToCard(cardKey);
+            }
+            if (globalSearchBar != null) {
+                globalSearchBar.getField().setText("");
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
+                globalSearchBar.hideDropdown();
+            }
+        });
+    }
 
     private void showNotificationPopup(Component invoker) {
         JPopupMenu popup = new JPopupMenu();

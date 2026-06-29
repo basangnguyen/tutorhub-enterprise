@@ -9,17 +9,23 @@ import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class GlobalSearchBar extends JPanel {
 
     private final JTextField searchField;
     private final ThumbnailPane thumbnailPane;
+    private final SearchDropdownPanel dropdownPanel = new SearchDropdownPanel();
     private SearchHighlight currentHighlight;
     private final List<Consumer<String>> queryChangeListeners = new ArrayList<>();
     private final List<Consumer<String>> submitListeners = new ArrayList<>();
     private final List<Consumer<Boolean>> focusChangeListeners = new ArrayList<>();
+    private Function<SearchQuery, List<SearchResult>> dropdownResultsProvider = query -> Collections.emptyList();
+    private BooleanSupplier globalDropdownEnabledSupplier = () -> false;
     
     private boolean isFocused = false;
     private boolean isHovered = false;
@@ -81,11 +87,15 @@ public class GlobalSearchBar extends JPanel {
             public void focusGained(FocusEvent e) {
                 isFocused = true;
                 notifyFocusChanged(true);
+                showDropdownIfNeeded();
             }
             @Override
             public void focusLost(FocusEvent e) {
                 isFocused = false;
                 notifyFocusChanged(false);
+                Timer hideTimer = new Timer(160, event -> dropdownPanel.hide());
+                hideTimer.setRepeats(false);
+                hideTimer.start();
             }
         });
         add(searchField);
@@ -191,12 +201,18 @@ public class GlobalSearchBar extends JPanel {
                 String text = searchField.getText();
                 thumbnailPane.fade(text.isEmpty());
                 notifyQueryChanged(text);
+                showDropdownIfNeeded();
             }
         });
 
         searchField.addActionListener(e -> {
+            if (isGlobalDropdownEnabled() && dropdownPanel.isVisible()) {
+                dropdownPanel.activateSelected();
+                return;
+            }
             notifySubmitted(searchField.getText());
         });
+        bindDropdownKeyboard();
 
         // Global AWT listener to detect outside clicks and collapse
         Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
@@ -209,6 +225,7 @@ public class GlobalSearchBar extends JPanel {
                             // Clicked outside!
                             if (isExpanded) {
                                 // Clear focus but do NOT collapse
+                                dropdownPanel.hide();
                                 KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
                             }
                         }
@@ -231,6 +248,28 @@ public class GlobalSearchBar extends JPanel {
 
     public JTextField getSearchField() {
         return searchField;
+    }
+
+    public void setDropdownResultsProvider(Function<SearchQuery, List<SearchResult>> provider) {
+        this.dropdownResultsProvider = provider == null ? query -> Collections.emptyList() : provider;
+    }
+
+    public void setGlobalDropdownEnabled(boolean enabled) {
+        this.globalDropdownEnabledSupplier = () -> enabled;
+        if (!enabled) {
+            dropdownPanel.hide();
+        }
+    }
+
+    public void setGlobalDropdownEnabledSupplier(BooleanSupplier supplier) {
+        this.globalDropdownEnabledSupplier = supplier == null ? () -> false : supplier;
+        if (!isGlobalDropdownEnabled()) {
+            dropdownPanel.hide();
+        }
+    }
+
+    public void hideDropdown() {
+        dropdownPanel.hide();
     }
 
     public void addQueryChangeListener(Consumer<String> listener) {
@@ -266,6 +305,74 @@ public class GlobalSearchBar extends JPanel {
     private void notifyFocusChanged(boolean focused) {
         for (Consumer<Boolean> listener : focusChangeListeners) {
             listener.accept(focused);
+        }
+    }
+
+    private void bindDropdownKeyboard() {
+        InputMap inputMap = searchField.getInputMap(JComponent.WHEN_FOCUSED);
+        ActionMap actionMap = searchField.getActionMap();
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "globalSearchDropdownDown");
+        actionMap.put("globalSearchDropdownDown", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!isGlobalDropdownEnabled()) {
+                    return;
+                }
+                if (!dropdownPanel.isVisible()) {
+                    showDropdownIfNeeded();
+                } else {
+                    dropdownPanel.moveDown();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "globalSearchDropdownUp");
+        actionMap.put("globalSearchDropdownUp", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (isGlobalDropdownEnabled() && dropdownPanel.isVisible()) {
+                    dropdownPanel.moveUp();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "globalSearchDropdownEnter");
+        actionMap.put("globalSearchDropdownEnter", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (isGlobalDropdownEnabled() && dropdownPanel.isVisible()) {
+                    dropdownPanel.activateSelected();
+                } else {
+                    notifySubmitted(searchField.getText());
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "globalSearchDropdownEscape");
+        actionMap.put("globalSearchDropdownEscape", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dropdownPanel.hide();
+            }
+        });
+    }
+
+    private void showDropdownIfNeeded() {
+        if (!isGlobalDropdownEnabled() || !searchField.hasFocus() || !isShowing()) {
+            dropdownPanel.hide();
+            return;
+        }
+        SearchQuery query = SearchQuery.of(searchField.getText());
+        List<SearchResult> results = dropdownResultsProvider.apply(query);
+        dropdownPanel.show(this, PILL_X, getHeight() - 2, results, query);
+    }
+
+    private boolean isGlobalDropdownEnabled() {
+        try {
+            return globalDropdownEnabledSupplier != null && globalDropdownEnabledSupplier.getAsBoolean();
+        } catch (Exception ex) {
+            return false;
         }
     }
 

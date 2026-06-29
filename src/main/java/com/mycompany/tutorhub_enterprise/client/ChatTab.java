@@ -53,6 +53,7 @@ public class ChatTab extends JPanel {
     private javax.swing.Timer searchDebounce;
     private Runnable onSwitchToChatCallback; 
     private int selectedPopupIndex = -1;
+    private java.util.function.BooleanSupplier globalSearchPopupEnabledSupplier = () -> true;
 
     // ===== UI COMPONENTS =====
     private JPanel leftListPanel;
@@ -269,11 +270,29 @@ public class ChatTab extends JPanel {
         this.onSwitchToChatCallback = callback;
     }
 
+    public void setGlobalSearchPopupEnabledSupplier(java.util.function.BooleanSupplier supplier) {
+        this.globalSearchPopupEnabledSupplier = supplier == null ? () -> true : supplier;
+    }
+
+    private boolean isGlobalSearchPopupEnabled() {
+        try {
+            return globalSearchPopupEnabledSupplier == null || globalSearchPopupEnabledSupplier.getAsBoolean();
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     private void fetchConversationListFromServer() {
         try { NetworkManager.getInstance().sendPacket(new Packet("GET_CONVO_LIST", String.valueOf(CURRENT_USER_ID))); } catch (Exception e) {}
     }
 
     private void executeSearch() {
+        if (!isGlobalSearchPopupEnabled()) {
+            if (searchPopup != null) {
+                searchPopup.setVisible(false);
+            }
+            return;
+        }
         // Cập nhật giao diện Chat ngay khi gõ (Lọc tin nhắn)
         refreshMessages();
         
@@ -289,13 +308,15 @@ public class ChatTab extends JPanel {
     public void updateConversationList(List<ConversationInfo> list) {
         this.conversations = list;
         refreshConversationList(); 
-        if (searchPopup.isVisible() && !searchKeyword.isEmpty()) renderSearchPopupResults();
+        if (isGlobalSearchPopupEnabled() && searchPopup.isVisible() && !searchKeyword.isEmpty()) renderSearchPopupResults();
         notifyUnreadCountChanged();
     }
 
     public void updateSearchResults(List<UserInfo> users) {
         this.searchResults = users;
-        renderSearchPopupResults();
+        if (isGlobalSearchPopupEnabled()) {
+            renderSearchPopupResults();
+        }
     }
 
     private void fetchMessagesFromServer(int conversationId) {
@@ -354,12 +375,22 @@ public class ChatTab extends JPanel {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { }
             private void handleTyping() {
                 searchKeyword = txtGlobalSearch.getText().trim().toLowerCase();
+                if (!isGlobalSearchPopupEnabled()) {
+                    if (searchPopup != null) {
+                        searchPopup.setVisible(false);
+                    }
+                    if (searchDebounce != null) {
+                        searchDebounce.stop();
+                    }
+                    return;
+                }
                 searchDebounce.restart();
             }
         });
 
         txtGlobalSearch.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
+                if (!isGlobalSearchPopupEnabled()) return;
                 if (System.currentTimeMillis() - lastSearchCloseTime < 200) return;
                 if (!searchKeyword.isEmpty() && !searchPopup.isVisible()) {
                     searchPopup.show(globalSearchContainer, 0, globalSearchContainer.getHeight() + 8);
@@ -369,6 +400,7 @@ public class ChatTab extends JPanel {
 
         txtGlobalSearch.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) {
+                if (!isGlobalSearchPopupEnabled()) return;
                 if(e.getKeyCode() == KeyEvent.VK_ESCAPE) { searchPopup.setVisible(false); }
                 else if (searchPopup.isVisible() && !popupClickableItems.isEmpty()) {
                     if (e.getKeyCode() == KeyEvent.VK_DOWN) {
@@ -733,6 +765,12 @@ public class ChatTab extends JPanel {
     }
 
     private void renderSearchLoading() {
+        if (!isGlobalSearchPopupEnabled()) {
+            if (searchPopup != null) {
+                searchPopup.setVisible(false);
+            }
+            return;
+        }
         if(globalSearchContainer == null) return;
         popupContentPanel.removeAll();
         JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER)); p.setBackground(Color.WHITE); p.setBorder(new EmptyBorder(30, 0, 30, 0));
@@ -744,6 +782,12 @@ public class ChatTab extends JPanel {
     }
 
    private void renderSearchPopupResults() {
+        if (!isGlobalSearchPopupEnabled()) {
+            if (searchPopup != null) {
+                searchPopup.setVisible(false);
+            }
+            return;
+        }
         if(globalSearchContainer == null) return;
         popupContentPanel.removeAll();
         popupClickableItems.clear();

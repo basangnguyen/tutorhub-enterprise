@@ -39,6 +39,7 @@ public class MainDashboard extends JFrame {
     private TodoListTab todoTab; 
     private ChatTab chatTab; 
     private HeaderPanel headerPanel;
+    private String currentCardName = "Home";
     private ScheduleTab scheduleTab;
     private AcceptedClassTab acceptedTab;
     private BlackboardManagerTab blackboardManagerTab;
@@ -579,6 +580,7 @@ public class MainDashboard extends JFrame {
     }
 
     private void switchTab(SidebarMenuItem activeItem, String cardName) {
+        currentCardName = cardName;
         for (SidebarMenuItem item : menuItems) { item.setActive(false); }
         activeItem.setActive(true); 
         if ("Reels".equals(cardName) && reelsTab != null) {
@@ -590,6 +592,7 @@ public class MainDashboard extends JFrame {
     }
 
     public void switchToCard(String cardName) {
+        currentCardName = cardName;
         if ("Upgrade".equals(cardName)) {
             for (SidebarMenuItem item : menuItems) { item.setActive(false); }
         } else {
@@ -607,6 +610,10 @@ public class MainDashboard extends JFrame {
             reelsTab.setActive(false);
         }
         cardLayout.show(mainCardPanel, cardName);
+    }
+
+    public boolean isCurrentCard(String cardName) {
+        return cardName != null && cardName.equals(currentCardName);
     }
 
 
@@ -730,6 +737,7 @@ public class MainDashboard extends JFrame {
         
         chatTab = new ChatTab(this.currentUserId);
         chatTab.bindGlobalSearchBar(headerPanel.getGlobalSearchInput(), headerPanel.getGlobalSearchContainer());
+        chatTab.setGlobalSearchPopupEnabledSupplier(() -> isCurrentCard("Chat"));
         chatTab.setOnSwitchToChatCallback(() -> switchToCard("Chat"));
         
         chatTab.setOnUnreadCountChanged(totalUnread -> {
