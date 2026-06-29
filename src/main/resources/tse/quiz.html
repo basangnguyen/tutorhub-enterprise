@@ -1332,6 +1332,46 @@ mark {
 
 }
 
+
+:root[data-theme="light"] {
+  --bg:             #f8fafc;
+  --bg-dot:         rgba(0,0,0,0.05);
+  --surface-0:      #ffffff;
+  --surface-1:      #f1f5f9;
+  --surface-2:      #e2e8f0;
+  --surface-solid:  #ffffff;
+  --glass:          rgba(255,255,255,0.85);
+  --border:         rgba(0,0,0,0.1);
+  --border-active:  rgba(74,127,255,0.6);
+  --border-hover:   rgba(0,0,0,0.15);
+
+  --accent:         #3b82f6;
+  --accent-hover:   #2563eb;
+  --accent-bg:      rgba(59,130,246,0.1);
+  --accent-glow:    rgba(59,130,246,0.25);
+
+  --green:          #10b981;
+  --green-bg:       rgba(16,185,129,0.1);
+  --green-border:   rgba(16,185,129,0.25);
+  --red:            #ef4444;
+  --red-bg:         rgba(239,68,68,0.1);
+  --red-border:     rgba(239,68,68,0.25);
+  --orange:         #f59e0b;
+  --orange-bg:      rgba(245,158,11,0.1);
+  --orange-border:  rgba(245,158,11,0.25);
+  --purple:         #8b5cf6;
+  --purple-bg:      rgba(139,92,246,0.1);
+  --purple-game:    #7c3aed;
+
+  --ink:            #0f172a;
+  --ink-light:      #475569;
+  --ink-muted:      #94a3b8;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.05);
+  --shadow-glow:0 8px 24px var(--accent-glow);
+}
 </style>
 
 
@@ -1893,6 +1933,12 @@ text-shadow: 0 4px 20px rgba(0,0,0,0.5);
 </head>
 
 <body>
+
+<!-- Theme Toggle -->
+<button id="theme-toggle" title="Toggle Light/Dark Mode" style="position: fixed; top: 16px; right: 16px; z-index: 1000; background: var(--surface-1); border: 1px solid var(--border); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); font-size: 20px; box-shadow: var(--shadow-sm); backdrop-filter: blur(8px); transition: var(--transition);">
+  🌙
+</button>
+
 
 
 
@@ -3363,6 +3409,38 @@ function gameExit(){
   window.scrollTo(0,0);
 }
 </script>
+
+<script>
+  // Theme Toggle Logic
+  (function() {
+    const btn = document.getElementById('theme-toggle');
+    const root = document.documentElement;
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    
+    function setTheme(theme) {
+      if (theme === 'light') {
+        root.setAttribute('data-theme', 'light');
+        btn.textContent = '☀️';
+      } else {
+        root.removeAttribute('data-theme');
+        btn.textContent = '🌙';
+      }
+      localStorage.setItem('theme', theme);
+    }
+    
+    setTheme(currentTheme);
+    
+    btn.addEventListener('click', () => {
+      const newTheme = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      setTheme(newTheme);
+      
+      // Quick animation
+      btn.style.transform = 'scale(0.8)';
+      setTimeout(() => { btn.style.transform = 'scale(1)'; }, 150);
+    });
+  })();
+</script>
+
 </body>
 
 </html>
