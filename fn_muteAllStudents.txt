@@ -1,9 +1,0 @@
-function muteAllStudents() {
-            if (!window.currentRoom) return;
-            try {
-                // Send a mute_all signal to all users
-                const payload = JSON.stringify({ type: 'mute_all', sender: window.currentRoom.localParticipant.identity });
-                const encoder = new TextEncoder();
-                await window.currentRoom.localParticipant.publishData(encoder.encode(payload), { reliable: true });
-                
-                showToast("Đã gửi lệnh tắt Mi

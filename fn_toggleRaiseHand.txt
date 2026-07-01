@@ -1,9 +1,0 @@
-function toggleRaiseHand() {
-            if (!window.currentRoom) return;
-            const btn = document.getElementById('raise-hand-btn');
-            
-            try {
-                // Parse current metadata
-                let currentMeta = { role: window.currentUserRole, displayName: window.currentUserName, isHandRaised: false, handRaisedAt: null };
-                if (window.currentRoom.localParticipant.metadata) {
-                    currentMeta = parseMetadata(window.currentRoom.local

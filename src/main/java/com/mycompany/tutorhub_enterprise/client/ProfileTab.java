@@ -117,13 +117,7 @@ public class ProfileTab extends JPanel {
         setupCenterTabs(); 
         contentPanel.add(centerCardPanel, BorderLayout.CENTER);
         
-        // Hỗ trợ scrollbar khi thu nhỏ màn hình hoặc màn hình độ phân giải thấp
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBorder(null);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(14);
-        add(scrollPane, BorderLayout.CENTER);
+        add(contentPanel, BorderLayout.CENTER);
         
         switchTab(0);
         setEditMode(false);
@@ -754,7 +748,7 @@ public class ProfileTab extends JPanel {
         body.setOpaque(false);
         body.setBorder(new EmptyBorder(15, 0, 0, 0));
 
-        JPanel grid = new JPanel(new GridLayout(4, 2, 20, 15)); 
+        JPanel grid = new JPanel(new GridLayout(4, 2, 20, 10)); 
         grid.setOpaque(false); 
         grid.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -825,9 +819,9 @@ public class ProfileTab extends JPanel {
         grid.add(createIconInputGroup("Môn dạy chính", "images/icon/monitor.svg", txtSubject));
         
         body.add(grid);
-        body.add(Box.createVerticalStrut(10));
+        body.add(Box.createVerticalStrut(6));
         body.add(createPhoneVerificationPanel());
-        body.add(Box.createVerticalStrut(10));
+        body.add(Box.createVerticalStrut(6));
 
         JLabel lblBio = new JLabel("Giới thiệu bản thân"); 
         lblBio.setFont(new Font("Segoe UI", Font.BOLD, 13)); 
@@ -847,13 +841,13 @@ public class ProfileTab extends JPanel {
             }
         };
         bioWrap.setOpaque(false);
-        bioWrap.setBorder(new EmptyBorder(8, 12, 8, 12));
+        bioWrap.setBorder(new EmptyBorder(6, 12, 6, 12));
         bioWrap.setAlignmentX(Component.LEFT_ALIGNMENT);
-        bioWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110)); 
-        bioWrap.setPreferredSize(new Dimension(0, 110));
+        bioWrap.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60)); 
+        bioWrap.setPreferredSize(new Dimension(0, 60));
 
         txtBio = new JTextArea(""); 
-        txtBio.setRows(4); 
+        txtBio.setRows(2); 
         txtBio.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
         txtBio.setLineWrap(true); txtBio.setWrapStyleWord(true); 
         txtBio.setBorder(null);
@@ -871,9 +865,9 @@ public class ProfileTab extends JPanel {
         bioWrap.add(lblCharCount, BorderLayout.SOUTH);
 
         body.add(lblBio); 
-        body.add(Box.createVerticalStrut(4)); 
+        body.add(Box.createVerticalStrut(2)); 
         body.add(bioWrap); 
-        body.add(Box.createVerticalStrut(10)); 
+        body.add(Box.createVerticalStrut(6)); 
 
         JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4)); 
         btnWrap.setOpaque(false); 

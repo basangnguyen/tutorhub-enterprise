@@ -1,1 +1,0 @@
-{"answer":"Lỗi Voice: Error code: 400 - {'error': {'message': 'could not process file - is it a valid media file?', 'type': 'invalid_request_error'}}"}
