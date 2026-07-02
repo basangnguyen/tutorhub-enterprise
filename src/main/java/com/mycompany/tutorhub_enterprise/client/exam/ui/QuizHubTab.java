@@ -9,6 +9,7 @@ import org.cef.browser.CefMessageRouter;
 import org.cef.handler.CefMessageRouterHandler;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.net.URL;
 
@@ -19,27 +20,6 @@ public class QuizHubTab extends JPanel {
     public QuizHubTab() {
         System.out.println("[QUIZHUB] QuizHubTab initialized");
         setLayout(new BorderLayout());
-        
-        // --- ADD TOOLBAR FOR IMPORT ---
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnRefreshCloud = new JButton("🔄 Làm mới từ Cloud");
-        btnRefreshCloud.addActionListener(e -> {
-            if (browser != null) {
-                browser.reload(); // Reload CefBrowser will call LIST_DECKS again and refresh from B2
-            }
-        });
-        topPanel.add(btnRefreshCloud);
-        
-        JButton btnImportExcel = new JButton("Nhập đề từ Excel");
-        btnImportExcel.addActionListener(e -> {
-            com.mycompany.tutorhub_enterprise.client.quizhub.bridge.QuizExcelImportDialog dialog = 
-                new com.mycompany.tutorhub_enterprise.client.quizhub.bridge.QuizExcelImportDialog(
-                    SwingUtilities.getWindowAncestor(this));
-            dialog.setVisible(true);
-        });
-        topPanel.add(btnImportExcel);
-        add(topPanel, BorderLayout.NORTH);
-        // ------------------------------
 
         initJcefBrowser();
     }

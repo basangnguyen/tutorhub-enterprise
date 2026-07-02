@@ -34,6 +34,7 @@ public class QuizHubCefRouterHandler extends CefMessageRouterHandlerAdapter {
     }
 
     private String route(String request) {
+        if (request.equals("OPEN_EXCEL_IMPORT")) return bridge.openExcelImport();
         if (request.equals("LIST_DECKS:") || request.equals("LIST_DECKS")) return bridge.listDecks();
         if (request.startsWith("GET_DECK:")) return bridge.getDeck(after(request, "GET_DECK:"));
         if (request.startsWith("PREVIEW_QUIZ_ROWS:")) return bridge.previewExcelRows(after(request, "PREVIEW_QUIZ_ROWS:"));

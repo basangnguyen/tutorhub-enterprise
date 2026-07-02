@@ -39,6 +39,14 @@ public class QuizHubBridge {
         }
     }
 
+    public String openExcelImport() {
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            QuizExcelImportDialog dialog = new QuizExcelImportDialog(null);
+            dialog.setVisible(true);
+        });
+        return ok("opened");
+    }
+
     public String previewExcelRows(String rowsJson) {
     try { return ok(deckService.previewExcelRows(rowsJson)); }
     catch (QuizHubImportException e) { return err(e.getMessage()); }

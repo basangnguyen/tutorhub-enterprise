@@ -31,7 +31,7 @@ public final class SearchHighlightProvider {
     private static final Logger LOG = Logger.getLogger(SearchHighlightProvider.class.getName());
 
     // Đường dẫn resource trong classpath
-    private static final String RES = "/com/tutorhub/resources/highlights/";
+    private static final String RES = "/images/DanhLam/";
 
     private record HighlightEntry(
         String file,        // Tên file ảnh trong /images/Search/
@@ -45,17 +45,17 @@ public final class SearchHighlightProvider {
     ) {}
 
     private static final HighlightEntry[] CATALOG = {
-        new HighlightEntry("01-vinh-ha-long.png", "01-ha-long-bay-preview.png", "Vịnh Hạ Long", "Kỳ quan thiên nhiên", "Quảng Ninh", "https://vi.wikipedia.org/wiki/V%E1%BB%8Bnh_H%E1%BA%A1_Long", new Color(0x156EA8), new Color(0x5BB3DA)),
-        new HighlightEntry("02-ho-guom-ha-noi.png", "02-ha-noi-ho-guom-preview.png", "Hồ Gươm", "Biểu tượng thủ đô", "Hà Nội", "https://vi.wikipedia.org/wiki/H%E1%BB%93_Ho%C3%A0n_Ki%E1%BA%BFm", new Color(0x2A6B2A), new Color(0x5E9E5E)),
-        new HighlightEntry("03-pho-co-hoi-an-chua-cau.png", "03-hoi-an-japanese-bridge-preview.png", "Phố cổ Hội An", "Chùa Cầu lịch sử", "Quảng Nam", "https://vi.wikipedia.org/wiki/Ph%E1%BB%91_c%E1%BB%95_H%E1%BB%99i_An", new Color(0xB56A10), new Color(0xE8A840)),
-        new HighlightEntry("04-dai-noi-hue.png", "04-hue-imperial-city-preview.png", "Đại Nội Huế", "Cố đô lịch sử", "Thừa Thiên Huế", "https://vi.wikipedia.org/wiki/Qu%E1%BA%A7n_th%E1%BB%83_di_t%C3%ADch_C%E1%BB%91_%C4%91%C3%B4_Hu%E1%BA%BF", new Color(0x7A4A1A), new Color(0xB88442)),
-        new HighlightEntry("05-cau-vang-da-nang.png", "05-da-nang-golden-bridge-preview.png", "Cầu Vàng", "Bàn tay khổng lồ", "Đà Nẵng", "https://vi.wikipedia.org/wiki/C%E1%BA%A7u_V%C3%A0ng_(%C4%90%C3%A0_N%E1%BA%B5ng)", new Color(0xC89A1E), new Color(0xE8C06A)),
-        new HighlightEntry("06-trang-an-tam-coc-ninh-binh.png", "06-ninh-binh-trang-an-preview.png", "Tràng An", "Vịnh Hạ Long trên cạn", "Ninh Bình", "https://vi.wikipedia.org/wiki/Qu%E1%BA%A7n_th%E1%BB%83_danh_th%E1%BA%AFng_Tr%C3%A0ng_An", new Color(0x1A5C3A), new Color(0x3E8A5F)),
-        new HighlightEntry("07-thac-ban-gioc.png", "07-ban-gioc-waterfall-preview.png", "Thác Bản Giốc", "Thác nước hùng vĩ", "Cao Bằng", "https://vi.wikipedia.org/wiki/Th%C3%A1c_B%E1%BA%A3n_Gi%E1%BB%91c", new Color(0x156EA8), new Color(0x5BB3DA)),
-        new HighlightEntry("08-ruong-bac-thang-sa-pa.png", "08-sapa-terraced-fields-preview.png", "Ruộng bậc thang", "Vẻ đẹp Tây Bắc", "Lào Cai", "https://vi.wikipedia.org/wiki/Sa_Pa", new Color(0x2E6B2A), new Color(0x7AAB50)),
-        new HighlightEntry("09-cho-ben-thanh-tphcm.png", "09-ben-thanh-market-preview.png", "Chợ Bến Thành", "Biểu tượng Sài Gòn", "TP. Hồ Chí Minh", "https://vi.wikipedia.org/wiki/Ch%E1%BB%A3_B%E1%BA%BFn_Th%C3%A0nh", new Color(0x8A2A2A), new Color(0xC85A5A)),
-        new HighlightEntry("10.png", "10-phu-quoc-beach-preview.png", "Biển Phú Quốc", "Đảo ngọc", "Kiên Giang", "https://vi.wikipedia.org/wiki/Ph%C3%BA_Qu%E1%BB%91c", new Color(0x156EA8), new Color(0x5BB3DA)),
-        new HighlightEntry("11-bien-phu-quoc.png", "11-cai-rang-floating-market-preview.png", "Chợ Nổi Cái Răng", "Đặc trưng miền Tây", "Cần Thơ", "https://vi.wikipedia.org/wiki/Ch%E1%BB%A3_n%E1%BB%95i_C%C3%A1i_R%C4%83ng", new Color(0x156EA8), new Color(0x5BB3DA))
+        new HighlightEntry("vinhhalong.jpg", "vinhhalong.jpg", "Vịnh Hạ Long", "Kỳ quan thiên nhiên", "Quảng Ninh", "https://vi.wikipedia.org/wiki/V%E1%BB%8Bnh_H%E1%BA%A1_Long", new Color(0x156EA8), new Color(0x5BB3DA)),
+        new HighlightEntry("hohoankiem.jpg", "hohoankiem.jpg", "Hồ Gươm", "Biểu tượng thủ đô", "Hà Nội", "https://vi.wikipedia.org/wiki/H%E1%BB%93_Ho%C3%A0n_Ki%E1%BA%BFm", new Color(0x2A6B2A), new Color(0x5E9E5E)),
+        new HighlightEntry("phocohoian.jpg", "phocohoian.jpg", "Phố cổ Hội An", "Chùa Cầu lịch sử", "Quảng Nam", "https://vi.wikipedia.org/wiki/Ph%E1%BB%91_c%E1%BB%95_H%E1%BB%99i_An", new Color(0xB56A10), new Color(0xE8A840)),
+        new HighlightEntry("dainoihue.jpg", "dainoihue.jpg", "Đại Nội Huế", "Cố đô lịch sử", "Thừa Thiên Huế", "https://vi.wikipedia.org/wiki/Qu%E1%BA%A7n_th%E1%BB%83_di_t%C3%ADch_C%E1%BB%91_%C4%91%C3%B4_Hu%E1%BA%BF", new Color(0x7A4A1A), new Color(0xB88442)),
+        new HighlightEntry("cauvang.jpg", "cauvang.jpg", "Cầu Vàng", "Bàn tay khổng lồ", "Đà Nẵng", "https://vi.wikipedia.org/wiki/C%E1%BA%A7u_V%C3%A0ng_(%C4%90%C3%A0_N%E1%BA%B5ng)", new Color(0xC89A1E), new Color(0xE8C06A)),
+        new HighlightEntry("trangan.jpg", "trangan.jpg", "Tràng An", "Vịnh Hạ Long trên cạn", "Ninh Bình", "https://vi.wikipedia.org/wiki/Qu%E1%BA%A7n_th%E1%BB%83_danh_th%E1%BA%AFng_Tr%C3%A0ng_An", new Color(0x1A5C3A), new Color(0x3E8A5F)),
+        new HighlightEntry("thacbangioc.jpg", "thacbangioc.jpg", "Thác Bản Giốc", "Thác nước hùng vĩ", "Cao Bằng", "https://vi.wikipedia.org/wiki/Th%C3%A1c_B%E1%BA%A3n_Gi%E1%BB%91c", new Color(0x156EA8), new Color(0x5BB3DA)),
+        new HighlightEntry("ruongbacthang.jpg", "ruongbacthang.jpg", "Ruộng bậc thang", "Vẻ đẹp Tây Bắc", "Lào Cai", "https://vi.wikipedia.org/wiki/Sa_Pa", new Color(0x2E6B2A), new Color(0x7AAB50)),
+        new HighlightEntry("chobenthanh.jpg", "chobenthanh.jpg", "Chợ Bến Thành", "Biểu tượng Sài Gòn", "TP. Hồ Chí Minh", "https://vi.wikipedia.org/wiki/Ch%E1%BB%A3_B%E1%BA%BFn_Th%C3%A0nh", new Color(0x8A2A2A), new Color(0xC85A5A)),
+        new HighlightEntry("phuquoc.jpg", "phuquoc.jpg", "Biển Phú Quốc", "Đảo ngọc", "Kiên Giang", "https://vi.wikipedia.org/wiki/Ph%C3%BA_Qu%E1%BB%91c", new Color(0x156EA8), new Color(0x5BB3DA)),
+        new HighlightEntry("chonoicairang.jpg", "chonoicairang.jpg", "Chợ Nổi Cái Răng", "Đặc trưng miền Tây", "Cần Thơ", "https://vi.wikipedia.org/wiki/Ch%E1%BB%A3_n%E1%BB%95i_C%C3%A1i_R%C4%83ng", new Color(0x156EA8), new Color(0x5BB3DA))
     };
 
     private SearchHighlightProvider() {}
@@ -112,8 +112,8 @@ public final class SearchHighlightProvider {
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private static SearchHighlight build(HighlightEntry e) {
-        String resPath = "/images/Search/" + e.file();
-        String previewPath = "/images/Preview/" + e.previewFile();
+        String resPath = "/images/DanhLam/" + e.file();
+        String previewPath = "/images/DanhLam/" + e.previewFile();
         
         BufferedImage img = tryLoadImageFromResource(resPath);
         BufferedImage previewImg = tryLoadImageFromResource(previewPath);
