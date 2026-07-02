@@ -2922,16 +2922,104 @@ textarea {
 
 <style>
 .cards {
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)) !important;
   max-width: 1200px !important;
-  gap: 16px !important;
+  gap: 12px !important;
+  padding: 0 10px !important;
 }
-.card {
-  min-height: unset !important;
+.deck-card {
+  border-radius: 10px !important;
+  transition: all 0.2s ease !important;
+  height: 105px !important; /* Extremely compact height for horizontal rectangle look! */
+  min-height: 105px !important;
 }
-.card .body {
-  padding: 16px !important;
+.deck-card .body {
+  padding: 10px 12px !important;
   min-height: unset !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+/* 1. Header (Icon & Tag) */
+.deck-card .body > div:nth-child(1) {
+  margin-bottom: 0px !important;
+  align-items: center !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  height: 24px !important;
+}
+/* Icon container */
+.deck-card .body > div:nth-child(1) > div:first-child {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 6px !important;
+}
+/* Icon SVG */
+.deck-card .body > div:nth-child(1) > div:first-child svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+/* Subject Tag */
+.deck-card .body > div:nth-child(1) > div:nth-child(2) {
+  font-size: 9px !important;
+  padding: 1px 6px !important;
+  border-radius: 10px !important;
+}
+/* 2. "Đề X" (Hide to save vertical space, or show inline) */
+.deck-card .body > div:nth-child(2) {
+  display: none !important;
+}
+/* 3. Title (Wider look, smaller text) */
+.deck-card .body > div:nth-child(3) {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin-bottom: 2px !important;
+  line-height: 1.25 !important;
+  height: 32px !important; /* Exactly 2 lines of 13px font */
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+/* 4. hr (Hide completely to make it rectangular) */
+.deck-card .body > hr {
+  display: none !important;
+}
+/* 5. Info/Metadata (câu & chương - make inline at bottom or hide to fit) */
+.deck-card .body > div:nth-child(5) {
+  display: none !important; /* Hide info to make the card extremely neat and rectangular! */
+}
+/* 6. Buttons Row */
+.deck-card .body > div:nth-child(6) {
+  gap: 6px !important;
+  margin-top: 0px !important;
+}
+/* Start button */
+.deck-card .body > div:nth-child(6) > div:first-child {
+  padding: 4px 6px !important;
+  font-size: 10px !important;
+  border-radius: 5px !important;
+  gap: 2px !important;
+  height: 22px !important;
+}
+.deck-card .body > div:nth-child(6) > div:first-child svg {
+  width: 10px !important;
+  height: 10px !important;
+}
+/* Play button */
+.deck-card .body > div:nth-child(6) > button {
+  padding: 4px 6px !important;
+  font-size: 10px !important;
+  border-radius: 5px !important;
+  gap: 2px !important;
+  height: 22px !important;
+}
+.deck-card .body > div:nth-child(6) > button svg {
+  width: 10px !important;
+  height: 10px !important;
 }
 </style>
 </head>
