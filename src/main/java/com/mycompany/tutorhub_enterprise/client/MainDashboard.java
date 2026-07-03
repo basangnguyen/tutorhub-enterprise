@@ -1051,6 +1051,10 @@ public class MainDashboard extends JFrame {
                     if (packet.data != null && chatTab != null) {
                         chatTab.updateSearchResults((List<UserInfo>) packet.data);
                     }
+                } else if ("GLOBAL_SEARCH_RESULT".equals(packet.action)) {
+                    if (packet.data != null && headerPanel != null) {
+                        headerPanel.onGlobalSearchResult((java.util.List<com.mycompany.tutorhub_enterprise.models.GlobalSearchDto>) packet.data);
+                    }
                 } else if ("FRIEND_REQUEST_SENT".equals(packet.action) || "FRIEND_ACCEPTED".equals(packet.action)) {
                     if (headerPanel != null) {
                         headerPanel.addNotification("https://img.icons8.com/fluency/48/ok.png", "Kết bạn", packet.message);

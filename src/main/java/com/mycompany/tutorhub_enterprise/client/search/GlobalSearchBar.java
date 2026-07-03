@@ -32,7 +32,7 @@ public class GlobalSearchBar extends JPanel {
     // Fields
     // =========================================================
 
-    private final JTextField searchField;
+    private final GhostTextTextField searchField;
     private final ThumbnailPane thumbnailPane;
 
     /** Lazy-initialized on first show so we have an owner Window. */
@@ -87,7 +87,7 @@ public class GlobalSearchBar extends JPanel {
         add(searchIcon);
 
         // ── 2. Search field ──────────────────────────────────
-        searchField = new JTextField();
+        searchField = new GhostTextTextField();
         searchField.putClientProperty("JTextField.placeholderText", "Tìm kiếm trong TutorHub...");
         searchField.putClientProperty("JTextField.showClearButton", true);
         searchField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -219,6 +219,7 @@ public class GlobalSearchBar extends JPanel {
     }
 
     private void onTextChanged() {
+        searchField.setGhostText("");
         thumbnailPane.fade(searchField.getText().isEmpty());
         notifyQueryChanged(searchField.getText());
         scheduleSearch();
@@ -270,6 +271,22 @@ public class GlobalSearchBar extends JPanel {
                 // Kiểm tra xem dropdown có còn đang mở không
                 if (win.isVisible() && searchField.hasFocus()) {
                     win.updateAndShow(sx, sy, results, query);
+                    
+                    // Tính toán ghost text từ Top Match
+                    String ghost = "";
+                    if (results != null && !results.isEmpty() && query != null && !query.isBlank()) {
+                        SearchResult topMatch = results.get(0);
+                        if (topMatch.getScore() > 0 && topMatch.getType() != SearchResultType.WEB) {
+                            String title = topMatch.getTitle();
+                            String qText = searchField.getText();
+                            if (title != null && !qText.isEmpty()) {
+                                if (title.toLowerCase().startsWith(qText.toLowerCase())) {
+                                    ghost = title.substring(qText.length());
+                                }
+                            }
+                        }
+                    }
+                    searchField.setGhostText(ghost);
                 }
             });
         }).exceptionally(ex -> {

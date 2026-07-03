@@ -223,11 +223,22 @@ public class SearchDropdownWindow {
             updateSelection();
         }
 
+        // --- G7: Keyboard Hints ---
+        JPanel hintPanel = new JPanel(new java.awt.BorderLayout());
+        hintPanel.setOpaque(false);
+        hintPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 4, 0));
+        JLabel hintLabel = new JLabel("↵ để mở  •  Esc để đóng", SwingConstants.CENTER);
+        hintLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        hintLabel.setForeground(new Color(156, 163, 175));
+        hintPanel.add(hintLabel, java.awt.BorderLayout.CENTER);
+        contentPanel.add(hintPanel);
+
         int totalH = PADDING * 2
                 + sectionCount * SECTION_H
                 + Math.max(0, sectionCount - 1) * 5
                 + resultList.size() * ROW_H
-                + (topMatch != null ? 4 : 0);
+                + (topMatch != null ? 4 : 0)
+                + 28; // space for hint
         applySize(Math.min(MAX_HEIGHT, Math.max(80, totalH)));
     }
 
@@ -354,7 +365,11 @@ public class SearchDropdownWindow {
 
             // --- Icon badge ---
             Color iconColor = iconColorFor(result.getType());
-            JLabel icon = new JLabel(result.getIconText(), SwingConstants.CENTER) {
+            String iconPath = svgPathFor(result.getType());
+            com.formdev.flatlaf.extras.FlatSVGIcon svgIcon = new com.formdev.flatlaf.extras.FlatSVGIcon(iconPath, 16, 16);
+            svgIcon.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(color -> iconColor));
+
+            JLabel icon = new JLabel(svgIcon, SwingConstants.CENTER) {
                 @Override protected void paintComponent(Graphics g) {
                     Graphics2D g2 = (Graphics2D) g.create();
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -365,8 +380,6 @@ public class SearchDropdownWindow {
                     super.paintComponent(g);
                 }
             };
-            icon.setFont(new Font("Segoe UI", Font.BOLD, 9));
-            icon.setForeground(iconColor);
             icon.setPreferredSize(new Dimension(38, ROW_H - 8));
             add(icon, BorderLayout.WEST);
 
@@ -423,6 +436,23 @@ public class SearchDropdownWindow {
                 case HISTORY: return HIST_COLOR;
                 case EMPTY:   return HIST_COLOR;
                 default:      return SELECTED_ICON;
+            }
+        }
+
+        private static String svgPathFor(SearchResultType type) {
+            switch (type) {
+                case COMMAND:   return "/images/icon/search_command.svg";
+                case CHAT:      return "/images/icon/search_chat.svg";
+                case CLASS:     return "/images/icon/search_class.svg";
+                case DOCUMENT:  return "/images/icon/search_document.svg";
+                case CALENDAR:  return "/images/icon/search_calendar.svg";
+                case TASK:      return "/images/icon/search_task.svg";
+                case BLACKBOARD:return "/images/icon/search_blackboard.svg";
+                case PROFILE:   return "/images/icon/search_profile.svg";
+                case WEB:       return "/images/icon/search_web.svg";
+                case HISTORY:   return "/images/icon/search_history.svg";
+                case EMPTY:     return "/images/icon/search_empty.svg";
+                default:        return "/images/icon/search_empty.svg";
             }
         }
     }

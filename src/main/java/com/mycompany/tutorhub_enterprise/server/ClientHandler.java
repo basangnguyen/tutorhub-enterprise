@@ -20,6 +20,7 @@ public class ClientHandler {
     private WebSocket socket;
     private String clientId;
     private int userId = -1;
+    private long lastGlobalSearchTime = 0;
 
     private boolean isWebClient = false;
     private static final com.google.gson.Gson gson = new com.google.gson.Gson();
@@ -863,6 +864,32 @@ public class ClientHandler {
                     List<com.mycompany.tutorhub_enterprise.models.UserInfo> searchResults = 
                         com.mycompany.tutorhub_enterprise.server.dao.UserDAO.searchUsers(keyword, this.userId);
                     sendPacket(new Packet("SEARCH_USER_RESULT", searchResults));
+                    break;
+                }
+                
+                case "GLOBAL_SEARCH": {
+                    long now = System.currentTimeMillis();
+                    if (now - this.lastGlobalSearchTime < 500) {
+                        sendPacket(new Packet("GLOBAL_SEARCH_RESULT", java.util.Collections.emptyList()));
+                        break;
+                    }
+                    this.lastGlobalSearchTime = now;
+
+                    String keyword = packet.payload;
+                    if (keyword == null || keyword.length() < 2) {
+                        sendPacket(new Packet("GLOBAL_SEARCH_RESULT", java.util.Collections.emptyList()));
+                        break;
+                    }
+                    
+                    List<com.mycompany.tutorhub_enterprise.models.GlobalSearchDto> results = new java.util.ArrayList<>();
+                    List<com.mycompany.tutorhub_enterprise.models.UserInfo> users = 
+                        com.mycompany.tutorhub_enterprise.server.dao.UserDAO.searchUsers(keyword, this.userId);
+                    for (com.mycompany.tutorhub_enterprise.models.UserInfo u : users) {
+                        results.add(new com.mycompany.tutorhub_enterprise.models.GlobalSearchDto(
+                            String.valueOf(u.id), "PROFILE", u.fullName, "Người dùng"
+                        ));
+                    }
+                    sendPacket(new Packet("GLOBAL_SEARCH_RESULT", results));
                     break;
                 }
 

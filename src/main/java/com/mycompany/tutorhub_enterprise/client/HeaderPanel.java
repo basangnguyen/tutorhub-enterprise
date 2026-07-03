@@ -58,6 +58,7 @@ public class HeaderPanel extends JPanel {
 
     private com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar globalSearchBar;
     private JPanel globalSearchContainer;
+    private com.mycompany.tutorhub_enterprise.client.search.providers.ServerSearchProvider serverSearchProvider;
     
     private ActionBox chatBox;
     private ActionBox bellBox;
@@ -91,6 +92,7 @@ public class HeaderPanel extends JPanel {
         globalSearchContainer.setPreferredSize(new Dimension(460, 52)); 
         
         globalSearchBar = new com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar();
+        globalSearchBar.addGlobalShortcut(this); // G6: Ctrl+K
         configureGlobalSearchCommands();
         globalSearchContainer.add(globalSearchBar, BorderLayout.CENTER);
         searchWrapper.add(globalSearchContainer);
@@ -280,10 +282,19 @@ public class HeaderPanel extends JPanel {
         searchController.registerProvider(new BlackboardSearchProvider(() -> boardSearchEntries));
         searchController.registerProvider(new WebSearchProvider());
 
+        serverSearchProvider = new com.mycompany.tutorhub_enterprise.client.search.providers.ServerSearchProvider();
+        searchController.registerProvider(serverSearchProvider);
+
         globalSearchBar.setGlobalDropdownEnabledSupplier(() -> dashboard != null && !dashboard.isCurrentCard("Chat"));
         globalSearchBar.setDropdownResultsProvider(searchController::executeSearchAsync);
 
         globalSearchBar.addSubmitListener(SearchHistoryStore::addSearch);
+    }
+    
+    public void onGlobalSearchResult(java.util.List<com.mycompany.tutorhub_enterprise.models.GlobalSearchDto> results) {
+        if (serverSearchProvider != null) {
+            serverSearchProvider.onServerResponse(results);
+        }
     }
 
     // ── Search Data Setters (called from tabs) ───────────────────────

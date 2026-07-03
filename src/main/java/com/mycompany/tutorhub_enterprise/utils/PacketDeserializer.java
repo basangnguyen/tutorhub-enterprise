@@ -52,6 +52,9 @@ public class PacketDeserializer implements JsonDeserializer<Packet> {
                     case "SEARCH_USER_RESULT":
                         packet.data = context.deserialize(dataElement, new TypeToken<List<UserInfo>>(){}.getType());
                         break;
+                    case "GLOBAL_SEARCH_RESULT":
+                        packet.data = context.deserialize(dataElement, new TypeToken<List<GlobalSearchDto>>(){}.getType());
+                        break;
                     case "GET_CLASSROOMS_RESPONSE":
                         packet.data = context.deserialize(dataElement, new TypeToken<List<ClassroomGroupModel>>(){}.getType());
                         break;
