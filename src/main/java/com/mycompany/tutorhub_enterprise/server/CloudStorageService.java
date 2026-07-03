@@ -25,11 +25,11 @@ public class CloudStorageService {
     private S3Client s3Client;
     private boolean available = false;
 
-    // Cấu hình kết nối hạ tầng vật lý (MinIO local)
-    private static final String ENDPOINT = ServerConfig.get("TUTORHUB_STORAGE_ENDPOINT", "tutorhub.storage.endpoint", "http://localhost:9000");
-    private static final String BUCKET_NAME = ServerConfig.get("TUTORHUB_STORAGE_BUCKET", "tutorhub.storage.bucket", "tutorhub-resources");
-    private static final String ACCESS_KEY = ServerConfig.get("TUTORHUB_STORAGE_ACCESS_KEY", "tutorhub.storage.accessKey", "");
-    private static final String SECRET_KEY = ServerConfig.get("TUTORHUB_STORAGE_SECRET_KEY", "tutorhub.storage.secretKey", "");
+    // Cấu hình kết nối hạ tầng vật lý (MinIO / B2)
+    private static final String ENDPOINT = ServerConfig.get("TUTORHUB_B2_ENDPOINT", "tutorhub.b2.endpoint", "http://localhost:9000");
+    private static final String BUCKET_NAME = ServerConfig.get("TUTORHUB_B2_BUCKET", "tutorhub.b2.bucket", "tutorhub-resources");
+    private static final String ACCESS_KEY = ServerConfig.get("TUTORHUB_B2_ACCESS_KEY", "tutorhub.b2.accessKey", "");
+    private static final String SECRET_KEY = ServerConfig.get("TUTORHUB_B2_SECRET_KEY", "tutorhub.b2.secretKey", "");
 
     private CloudStorageService() {
         try {
@@ -203,5 +203,97 @@ public class CloudStorageService {
      */
     public String getBucketName() {
         return BUCKET_NAME;
+    }
+
+    // ==============================================================
+    // S3 MULTIPART UPLOAD API (Hỗ trợ chia nhỏ tệp & tải đa luồng)
+    // ==============================================================
+
+    /**
+     * Khởi tạo quá trình Multipart Upload, trả về Upload ID.
+     */
+    public String initiateMultipartUpload(String fileName, String contentType) {
+        try {
+            CreateMultipartUploadRequest request = CreateMultipartUploadRequest.builder()
+                    .bucket(BUCKET_NAME)
+                    .key(fileName)
+                    .contentType(contentType != null ? contentType : "application/octet-stream")
+                    .build();
+            CreateMultipartUploadResponse response = s3Client.createMultipartUpload(request);
+            return response.uploadId();
+        } catch (Exception e) {
+            System.err.println("[STORAGE ERROR] Không thể khởi tạo Multipart Upload: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Tải lên một phần (Part) của tệp.
+     */
+    public CompletedPart uploadPart(String fileName, String uploadId, int partNumber, byte[] data) {
+        try {
+            UploadPartRequest uploadRequest = UploadPartRequest.builder()
+                    .bucket(BUCKET_NAME)
+                    .key(fileName)
+                    .uploadId(uploadId)
+                    .partNumber(partNumber)
+                    .contentLength((long) data.length)
+                    .build();
+
+            UploadPartResponse response = s3Client.uploadPart(uploadRequest, RequestBody.fromBytes(data));
+            return CompletedPart.builder()
+                    .partNumber(partNumber)
+                    .eTag(response.eTag())
+                    .build();
+        } catch (Exception e) {
+            System.err.println("[STORAGE ERROR] Lỗi tải lên Part " + partNumber + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Hoàn tất quá trình Multipart Upload, yêu cầu server nối các mảnh lại.
+     */
+    public String completeMultipartUpload(String fileName, String uploadId, java.util.List<CompletedPart> completedParts) {
+        try {
+            completedParts.sort(java.util.Comparator.comparingInt(CompletedPart::partNumber));
+
+            CompletedMultipartUpload completedMultipartUpload = CompletedMultipartUpload.builder()
+                    .parts(completedParts)
+                    .build();
+
+            CompleteMultipartUploadRequest completeRequest = CompleteMultipartUploadRequest.builder()
+                    .bucket(BUCKET_NAME)
+                    .key(fileName)
+                    .uploadId(uploadId)
+                    .multipartUpload(completedMultipartUpload)
+                    .build();
+
+            s3Client.completeMultipartUpload(completeRequest);
+
+            String publicUrl = ENDPOINT + "/" + BUCKET_NAME + "/" + fileName;
+            System.out.println("[STORAGE] ✅ Hoàn thành Multipart Upload! URL: " + publicUrl);
+            return publicUrl;
+        } catch (Exception e) {
+            System.err.println("[STORAGE ERROR] Lỗi chốt Multipart Upload: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Hủy bỏ Multipart Upload.
+     */
+    public void abortMultipartUpload(String fileName, String uploadId) {
+        try {
+            AbortMultipartUploadRequest abortRequest = AbortMultipartUploadRequest.builder()
+                    .bucket(BUCKET_NAME)
+                    .key(fileName)
+                    .uploadId(uploadId)
+                    .build();
+            s3Client.abortMultipartUpload(abortRequest);
+            System.out.println("[STORAGE] 🛑 Đã hủy Multipart Upload cho tệp: " + fileName);
+        } catch (Exception e) {
+            System.err.println("[STORAGE ERROR] Lỗi hủy Multipart Upload: " + e.getMessage());
+        }
     }
 }

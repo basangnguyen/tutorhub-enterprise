@@ -18,6 +18,17 @@ public class NetworkManager {
     private static volatile NetworkManager instance;
     private TutorWebSocketClient webSocketClient;
     private BlockingQueue<Packet> packetQueue = new LinkedBlockingQueue<>();
+    
+    // [PHASE 4: REAL-TIME SYNC]
+    private final List<java.util.function.Consumer<Packet>> globalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public void addGlobalListener(java.util.function.Consumer<Packet> listener) {
+        globalListeners.add(listener);
+    }
+
+    public void removeGlobalListener(java.util.function.Consumer<Packet> listener) {
+        globalListeners.remove(listener);
+    }
 
     private NetworkManager() {}
 
@@ -205,8 +216,20 @@ public class NetworkManager {
                 byte[] bytes = new byte[message.remaining()];
                 message.get(bytes);
                 Packet packet = (Packet) SerializationUtils.deserialize(bytes);
-                // Đưa gói tin vào Hàng đợi để hàm receivePacket() nhặt lấy
-                queue.put(packet);
+                
+                // [PHASE 4: REAL-TIME SYNC] Phân biệt sự kiện thời gian thực
+                if (packet.action != null && packet.action.startsWith("SYNC_")) {
+                    for (java.util.function.Consumer<Packet> listener : globalListeners) {
+                        try {
+                            listener.accept(packet);
+                        } catch (Exception ex) {
+                            System.err.println("[SYNC ERROR] Lỗi khi kích hoạt listener: " + ex.getMessage());
+                        }
+                    }
+                } else {
+                    // Đưa gói tin bình thường vào Hàng đợi để hàm receivePacket() nhặt lấy
+                    queue.put(packet);
+                }
             } catch (Exception e) {
                 System.err.println("[WEBSOCKET LỖI] Lỗi parse gói tin: " + e.getMessage());
             }

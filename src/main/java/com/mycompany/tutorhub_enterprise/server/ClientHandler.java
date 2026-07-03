@@ -1371,6 +1371,14 @@ public class ClientHandler {
                     break;
                 }
 
+                case "BROADCAST": {
+                    // [PHASE 4: REAL-TIME SYNC] Nhận lệnh "BROADCAST" và phát lại "SYNC_DRIVE_UPDATE" cho các client khác
+                    if (packet.payload != null && packet.payload.startsWith("SYNC_")) {
+                        broadcastToOthers(new Packet(packet.payload, ""));
+                    }
+                    break;
+                }
+
                 case "CREATE_PUBLIC_LESSON": {
                     // payload: lessonName|organizationName|startMillis|durationMinutes|stageLayout|lobby|allowDraw|recording|coTeachers
                     String[] data = packet.payload == null ? new String[0] : packet.payload.split("\\|", -1);

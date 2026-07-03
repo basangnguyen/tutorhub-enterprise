@@ -1,6 +1,7 @@
 package com.mycompany.tutorhub_enterprise.client;
 
 import com.mycompany.tutorhub_enterprise.client.services.MessageSyncService;
+import com.mycompany.tutorhub_enterprise.client.ai.AiChatPanel;
 import com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.mycompany.tutorhub_enterprise.models.ConversationInfo;
@@ -19,6 +20,7 @@ import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.sound.sampled.*;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -33,6 +35,8 @@ import java.io.File;
 import java.util.Map;
 
 public class ChatTab extends JPanel {
+
+    private static final int LAVIE_AI_CONVERSATION_ID = -999;
 
     // ===== THEME TUTORHUB ENTERPRISE =====
     private final Color PRIMARY       = Color.decode("#4F6EF7"); // TutorHub blue-purple
@@ -95,6 +99,7 @@ public class ChatTab extends JPanel {
     
     // --- LAVIE AI INTEGRATION ---
     // --- LAVIE AI INTEGRATION ---
+    private AiChatPanel aiChatPanel;
     // ----------------------------
     // ----------------------------
 
@@ -137,6 +142,7 @@ public class ChatTab extends JPanel {
         add(mainSplit, BorderLayout.CENTER);
 
         renderActiveChatStructure();
+        installLocalAiConversation();
         fetchConversationListFromServer();
         
         setupDragAndDrop();
@@ -304,17 +310,75 @@ public class ChatTab extends JPanel {
         try { NetworkManager.getInstance().sendPacket(new Packet("GET_CONVO_LIST", String.valueOf(CURRENT_USER_ID))); } catch (Exception e) {}
     }
 
+    private void installLocalAiConversation() {
+        this.conversations = withLavieConversation(this.conversations);
+        refreshConversationList();
+    }
+
+    private boolean isLavieAiConversation(ConversationInfo c) {
+        return c != null && c.conversationId == LAVIE_AI_CONVERSATION_ID;
+    }
+
+    private ConversationInfo createLavieConversation() {
+        ConversationInfo lavie = new ConversationInfo();
+        lavie.conversationId = LAVIE_AI_CONVERSATION_ID;
+        lavie.displayName = "Lavie AI Agent";
+        lavie.avatarUrl = "classpath:/images/lavie_bot.png";
+        lavie.lastMessage = "Trợ lý AI cá nhân trong TutorHub";
+        lavie.lastMessageTime = new Date();
+        lavie.unreadCount = 0;
+        lavie.isOnline = true;
+        lavie.isPriority = true;
+        return lavie;
+    }
+
+    private List<ConversationInfo> withLavieConversation(List<ConversationInfo> source) {
+        List<ConversationInfo> merged = new ArrayList<>();
+        merged.add(createLavieConversation());
+        if (source != null) {
+            for (ConversationInfo c : source) {
+                if (c == null || c.conversationId == LAVIE_AI_CONVERSATION_ID) {
+                    continue;
+                }
+                merged.add(c);
+            }
+        }
+        return merged;
+    }
+
+    public void openLavieConversation() {
+        ConversationInfo lavie = null;
+        if (conversations == null) {
+            conversations = new ArrayList<>();
+        }
+        for (ConversationInfo c : conversations) {
+            if (isLavieAiConversation(c)) {
+                lavie = c;
+                break;
+            }
+        }
+        if (lavie == null) {
+            installLocalAiConversation();
+            lavie = conversations.get(0);
+        }
+        setActiveConversation(lavie);
+        refreshConversationList();
+        if (onSwitchToChatCallback != null) {
+            onSwitchToChatCallback.run();
+        }
+    }
+
     private void executeSearch() {
         refreshMessages();
         refreshConversationList();
     }
 
     public void updateConversationList(List<ConversationInfo> list) {
-        this.conversations = list;
+        this.conversations = withLavieConversation(list);
 
-        if (onSearchDataUpdated != null && list != null) {
+        if (onSearchDataUpdated != null && this.conversations != null) {
             List<com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry> entries = new ArrayList<>();
-            for (ConversationInfo c : list) {
+            for (ConversationInfo c : this.conversations) {
                 entries.add(new com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry(
                     c.displayName,
                     c.lastMessage,
@@ -866,10 +930,15 @@ public class ChatTab extends JPanel {
         // --- LÁ BÀI 2: KHUNG CHAT THỰC TẾ ---
         activeChatContainer = new JPanel(new BorderLayout());
         activeChatContainer.setBackground(BG_MAIN);
+        aiChatPanel = new AiChatPanel(
+                com.mycompany.tutorhub_enterprise.client.ai.AiAgentServiceFactory.createDefault(),
+                String.valueOf(CURRENT_USER_ID),
+                "lavie-chat");
 
         // Nạp 2 lá bài vào hệ thống (gắn tên để dễ gọi)
         centerChatPanel.add(welcomeWrapper, "WELCOME_CARD");
         centerChatPanel.add(activeChatContainer, "CHAT_CARD");
+        centerChatPanel.add(aiChatPanel, "AI_CARD");
 
         return centerChatPanel;
     }
@@ -885,6 +954,11 @@ public class ChatTab extends JPanel {
     private void renderActiveChatStructure() {
         if (activeConversation == null) {
             if (centerCardLayout != null) centerCardLayout.show(centerChatPanel, "WELCOME_CARD");
+            return;
+        }
+        if (isLavieAiConversation(activeConversation)) {
+            if (centerCardLayout != null) centerCardLayout.show(centerChatPanel, "AI_CARD");
+            if (aiChatPanel != null) aiChatPanel.focusComposer();
             return;
         }
         if (centerCardLayout != null) centerCardLayout.show(centerChatPanel, "CHAT_CARD");
@@ -1828,6 +1902,12 @@ public class ChatTab extends JPanel {
 
     private void setActiveConversation(ConversationInfo c) { 
         activeConversation = c; 
+        if (isLavieAiConversation(c)) {
+            currentMessages = new ArrayList<>();
+            renderActiveChatStructure();
+            refreshConversationList();
+            return;
+        }
         if(c.unreadCount > 0) { 
             c.unreadCount = 0; 
             refreshConversationList(); 
@@ -1864,6 +1944,7 @@ public class ChatTab extends JPanel {
   private void sendCurrentMessage() { 
         String text = txtChatInput.getText().trim(); 
         if (text.isEmpty() || activeConversation == null) return; 
+        if (isLavieAiConversation(activeConversation)) return;
 
         
         Message m = new Message(); 
@@ -2255,7 +2336,17 @@ public class ChatTab extends JPanel {
         if (iconCache.containsKey(key)) { label.setIcon(iconCache.get(key)); return; } 
         new Thread(() -> { 
             try { 
-                Image img = finalUrl.startsWith("http") ? new ImageIcon(new URL(finalUrl)).getImage() : new ImageIcon(finalUrl).getImage(); 
+                Image img;
+                if (finalUrl.startsWith("http")) {
+                    img = new ImageIcon(new URL(finalUrl)).getImage();
+                } else if (finalUrl.startsWith("classpath:")) {
+                    String resourcePath = finalUrl.substring("classpath:".length());
+                    if (!resourcePath.startsWith("/")) resourcePath = "/" + resourcePath;
+                    URL resourceUrl = ChatTab.class.getResource(resourcePath);
+                    img = resourceUrl != null ? new ImageIcon(resourceUrl).getImage() : null;
+                } else {
+                    img = new ImageIcon(finalUrl).getImage();
+                }
                 if (img != null) { 
                     MediaTracker tracker = new MediaTracker(label); tracker.addImage(img, 0); tracker.waitForID(0); 
                     
@@ -2301,7 +2392,7 @@ public class ChatTab extends JPanel {
 
             if (btnChatMicIcon != null) {
                 btnChatMicIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(0xEA4335))); // Màu đỏ khi đang thu âm
-                btnChatMicIcon.repaint();
+                ChatTab.this.repaint();
             }
 
             Thread captureThread = new Thread(() -> {
@@ -2327,7 +2418,7 @@ public class ChatTab extends JPanel {
         
         if (btnChatMicIcon != null) {
             btnChatMicIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#64748B"))); // Trả về màu xám
-            btnChatMicIcon.repaint();
+            ChatTab.this.repaint();
         }
 
         try {

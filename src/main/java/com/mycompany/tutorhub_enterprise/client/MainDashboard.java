@@ -149,7 +149,12 @@ public class MainDashboard extends JFrame {
                         String msg = new String(packet.getData(), 0, packet.getLength());
                         if (msg.contains("LAVIE_CLICKED")) {
                             SwingUtilities.invokeLater(() -> {
-                                if (lavieWidget != null) lavieWidget.toggleVisibility();
+                                if (chatTab != null) {
+                                    switchToCard("Chat");
+                                    chatTab.openLavieConversation();
+                                } else if (lavieWidget != null) {
+                                    lavieWidget.toggleVisibility();
+                                }
                             });
                         } else if (msg.startsWith("POS:")) {
                             try {

@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lavie AI Agent</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #e4e7ee;
+      --text: #111827;
+      --muted: #687386;
+      --faint: #94a3b8;
+      --blue: #1f5b99;
+      --blue-soft: #eaf2fb;
+      --green: #0f9f6e;
+      --shadow: 0 16px 44px rgba(30, 41, 59, .08);
+      --radius: 18px;
+      font-family: "Segoe UI", "Be Vietnam Pro", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .topbar {
+      height: 70px;
+      padding: 12px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, .92);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .agent-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      object-fit: cover;
+      background: var(--blue-soft);
+      border: 1px solid rgba(31, 91, 153, .18);
+    }
+
+    .title-stack {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .title-stack strong {
+      font-size: 16px;
+      line-height: 1.2;
+      font-weight: 650;
+      color: var(--text);
+    }
+
+    .title-stack span {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(15, 159, 110, .12);
+    }
+
+    .transcript {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 26px 28px 32px;
+      scroll-behavior: smooth;
+    }
+
+    .thread {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .intro {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .intro h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      font-weight: 700;
+    }
+
+    .intro p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 760px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .quick {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      border-radius: 14px;
+      padding: 12px;
+      color: #334155;
+      font-size: 13px;
+      line-height: 1.35;
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .quick:hover {
+      transform: translateY(-1px);
+      border-color: rgba(31, 91, 153, .35);
+      background: #ffffff;
+    }
+
+    .message {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      animation: enter .2s ease both;
+    }
+
+    .message.user {
+      grid-template-columns: minmax(0, 1fr) 42px;
+    }
+
+    .message.user .bubble-wrap {
+      justify-items: end;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .message.user .mini-avatar {
+      grid-column: 2;
+      grid-row: 1;
+      background: #e7edf7;
+      color: #1e3a5f;
+    }
+
+    .mini-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background: var(--blue-soft);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    .mini-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bubble-wrap {
+      display: grid;
+      gap: 7px;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      color: var(--faint);
+      font-size: 11px;
+      padding: 0 2px;
+    }
+
+    .meta strong {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .bubble {
+      max-width: min(760px, 100%);
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 14px 16px;
+      line-height: 1.65;
+      font-size: 14px;
+      color: var(--text);
+      box-shadow: 0 10px 26px rgba(30, 41, 59, .06);
+      overflow-wrap: anywhere;
+    }
+
+    .message.user .bubble {
+      background: #1f5b99;
+      color: #ffffff;
+      border-color: #1f5b99;
+      box-shadow: 0 12px 30px rgba(31, 91, 153, .20);
+    }
+
+    .bubble p {
+      margin: 0 0 10px;
+    }
+
+    .bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .bubble code:not(pre code) {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: .92em;
+      padding: 2px 6px;
+      border-radius: 7px;
+      background: rgba(15, 23, 42, .07);
+    }
+
+    .message.user .bubble code:not(pre code) {
+      background: rgba(255, 255, 255, .16);
+    }
+
+    .code-block {
+      margin: 12px 0;
+      border: 1px solid #d8dde7;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #0f172a;
+    }
+
+    .code-head {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px 0 13px;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, .04);
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      font-size: 11px;
+      font-family: "Cascadia Code", Consolas, monospace;
+    }
+
+    .copy-code {
+      height: 24px;
+      border: 0;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .10);
+      color: #e2e8f0;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    pre {
+      margin: 0;
+      padding: 14px;
+      overflow: auto;
+      color: #e2e8f0;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .thinking {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .thinking i {
+      width: 6px;
+      height: 6px;
+      border-radius: 99px;
+      background: #94a3b8;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .thinking i:nth-child(2) { animation-delay: .14s; }
+    .thinking i:nth-child(3) { animation-delay: .28s; }
+
+    .composer-shell {
+      background: linear-gradient(180deg, rgba(246, 247, 251, .70), #f6f7fb 36%);
+      border-top: 1px solid var(--line);
+      padding: 14px 24px 18px;
+    }
+
+    .composer {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: end;
+      gap: 10px;
+      padding: 9px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .tool-btn, .send-btn {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform .16s ease, background .16s ease, color .16s ease;
+      font-size: 16px;
+    }
+
+    .tool-btn {
+      background: var(--surface-soft);
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+
+    .tool-btn:hover {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .send-btn {
+      background: var(--blue);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .send-btn:hover {
+      background: #174b82;
+      transform: translateY(-1px);
+    }
+
+    .send-btn:active, .tool-btn:active {
+      transform: translateY(1px) scale(.98);
+    }
+
+    textarea {
+      min-height: 38px;
+      max-height: 132px;
+      border: 0;
+      outline: 0;
+      resize: none;
+      padding: 9px 6px;
+      font: 14px/1.45 "Segoe UI", "Be Vietnam Pro", Arial, sans-serif;
+      color: var(--text);
+      background: transparent;
+    }
+
+    textarea::placeholder {
+      color: #94a3b8;
+    }
+
+    .error {
+      margin-top: 8px;
+      color: #b42318;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: .35; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    @media (max-width: 760px) {
+      .topbar { padding: 10px 14px; }
+      .transcript { padding: 18px 14px 24px; }
+      .quick-grid { grid-template-columns: 1fr; }
+      .composer-shell { padding: 12px; }
+      .status-pill { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="agent-title">
+      <img class="avatar" src="../images/lavie_bot.png" alt="Lavie AI">
+      <div class="title-stack">
+        <strong>Lavie AI Agent</strong>
+        <span>Shell Phase 0 - sẵn sàng nối service AI</span>
+      </div>
+    </div>
+    <div class="status-pill"><span class="status-dot"></span><span id="statusText">Bridge đang khởi tạo</span></div>
+  </header>
+
+  <main id="transcript" class="transcript">
+    <div id="thread" class="thread">
+      <section class="intro">
+        <h1>Trò chuyện với Lavie</h1>
+        <p>
+          Đây là khung AI Agent mới trong ChatTab. Phase 0 tập trung vào WebView, bridge JSON,
+          streaming token và bố cục hiện đại. Các kết nối Lavie/Hugging Face, voice, file và
+          LangChain4j sẽ được nối sau khi shell ổn định.
+        </p>
+        <div class="quick-grid">
+          <button class="quick" data-prompt="Tóm tắt kiến trúc AI Agent cho ChatTab">Tóm tắt kiến trúc AI Agent</button>
+          <button class="quick" data-prompt="Kiểm tra streaming token và code block">Kiểm tra streaming code block</button>
+          <button class="quick" data-prompt="Phase tiếp theo nên nối Lavie service như thế nào?">Hỏi bước tiếp theo</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="composer-shell">
+    <form id="composer" class="composer">
+      <button type="button" id="attachBtn" class="tool-btn" title="Đính kèm">+</button>
+      <textarea id="input" rows="1" placeholder="Nhập tin nhắn cho Lavie..."></textarea>
+      <button type="submit" class="send-btn" title="Gửi">↗</button>
+    </form>
+    <div id="errorText" class="error" hidden></div>
+  </footer>
+
+  <script>
+    const CHANNEL = 'tutorhub.ai';
+    const thread = document.getElementById('thread');
+    const transcript = document.getElementById('transcript');
+    const input = document.getElementById('input');
+    const composer = document.getElementById('composer');
+    const errorText = document.getElementById('errorText');
+    const statusText = document.getElementById('statusText');
+    const attachBtn = document.getElementById('attachBtn');
+    let assistantBubble = null;
+    let assistantRaw = '';
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function inlineMarkdown(text) {
+      return escapeHtml(text)
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function renderMarkdown(text) {
+      const parts = String(text ?? '').split(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g);
+      let html = '';
+      for (let i = 0; i < parts.length; i++) {
+        if (i % 3 === 0) {
+          const blocks = parts[i].split(/\n{2,}/).filter(Boolean);
+          html += blocks.map(block => '<p>' + inlineMarkdown(block).replace(/\n/g, '<br>') + '</p>').join('');
+        } else if (i % 3 === 1) {
+          const lang = parts[i] || 'text';
+          const code = parts[i + 1] || '';
+          html += '<div class="code-block">'
+            + '<div class="code-head"><span>' + escapeHtml(lang) + '</span><button class="copy-code" type="button">Copy</button></div>'
+            + '<pre><code>' + escapeHtml(code) + '</code></pre>'
+            + '</div>';
+          i++;
+        }
+      }
+      return html || '<p></p>';
+    }
+
+    function nowTime() {
+      const d = new Date();
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function scrollBottom() {
+      requestAnimationFrame(() => transcript.scrollTop = transcript.scrollHeight);
+    }
+
+    function createAvatar(kind) {
+      const avatar = document.createElement('div');
+      avatar.className = 'mini-avatar';
+      if (kind === 'assistant') {
+        const img = document.createElement('img');
+        img.src = '../images/lavie_bot.png';
+        img.alt = 'Lavie';
+        avatar.appendChild(img);
+      } else {
+        avatar.textContent = 'Bạn';
+      }
+      return avatar;
+    }
+
+    function appendMessage(kind, rawText) {
+      const row = document.createElement('article');
+      row.className = 'message ' + kind;
+      const avatar = createAvatar(kind === 'assistant' ? 'assistant' : 'user');
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble-wrap';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = '<strong>' + (kind === 'assistant' ? 'Lavie' : 'Bạn') + '</strong><span>' + nowTime() + '</span>';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = renderMarkdown(rawText);
+      wrap.appendChild(meta);
+      wrap.appendChild(bubble);
+      row.appendChild(avatar);
+      row.appendChild(wrap);
+      thread.appendChild(row);
+      wireCopyButtons(bubble);
+      scrollBottom();
+      return bubble;
+    }
+
+    function wireCopyButtons(root) {
+      root.querySelectorAll('.copy-code').forEach(btn => {
+        btn.onclick = () => {
+          const code = btn.closest('.code-block')?.querySelector('code')?.innerText || '';
+          navigator.clipboard?.writeText(code);
+          btn.textContent = 'Copied';
+          setTimeout(() => btn.textContent = 'Copy', 900);
+        };
+      });
+    }
+
+    function postBridge(type, payload = {}) {
+      const request = JSON.stringify({ channel: CHANNEL, type, payload });
+      return new Promise((resolve, reject) => {
+        if (!window.cefQuery) {
+          reject(new Error('CEF bridge chưa sẵn sàng'));
+          return;
+        }
+        window.cefQuery({
+          request,
+          onSuccess: resolve,
+          onFailure: (_, msg) => reject(new Error(msg || 'Bridge error'))
+        });
+      });
+    }
+
+    async function sendCurrent() {
+      const text = input.value.trim();
+      if (!text) return;
+      hideError();
+      appendMessage('user', text);
+      input.value = '';
+      resizeInput();
+      try {
+        await postBridge('SEND_MESSAGE', { text });
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function resizeInput() {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 132) + 'px';
+    }
+
+    function showError(message) {
+      errorText.textContent = message || 'Có lỗi xảy ra';
+      errorText.hidden = false;
+    }
+
+    function hideError() {
+      errorText.hidden = true;
+      errorText.textContent = '';
+    }
+
+    window.TutorHubAgent = {
+      focusComposer() {
+        input.focus();
+      },
+      setStatus(text) {
+        statusText.textContent = text || '';
+      },
+      startAssistantMessage() {
+        assistantRaw = '';
+        assistantBubble = appendMessage('assistant', '');
+        assistantBubble.innerHTML = '<span class="thinking"><i></i><i></i><i></i> Đang suy nghĩ</span>';
+      },
+      appendAssistantDelta(token) {
+        if (!assistantBubble) this.startAssistantMessage();
+        assistantRaw += token || '';
+        assistantBubble.innerHTML = renderMarkdown(assistantRaw);
+        wireCopyButtons(assistantBubble);
+        scrollBottom();
+      },
+      finishAssistantMessage() {
+        if (assistantBubble) {
+          assistantBubble.innerHTML = renderMarkdown(assistantRaw);
+          wireCopyButtons(assistantBubble);
+        }
+        assistantBubble = null;
+        assistantRaw = '';
+        scrollBottom();
+      },
+      showError,
+      appendUserMessage(text) {
+        appendMessage('user', text || '');
+      }
+    };
+
+    composer.addEventListener('submit', event => {
+      event.preventDefault();
+      sendCurrent();
+    });
+
+    input.addEventListener('input', resizeInput);
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendCurrent();
+      }
+    });
+
+    attachBtn.addEventListener('click', async () => {
+      try {
+        await postBridge('ATTACH_FILE', {});
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    document.querySelectorAll('.quick').forEach(btn => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.prompt || '';
+        resizeInput();
+        input.focus();
+      });
+    });
+
+    window.addEventListener('load', async () => {
+      resizeInput();
+      try {
+        await postBridge('READY', {});
+        statusText.textContent = 'Sẵn sàng';
+      } catch (err) {
+        statusText.textContent = 'Bridge chưa sẵn sàng';
+      }
+      input.focus();
+    });
+  </script>
+</body>
+</html>

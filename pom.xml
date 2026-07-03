@@ -11,6 +11,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.release>21</maven.compiler.release>
         <exec.mainClass>com.mycompany.tutorhub_maven.TutorHub_Maven</exec.mainClass>
+        <langchain4j.version>1.17.1</langchain4j.version>
     </properties>
     
     <dependencies>
@@ -73,6 +74,12 @@
             <groupId>me.friwi</groupId>
             <artifactId>jcefmaven</artifactId>
             <version>122.1.10</version> 
+        </dependency>
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-ollama</artifactId>
+            <version>${langchain4j.version}</version>
         </dependency>
         
         <dependency>

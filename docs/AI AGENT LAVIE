@@ -1,0 +1,301 @@
+# Tích hợp LangChain4j vào ChatTab với UI hiện đại kiểu AI Agent
+
+## Bối cảnh & Vấn đề cốt lõi
+
+Bạn muốn đạt được hiệu ứng UI của các AI agent hiện đại (Claude, Antigravity, Codex) — nhưng app hiện tại là **Java Swing thuần**.
+
+**Vấn đề:** Swing **không thể** render được:
+- ✗ Markdown với heading, list, table, LaTeX
+- ✗ Code block với syntax highlighting 30+ ngôn ngữ
+- ✗ Streaming text animation từng token mượt mà
+- ✗ Copy button, expand/collapse cho code block
+- ✗ Typing indicator animation
+- ✗ Smooth scroll với momentum
+- ✗ Dark/light theme toggle
+- ✗ Responsive bubble layout
+
+**Tin tốt:** Dự án của bạn đã có sẵn **JCEF (Chromium Embedded)** được sử dụng ở:
+- [QuizHubTab.java](file:///D:/Ban_sao_du_an/src/main/java/com/mycompany/tutorhub_enterprise/client/exam/ui/QuizHubTab.java) — render quiz HTML
+- [ExcelEditorDialog.java](file:///D:/Ban_sao_du_an/src/main/java/com/mycompany/tutorhub_enterprise/client/ExcelEditorDialog.java) — editor bảng tính
+- [MapPickerDialog.java](file:///D:/Ban_sao_du_an/src/main/java/com/mycompany/tutorhub_enterprise/client/mappicker/MapPickerDialog.java) — bản đồ Goong
+- [JcefManager.java](file:///D:/Ban_sao_du_an/src/main/java/com/mycompany/tutorhub_enterprise/client/JcefManager.java) — singleton quản lý CefApp
+
+→ **Bạn đã có engine Chromium trong app. Chỉ cần dùng nó cho chat AI.**
+
+---
+
+## So sánh 3 hướng tiếp cận
+
+| Tiêu chí | Hướng A: Pure Swing | Hướng B: JCEF Hybrid ⭐ | Hướng C: Full JCEF |
+|---|---|---|---|
+| **Mô tả** | Cải thiện JTextPane/HTML để render AI response | Giữ conversation list bằng Swing, thay chat panel bằng WebView | Chuyển toàn bộ ChatTab sang WebView |
+| **Markdown** | ❌ Rất giới hạn (chỉ basic HTML) | ✅ Full (marked.js/markdown-it) | ✅ Full |
+| **Code highlight** | ❌ Tự viết regex → lỗi nhiều | ✅ highlight.js/Prism.js (200+ ngôn ngữ) | ✅ |
+| **Streaming animation** | ⚠️ Giật, ko mượt | ✅ requestAnimationFrame, CSS transition | ✅ |
+| **Công sức** | Cao (viết lại renderer) | **Trung bình** (tái dùng cả 2 bên) | Rất cao (viết lại toàn bộ) |
+| **Rủi ro** | Hiệu ứng vẫn kém | **Thấp** (pattern JCEF đã quen) | Phá vỡ toàn bộ chat hiện tại |
+| **Tương thích** | 100% backward | **95%** (chat thường vẫn hoạt động) | 0% (phải code lại) |
+
+> [!TIP]
+> **Khuyến nghị: Hướng B — JCEF Hybrid** là giải pháp tối ưu. Giữ nguyên danh sách chat Swing bên trái (đã hoàn thiện), chỉ thay thế **khung chat bên phải** bằng WebView khi chat với AI.
+
+---
+
+## Thiết kế chi tiết: Hướng B — JCEF Hybrid
+
+### Kiến trúc tổng quan
+
+```mermaid
+graph TD
+    subgraph "ChatTab (Java Swing)"
+        A["Conversation List<br/>(Swing JPanel)"] 
+        B{"activeConversation<br/>type?"}
+    end
+    
+    subgraph "Khi chat với người thường"
+        C["Swing Chat Panel<br/>(giữ nguyên code hiện tại)"]
+    end
+    
+    subgraph "Khi chat với Lavie AI"
+        D["JCEF WebView Panel<br/>(ai_chat.html)"]
+        E["LangChain4j<br/>StreamingChatModel"]
+        F["JCEF Bridge<br/>(CefMessageRouter)"]
+    end
+    
+    A --> B
+    B -- "Human" --> C
+    B -- "AI (id=-999)" --> D
+    D <-- "cefQuery / executeJS" --> F
+    F <-- "onPartialResponse" --> E
+    E -- "SSE tokens" --> G["OpenAI / Gemini / Ollama<br/>hoặc HuggingFace hiện tại"]
+```
+
+### Luồng dữ liệu streaming
+
+```
+User nhập → JS gọi cefQuery("SEND|Hello") 
+  → Java CefMessageRouterHandler.onQuery() nhận
+    → LangChain4j StreamingChatModel.chat("Hello", handler)
+      → handler.onPartialResponse("Xin") 
+        → browser.executeJavaScript("appendToken('Xin')")
+      → handler.onPartialResponse(" chào")
+        → browser.executeJavaScript("appendToken(' chào')")
+      → handler.onCompleteResponse()
+        → browser.executeJavaScript("finishStream()")
+```
+
+### Các file cần tạo/sửa
+
+---
+
+#### [NEW] `src/main/resources/ai/ai_chat.html` — Giao diện AI Chat (HTML/CSS/JS)
+
+Đây là file HTML sẽ được load bởi JCEF. Chứa toàn bộ UI rendering cho AI chat:
+
+**Thư viện JS nhúng (CDN hoặc bundle local):**
+- `marked.js` — parse Markdown → HTML
+- `highlight.js` — syntax highlighting 200+ ngôn ngữ
+- `DOMPurify` — sanitize HTML (chống XSS)
+- `KaTeX` (tùy chọn) — render LaTeX toán học
+
+**Tính năng UI:**
+- Streaming text animation (typed.js style, từng token)
+- Code block với nút Copy, tên ngôn ngữ
+- Thinking/reasoning indicator (giống Claude "Thinking...")
+- Markdown: heading, bold, italic, list, table, blockquote
+- Avatar + timestamp cho mỗi tin nhắn
+- Dark mode / Light mode toggle
+- Smooth auto-scroll khi streaming
+- Input bar với nút Send, Voice, Attach
+
+**JS Bridge API (giao tiếp với Java):**
+```javascript
+// JS → Java (gửi lệnh)
+window.cefQuery({ request: "SEND|message text", onSuccess: ..., onFailure: ... });
+window.cefQuery({ request: "VOICE_START", ... });
+window.cefQuery({ request: "ATTACH_FILE", ... });
+window.cefQuery({ request: "STOP_STREAM", ... });
+
+// Java → JS (nhận token streaming)
+function appendToken(token) { /* thêm token vào bubble cuối */ }
+function finishStream() { /* kết thúc stream, render markdown đầy đủ */ }
+function showThinking() { /* hiện thinking indicator */ }
+function setHistory(jsonArray) { /* load lịch sử chat */ }
+```
+
+---
+
+#### [NEW] `src/.../client/ai/AiChatPanel.java` — Panel wrapper cho JCEF WebView
+
+```java
+public class AiChatPanel extends JPanel {
+    private CefBrowser browser;
+    private LavieAiService aiService;
+    
+    // Khởi tạo JCEF browser load ai_chat.html
+    // Đăng ký CefMessageRouter để nhận lệnh từ JS
+    // Khi nhận "SEND|...", gọi aiService.streamChat(...)
+    // Khi nhận token từ LangChain4j, gọi browser.executeJavaScript("appendToken(...)")
+}
+```
+
+---
+
+#### [NEW] `src/.../client/ai/LavieAiService.java` — Service kết nối LangChain4j
+
+```java
+public class LavieAiService {
+    private StreamingChatModel streamingModel;
+    private ChatMemory chatMemory;
+    
+    // Khởi tạo LangChain4j model (OpenAI, Gemini, hoặc custom HF endpoint)
+    // streamChat(String message, TokenCallback callback)
+    // sendVision(File image, String message, TokenCallback callback)  
+    // sendVoice(File wav, TokenCallback callback)
+}
+```
+
+**Hỗ trợ nhiều provider:**
+```java
+// OpenAI
+StreamingChatModel model = OpenAiStreamingChatModel.builder()
+    .apiKey("...").modelName("gpt-4o-mini").build();
+
+// Google Gemini
+StreamingChatModel model = GoogleAiGeminiStreamingChatModel.builder()
+    .apiKey("...").modelName("gemini-2.0-flash").build();
+
+// Ollama (local)
+StreamingChatModel model = OllamaStreamingChatModel.builder()
+    .baseUrl("http://localhost:11434").modelName("llama3").build();
+
+// Custom HF endpoint (tương thích API hiện tại)
+// Tự implement OpenAI-compatible wrapper
+```
+
+---
+
+#### [MODIFY] [ChatTab.java](file:///D:/Ban_sao_du_an/src/main/java/com/mycompany/tutorhub_enterprise/client/ChatTab.java)
+
+Thay đổi trong `renderActiveChatStructure()` và `createChatCenterColumn()`:
+
+```java
+// Trong createChatCenterColumn():
+// Thêm card thứ 3 cho AI chat
+AiChatPanel aiChatPanel = new AiChatPanel();
+centerChatPanel.add(aiChatPanel, "AI_CHAT");
+
+// Khi chọn conversation:
+if (activeConversation.conversationId == -999) {
+    centerCardLayout.show(centerChatPanel, "AI_CHAT");
+} else {
+    centerCardLayout.show(centerChatPanel, "ACTIVE_CHAT");
+    renderActiveChatStructure();
+}
+```
+
+---
+
+#### [MODIFY] [pom.xml](file:///D:/Ban_sao_du_an/pom.xml) — Thêm dependency LangChain4j
+
+```xml
+<!-- LangChain4j Core -->
+<dependency>
+    <groupId>dev.langchain4j</groupId>
+    <artifactId>langchain4j</artifactId>
+    <version>1.17.1</version>
+</dependency>
+
+<!-- Provider: chọn 1 hoặc nhiều -->
+<dependency>
+    <groupId>dev.langchain4j</groupId>
+    <artifactId>langchain4j-open-ai</artifactId>
+    <version>1.17.1</version>
+</dependency>
+
+<!-- Hoặc Gemini -->
+<dependency>
+    <groupId>dev.langchain4j</groupId>
+    <artifactId>langchain4j-google-ai-gemini</artifactId>
+    <version>1.17.1</version>
+</dependency>
+```
+
+---
+
+### Hiệu ứng UI cụ thể sẽ đạt được
+
+| Hiệu ứng | Cách implement trong WebView |
+|---|---|
+| **Streaming text từng token** | JS `appendToken()` + CSS `@keyframes fadeIn` |
+| **Code block + Copy button** | `highlight.js` + nút Copy dùng `navigator.clipboard` |
+| **Markdown rendering** | `marked.js` parse sau khi stream xong |
+| **Thinking indicator** | CSS pulsing dots animation (giống Claude) |
+| **Smooth auto-scroll** | `scrollIntoView({ behavior: 'smooth' })` |
+| **Dark/Light mode** | CSS variables + toggle button |
+| **LaTeX math** | `KaTeX` render inline/block math |
+| **Typing indicator** | CSS blink animation 3 dots |
+| **Message reactions** | Emoji picker popup (JS) |
+
+---
+
+## Giai đoạn triển khai
+
+### Phase 1: MVP (Ưu tiên) — ~3-4 ngày
+
+1. Thêm LangChain4j dependency vào `pom.xml`
+2. Tạo `ai_chat.html` với UI cơ bản (streaming text + markdown + code highlight)
+3. Tạo `AiChatPanel.java` (JCEF wrapper + CefMessageRouter bridge)
+4. Tạo `LavieAiService.java` (LangChain4j streaming với 1 provider)
+5. Sửa `ChatTab.java` — thêm Lavie AI conversation + CardLayout cho AI panel
+6. Test: gửi tin nhắn → nhận streaming response → render markdown
+
+### Phase 2: Full Feature — ~2-3 ngày thêm
+
+7. Voice input (reuse code từ LavieChatWidget)
+8. Vision/Image analysis
+9. Document upload & analysis
+10. Chat history persistence (SQLite local)
+11. TTS + Lip-sync (gửi UDP cho Electron 3D nếu giữ)
+
+### Phase 3: Polish — ~1-2 ngày
+
+12. Dark/Light theme
+13. Thinking/reasoning display
+14. Message reactions
+15. Context menu (copy, retry, edit)
+16. Multiple AI provider switching
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> **1. Chọn LLM Provider nào cho Phase 1?**
+> - **OpenAI (GPT-4o-mini):** Phổ biến nhất, streaming tốt, có vision. Cần API key trả phí.
+> - **Google Gemini (gemini-2.0-flash):** Free tier 1500 req/day, streaming, vision. 
+> - **Giữ HuggingFace hiện tại:** Không cần LangChain4j, chỉ cần đổi UI. Nhưng mất tính năng mở rộng.
+> - **Ollama (local):** Chạy local, miễn phí, nhưng cần GPU. Tốt cho dev/test.
+
+> [!IMPORTANT]  
+> **2. Input bar nằm trong WebView hay ngoài Swing?**
+> - **Trong WebView:** UI nhất quán, dễ style, nhưng focus/keyboard xử lý phức tạp hơn
+> - **Ngoài Swing:** Tái dùng input bar hiện tại, nhưng phong cách UI sẽ khác biệt với chat area
+
+> [!IMPORTANT]
+> **3. Giữ tương thích ngược với HuggingFace API hiện tại không?**
+> - **Có:** LavieAiService hỗ trợ cả LangChain4j lẫn custom HF endpoint (fallback)
+> - **Không:** Chuyển hoàn toàn sang LangChain4j, bỏ HF endpoint
+
+## Verification Plan
+
+### Automated Tests
+- `mvn compile` — đảm bảo dependency LangChain4j tương thích
+- Unit test cho `LavieAiService` streaming
+
+### Manual Verification
+- Click conversation "Lavie AI" → WebView load thành công
+- Gửi tin nhắn → token streaming hiển thị từng chữ
+- Code block render đúng syntax highlighting
+- Markdown (heading, list, bold, table) render chính xác
+- Scroll mượt khi streaming dài
