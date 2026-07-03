@@ -1096,6 +1096,25 @@ public class LavieChatWidget extends JDialog {
         } catch(Exception e) {}
         return lblRef[0];
     }
+    public void analyzeFile(File file, String message) {
+        if (!isVisible()) {
+            toggleVisibility(); // Or setVisible(true) + animate
+        }
+        stagedImageFile = file;
+        String name = file.getName().toLowerCase();
+        String pfx = "🖼️";
+        if (name.endsWith(".pdf")) pfx = "📄";
+        else if (name.endsWith(".docx") || name.endsWith(".txt")) pfx = "📝";
+        
+        stagedImageLabel.setText(pfx + " Đã đính kèm: " + file.getName());
+        stagedImageLabel.setVisible(true);
+        if (message != null && !message.isEmpty()) {
+            chatInput.setText(message);
+        } else {
+            chatInput.setText("Tìm kiếm thông tin về tệp này.");
+        }
+        sendTextMessage();
+    }
 
     private void sendTextMessage() {
         String text = chatInput.getText().trim();

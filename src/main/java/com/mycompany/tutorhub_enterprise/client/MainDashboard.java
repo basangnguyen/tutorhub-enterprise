@@ -105,6 +105,28 @@ public class MainDashboard extends JFrame {
         startGhostElectron();
     }
 
+    public void openLavieWithFile(java.io.File file) {
+        if (lavieWidget != null) {
+            lavieWidget.analyzeFile(file, "Hãy cung cấp các thông tin liên quan đến tệp này.");
+        }
+    }
+
+    private com.mycompany.tutorhub_enterprise.client.search.LensResultPanel lensResultPanel;
+
+    public void openLensPanel(java.io.File file) {
+        if (lensResultPanel == null) {
+            lensResultPanel = new com.mycompany.tutorhub_enterprise.client.search.LensResultPanel(this);
+        }
+        lensResultPanel.analyzeFile(file);
+    }
+
+    public void openLensPanelFromUrl(String url) {
+        if (lensResultPanel == null) {
+            lensResultPanel = new com.mycompany.tutorhub_enterprise.client.search.LensResultPanel(this);
+        }
+        lensResultPanel.analyzeUrl(url);
+    }
+
     private Process electronProcess;
 
     private void startGhostElectron() {
@@ -710,6 +732,18 @@ public class MainDashboard extends JFrame {
             }).start();
         }
         mainArea.add(headerPanel, BorderLayout.NORTH);
+
+        if (headerPanel.getGlobalSearchBar() != null) {
+            headerPanel.getGlobalSearchBar().setOnImageUploaded(file -> {
+                openLensPanel(file);
+            });
+            headerPanel.getGlobalSearchBar().setOnFileUploaded(file -> {
+                openLensPanel(file);
+            });
+            headerPanel.getGlobalSearchBar().setOnUrlSubmitted(url -> {
+                openLensPanelFromUrl(url);
+            });
+        }
 
         cardLayout = new CardLayout();
         mainCardPanel = new JPanel(cardLayout);

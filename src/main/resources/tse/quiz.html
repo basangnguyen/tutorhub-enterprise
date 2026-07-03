@@ -1595,6 +1595,187 @@ mark {
 .game-break-choice b { display: block; font-size: 14px; margin-bottom: 4px; }
 .game-break-choice span { display: block; color: var(--ink-light); font-size: 12px; line-height: 1.4; }
 
+.game-brain-actions {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+}
+
+.game-brain-launch {
+  border: 1px solid var(--game-border); border-radius: 14px; background: #fff;
+  color: var(--game-ink); padding: 12px; cursor: pointer; text-align: left;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+
+.game-brain-launch:hover {
+  transform: translateY(-2px); border-color: var(--game-accent);
+  box-shadow: 0 10px 24px rgba(31,41,55,.10);
+}
+
+.game-brain-launch b { display: block; font-size: 14px; margin-bottom: 4px; }
+.game-brain-launch span { display: block; color: var(--ink-light); font-size: 12px; line-height: 1.4; }
+
+.brain-card {
+  background: var(--surface-1); border: 1px solid var(--game-border);
+  border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--shadow-lg);
+}
+
+.brain-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 18px;
+}
+
+.brain-back {
+  border: 1px solid var(--border); border-radius: 999px; background: #fff;
+  color: var(--ink); padding: 8px 12px; cursor: pointer; font-weight: 700;
+}
+
+.brain-title { text-align: center; flex: 1; }
+.brain-title b { display: block; color: var(--ink); font-size: 22px; line-height: 1.15; }
+.brain-title span { display: block; color: var(--ink-light); font-size: 13px; margin-top: 4px; }
+
+.brain-pill {
+  border: 1px solid var(--game-border); border-radius: 999px;
+  padding: 8px 12px; color: var(--game-accent); background: var(--game-soft);
+  font-weight: 800; min-width: 72px; text-align: center;
+}
+
+.brain-statbar {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  margin: 0 0 16px;
+}
+
+.brain-stat {
+  background: #f8f8f5; border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px; text-align: center;
+}
+
+.brain-stat b { display: block; color: var(--game-accent); font-size: 18px; }
+.brain-stat span { display: block; color: var(--ink-muted); font-size: 11px; font-weight: 700; }
+
+.brain-match-prompt {
+  border: 1px solid var(--border); border-radius: 16px; background: #fff;
+  padding: 18px; color: var(--ink); font-size: 18px; line-height: 1.45;
+  font-weight: 750; min-height: 96px; display: flex; align-items: center;
+}
+
+.brain-match-options {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px;
+}
+
+.brain-option {
+  min-height: 62px; border: 1px solid var(--border); border-radius: 14px;
+  background: #fff; color: var(--ink); cursor: pointer; padding: 12px;
+  font: 700 14px var(--font); text-align: left; line-height: 1.35;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+
+.brain-option:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--game-accent); }
+.brain-option.ok { background: #ecfdf5; border-color: #86efac; color: #166534; }
+.brain-option.bad { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.brain-option:disabled { cursor: default; }
+
+.brain-memory-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+}
+
+.brain-memory-card {
+  min-height: 84px; border: 1px solid var(--game-border); border-radius: 14px;
+  background: var(--game-soft); color: var(--game-accent); cursor: pointer;
+  padding: 10px; font: 800 13px var(--font); line-height: 1.3;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+
+.brain-memory-card:hover:not(:disabled) { transform: translateY(-1px); }
+.brain-memory-card.flipped { background: #fff; color: var(--ink); border-color: var(--border); }
+.brain-memory-card.matched { background: #ecfdf5; border-color: #86efac; color: #166534; cursor: default; }
+
+.brain-finish {
+  border: 1px solid var(--game-border); border-radius: 16px; background: var(--game-soft);
+  padding: 20px; text-align: center; color: var(--game-ink);
+}
+
+.brain-finish b { display: block; color: var(--game-accent); font-size: 34px; margin: 8px 0; }
+
+.game-minigame-report {
+  margin: 0 0 18px; padding: 14px; border: 1px solid var(--border);
+  border-radius: 14px; background: #fff; color: var(--ink-light);
+  font-size: 13px; line-height: 1.55; text-align: left;
+}
+
+.game-minigame-report b { color: var(--game-accent); }
+
+.game-live-panel {
+  margin-top: 14px; padding: 14px; border: 1px solid var(--game-border);
+  border-radius: 16px; background: #fff; text-align: left;
+}
+
+.game-live-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 12px;
+}
+
+.game-live-head b { color: var(--ink); font-size: 15px; }
+.game-live-status {
+  border-radius: 999px; padding: 6px 10px; background: #f8f8f5;
+  color: var(--ink-muted); font-size: 11px; font-weight: 800;
+}
+.game-live-status.on { background: #ecfdf5; color: #15803d; }
+.game-live-status.warn { background: #fff7ed; color: #b45309; }
+
+.game-live-grid {
+  display: grid; grid-template-columns: 1.25fr .75fr 1fr; gap: 8px;
+}
+
+.game-live-field span {
+  display: block; color: var(--ink-muted); font-size: 11px; font-weight: 800; margin-bottom: 5px;
+}
+
+.game-live-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 10px;
+  background: #fff; color: var(--ink); padding: 9px 10px; font: 650 13px var(--font);
+  outline: none;
+}
+
+.game-live-actions,
+.game-live-teacher-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+}
+
+.game-live-btn {
+  border: 1px solid var(--game-border); border-radius: 999px; background: var(--game-soft);
+  color: var(--game-accent); cursor: pointer; padding: 8px 12px;
+  font: 800 12px var(--font);
+}
+
+.game-live-btn.secondary { background: #fff; color: var(--ink-light); border-color: var(--border); }
+.game-live-btn.danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.game-live-btn:disabled { opacity: .45; cursor: default; }
+
+.game-live-columns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;
+}
+
+.game-live-box {
+  border: 1px solid var(--border); border-radius: 14px; background: #f8f8f5;
+  padding: 10px; min-height: 86px;
+}
+
+.game-live-box-title {
+  color: var(--ink); font-size: 12px; font-weight: 850; margin-bottom: 8px;
+}
+
+.game-live-list { display: grid; gap: 6px; }
+
+.game-live-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  color: var(--ink-light); font-size: 12px;
+}
+
+.game-live-row b { color: var(--ink); font-size: 12px; }
+.game-live-rank { color: var(--game-accent); font-weight: 900; min-width: 22px; }
+.game-live-empty { color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
+
 .game-start-btn {
 
   width: 100%; padding: 14px; font-size: 16px; border-radius: 100px;
@@ -2109,6 +2290,19 @@ text-shadow: 0 2px 8px rgba(0,0,0,.12);
   .game-break-card { padding: 28px 20px; }
 
   .game-break-stats { grid-template-columns: 1fr; }
+
+  .game-brain-actions,
+  .brain-match-options,
+  .brain-statbar { grid-template-columns: 1fr; }
+
+  .brain-card { padding: 24px 18px; }
+
+  .brain-toolbar { align-items: stretch; flex-direction: column; }
+
+  .brain-memory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .game-live-grid,
+  .game-live-columns { grid-template-columns: 1fr; }
 
   .game-hud { padding: 10px 16px; }
 
@@ -3533,8 +3727,75 @@ textarea {
             <div class="game-avatar-row" id="game-avatar-row"></div>
           </div>
         </div>
+        <div class="game-brain-actions">
+          <button type="button" class="game-brain-launch" onclick="brainGymStart('match','intro')">
+            <b>Match Sprint</b>
+            <span>Nối câu hỏi với đáp án đúng trong thời gian ngắn.</span>
+          </button>
+          <button type="button" class="game-brain-launch" onclick="brainGymStart('memory','intro')">
+            <b>Memory Grid</b>
+            <span>Lật cặp câu hỏi và đáp án để khởi động trí nhớ.</span>
+          </button>
+        </div>
+        <div class="game-live-panel" id="game-live-panel">
+          <div class="game-live-head">
+            <b>Live classroom</b>
+            <span class="game-live-status" id="game-live-status">Chưa kết nối</span>
+          </div>
+          <div class="game-live-grid">
+            <label class="game-live-field">
+              <span>Server WebSocket</span>
+              <input class="game-live-input" id="live-server-url" value="wss://hocba299-3-tutorhub-sync.hf.space/quizhub-live" spellcheck="false">
+            </label>
+            <label class="game-live-field">
+              <span>Mã lớp</span>
+              <input class="game-live-input" id="live-join-code" placeholder="VD: QH4821" spellcheck="false">
+            </label>
+            <label class="game-live-field">
+              <span>Tên hiển thị</span>
+              <input class="game-live-input" id="live-player-name" placeholder="TutorHub Player">
+            </label>
+          </div>
+          <div class="game-live-actions">
+            <button type="button" class="game-live-btn" onclick="liveHostSession()">Tạo phiên live</button>
+            <button type="button" class="game-live-btn secondary" onclick="liveJoinSession()">Tham gia</button>
+            <button type="button" class="game-live-btn secondary" onclick="liveReconnectSession()">Kết nối lại</button>
+            <button type="button" class="game-live-btn danger" onclick="liveLeaveSession()">Rời phiên</button>
+          </div>
+          <div class="game-live-teacher-actions hidden" id="game-live-teacher-actions">
+            <button type="button" class="game-live-btn" onclick="liveStartSession()">Bắt đầu cho cả lớp</button>
+            <button type="button" class="game-live-btn secondary" onclick="liveDeployPowerup('2x')">Gửi 2X</button>
+            <button type="button" class="game-live-btn secondary" onclick="liveDeployPowerup('freeze')">Gửi Freeze</button>
+            <button type="button" class="game-live-btn danger" onclick="liveEndSession()">Kết thúc live</button>
+          </div>
+          <div class="game-live-columns">
+            <div class="game-live-box">
+              <div class="game-live-box-title">Người tham gia</div>
+              <div class="game-live-list" id="game-live-roster"></div>
+            </div>
+            <div class="game-live-box">
+              <div class="game-live-box-title">Leaderboard live</div>
+              <div class="game-live-list" id="game-live-leaderboard"></div>
+            </div>
+          </div>
+        </div>
       </div>
       <button class="btn btn-primary game-start-btn" onclick="gameBeginRound()">Bắt đầu ngay</button>
+    </div>
+  </div>
+
+  <div id="game-brain" class="game-screen hidden">
+    <div class="brain-card">
+      <div class="brain-toolbar">
+        <button type="button" class="brain-back" onclick="brainGymReturn()">← Quay lại</button>
+        <div class="brain-title">
+          <b id="brain-title">Brain Gym</b>
+          <span id="brain-subtitle">Mini-game không ảnh hưởng điểm học thuật</span>
+        </div>
+        <div class="brain-pill" id="brain-timer">--</div>
+      </div>
+      <div class="brain-statbar" id="brain-stats"></div>
+      <div id="brain-body"></div>
     </div>
   </div>
 
@@ -3594,6 +3855,10 @@ textarea {
           <b>Streak Saver</b>
           <span>Giữ chuỗi khi lỡ sai một câu.</span>
         </button>
+        <button type="button" class="game-break-choice" onclick="brainGymStart('memory','break')">
+          <b>Brain Gym</b>
+          <span>Chơi Memory Grid ngắn để nghỉ giữa vòng. Không bắt buộc.</span>
+        </button>
       </div>
     </div>
   </div>
@@ -3607,6 +3872,7 @@ textarea {
       <div class="game-result-stats" id="game-result-stats"></div>
       <div class="game-report-summary hidden" id="game-report-summary"></div>
       <div class="game-mastery-report hidden" id="game-mastery-report"></div>
+      <div class="game-minigame-report hidden" id="game-minigame-report"></div>
       <div class="game-achievements" id="game-achievements"></div>
       <div class="game-reward-summary" id="game-reward-summary"></div>
       <div class="game-badges" id="game-badges"></div>
@@ -4531,6 +4797,14 @@ let gameActiveDoubleScore = false, gameActiveImmunity = false, gameActiveStreakS
 let gameTheme = 'classic', gameAudioProfile = 'classic', gameAvatarId = 'scholar';
 let gameMasteryEnabled = false, gameMasteryGoalPct = 90, gameMasteryRound = 1, gameMasteryMaxRounds = 4;
 let gameMasteryStats = {}, gameMasteryPendingQueue = [], gameMasteryRepeatedKeys = new Set();
+let gameMiniGameResults = [];
+let brainGymType = 'match', brainGymSource = 'intro', brainGymItems = [], brainGymTimerId = null;
+let brainGymStartedAt = 0, brainGymDeadline = 0, brainGymScore = 0, brainGymLock = false;
+let brainMatchIndex = 0, brainMatchCorrect = 0;
+let brainMemoryCards = [], brainMemoryFirst = null, brainMemoryMatches = 0, brainMemoryMoves = 0;
+let liveWs = null, liveConnected = false, liveRole = 'student', liveJoinCode = '', liveServerUrl = 'wss://hocba299-3-tutorhub-sync.hf.space/quizhub-live';
+let livePlayerId = '', livePlayerName = 'TutorHub Player', liveHeartbeatId = null, liveSessionActive = false;
+let liveRoster = {}, liveLeaderboard = {}, liveLastStatus = 'Chưa kết nối';
 
 const GAME_POWERUP_DEFS = Object.freeze({
   '2x': {icon:'2X', name:'2X', desc:'Nhân đôi điểm câu đúng'},
@@ -5113,6 +5387,736 @@ function gameRenderMasteryReport(summary){
     '</div>';
 }
 
+function brainGymClearTimer(){
+  if(brainGymTimerId){
+    clearInterval(brainGymTimerId);
+    brainGymTimerId = null;
+  }
+}
+
+function brainGymShortText(text, maxLen){
+  var clean = String(text == null ? '' : text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  maxLen = maxLen || 110;
+  return clean.length > maxLen ? clean.slice(0, maxLen - 1).trim() + '…' : clean;
+}
+
+function brainGymFilteredPool(){
+  var topicEl = document.getElementById('game-topic-filter');
+  var diffEl = document.getElementById('game-difficulty-filter');
+  var topic = topicEl ? topicEl.value : gameTopicFilter;
+  var difficulty = diffEl ? diffEl.value : gameDifficultyFilter;
+  return (baseQuiz || []).filter(function(item){
+    var meta = gameQuestionMeta(item);
+    var topicOk = !topic || gameNormalizeMetaValue(meta.topic) === topic;
+    var diffOk = !difficulty || gameNormalizeMetaValue(meta.difficulty) === difficulty;
+    return topicOk && diffOk && item && Array.isArray(item[1]) && Array.isArray(item[2]) && item[2].length;
+  });
+}
+
+function brainGymBuildItems(limit){
+  var pool = shuffle(brainGymFilteredPool()).map(function(item, idx){
+    var options = item[1] || [];
+    var correct = item[2] || [];
+    var answers = correct.map(function(i){ return options[i]; }).filter(function(v){ return v != null && String(v).trim(); });
+    if(!answers.length) return null;
+    var meta = gameQuestionMeta(item);
+    return {
+      id: gameQuestionId(item, idx),
+      prompt: brainGymShortText(meta.term || meta.title || item[0], 120),
+      answer: brainGymShortText(answers.join(', '), 88)
+    };
+  }).filter(function(item){
+    return item && item.prompt && item.answer && item.prompt !== item.answer;
+  });
+  var seen = {};
+  var unique = [];
+  pool.forEach(function(item){
+    var key = item.prompt + '|' + item.answer;
+    if(!seen[key]){
+      seen[key] = true;
+      unique.push(item);
+    }
+  });
+  return unique.slice(0, limit || 8);
+}
+
+function brainGymStart(type, source){
+  brainGymClearTimer();
+  brainGymType = type === 'memory' ? 'memory' : 'match';
+  brainGymSource = source || 'intro';
+  brainGymScore = 0;
+  brainGymStartedAt = Date.now();
+  brainGymLock = false;
+  gameShowScreen('game-brain');
+  if(brainGymType === 'memory') brainGymStartMemory();
+  else brainGymStartMatch();
+  window.scrollTo(0,0);
+}
+
+function brainGymReturn(){
+  brainGymClearTimer();
+  brainGymLock = false;
+  gameShowScreen(brainGymSource === 'break' ? 'game-break' : 'game-intro');
+}
+
+function brainGymUpdateTitle(title, subtitle){
+  var titleEl = document.getElementById('brain-title');
+  var subEl = document.getElementById('brain-subtitle');
+  if(titleEl) titleEl.textContent = title;
+  if(subEl) subEl.textContent = subtitle || 'Mini-game không ảnh hưởng điểm học thuật';
+}
+
+function brainGymRenderStats(items){
+  var stats = document.getElementById('brain-stats');
+  if(!stats) return;
+  stats.innerHTML =
+    '<div class="brain-stat"><b>'+brainGymScore+'</b><span>Điểm mini-game</span></div>'+
+    '<div class="brain-stat"><b>'+items+'</b><span>Dữ liệu quiz</span></div>'+
+    '<div class="brain-stat"><b>'+Math.max(0, Math.ceil((brainGymDeadline - Date.now()) / 1000))+'s</b><span>Thời gian</span></div>';
+}
+
+function brainGymStartTimer(durationMs, onExpire){
+  brainGymDeadline = Date.now() + durationMs;
+  var timer = document.getElementById('brain-timer');
+  function tick(){
+    var left = Math.max(0, brainGymDeadline - Date.now());
+    if(timer) timer.textContent = Math.ceil(left / 1000) + 's';
+    brainGymRenderStats(brainGymItems.length);
+    if(left <= 0){
+      brainGymClearTimer();
+      onExpire();
+    }
+  }
+  tick();
+  brainGymTimerId = setInterval(tick, 250);
+}
+
+function brainGymRecordResult(result){
+  gameMiniGameResults.push(Object.assign({
+    type: brainGymType,
+    source: brainGymSource,
+    score: brainGymScore,
+    durationSeconds: Math.max(1, Math.round((Date.now() - brainGymStartedAt) / 1000)),
+    playedAt: new Date().toISOString()
+  }, result || {}));
+}
+
+function brainGymFinish(title, detail, result){
+  brainGymClearTimer();
+  brainGymRecordResult(result);
+  if(!gameMuted) gameSnd.finish();
+  var body = document.getElementById('brain-body');
+  var timer = document.getElementById('brain-timer');
+  if(timer) timer.textContent = 'Xong';
+  brainGymUpdateTitle(title, 'Điểm này được tách riêng khỏi độ chính xác học thuật');
+  brainGymRenderStats(brainGymItems.length);
+  if(body){
+    body.innerHTML =
+      '<div class="brain-finish">'+
+        '<span>'+escapeHtml(detail || 'Hoàn thành Brain Gym')+'</span>'+
+        '<b>'+brainGymScore+'</b>'+
+        '<div class="result-actions">'+
+          '<button class="btn btn-primary" onclick="brainGymStart(\''+brainGymType+'\',\''+brainGymSource+'\')">Chơi lại</button>'+
+          '<button class="btn btn-secondary" onclick="brainGymReturn()">Quay lại</button>'+
+        '</div>'+
+      '</div>';
+  }
+}
+
+function brainGymNoData(type){
+  var body = document.getElementById('brain-body');
+  brainGymUpdateTitle('Brain Gym', 'Cần ít nhất vài câu có đáp án rõ ràng');
+  brainGymRenderStats(0);
+  var timer = document.getElementById('brain-timer');
+  if(timer) timer.textContent = '--';
+  if(body){
+    body.innerHTML =
+      '<div class="brain-finish">'+
+        '<span>Chưa đủ dữ liệu phù hợp để chơi '+escapeHtml(type)+'. Hãy chọn bộ đề khác hoặc bỏ lọc chủ đề/độ khó.</span>'+
+        '<div class="result-actions" style="margin-top:16px;">'+
+          '<button class="btn btn-secondary" onclick="brainGymReturn()">Quay lại</button>'+
+        '</div>'+
+      '</div>';
+  }
+}
+
+function brainGymStartMatch(){
+  brainGymItems = brainGymBuildItems(8);
+  if(brainGymItems.length < 3){ brainGymNoData('Match Sprint'); return; }
+  brainGymScore = 0;
+  brainMatchIndex = 0;
+  brainMatchCorrect = 0;
+  brainGymUpdateTitle('Match Sprint', 'Chọn đáp án khớp với câu hỏi');
+  brainGymRenderMatch();
+  brainGymStartTimer(45000, function(){
+    brainGymFinish('Match Sprint hoàn tất', 'Hết giờ', {
+      correct: brainMatchCorrect,
+      total: brainGymItems.length
+    });
+  });
+}
+
+function brainGymMatchOptions(item){
+  var answers = brainGymItems.filter(function(x){ return x.id !== item.id; }).map(function(x){ return x.answer; });
+  var options = shuffle(answers).slice(0, 3);
+  options.push(item.answer);
+  return shuffle(options);
+}
+
+function brainGymRenderMatch(){
+  brainGymLock = false;
+  var body = document.getElementById('brain-body');
+  if(!body) return;
+  if(brainMatchIndex >= brainGymItems.length){
+    brainGymFinish('Match Sprint hoàn tất', 'Bạn đã xử lý toàn bộ cặp câu hỏi', {
+      correct: brainMatchCorrect,
+      total: brainGymItems.length
+    });
+    return;
+  }
+  var item = brainGymItems[brainMatchIndex];
+  var options = brainGymMatchOptions(item);
+  brainGymRenderStats(brainGymItems.length);
+  body.innerHTML =
+    '<div class="brain-match-prompt">'+escapeHtml(item.prompt)+'</div>'+
+    '<div class="brain-match-options">'+options.map(function(opt){
+      return '<button type="button" class="brain-option" onclick="brainGymPickMatch(this,\''+encodeURIComponent(opt)+'\')">'+escapeHtml(opt)+'</button>';
+    }).join('')+'</div>';
+}
+
+function brainGymPickMatch(btn, encodedAnswer){
+  if(brainGymLock) return;
+  brainGymLock = true;
+  var answer = decodeURIComponent(encodedAnswer);
+  var item = brainGymItems[brainMatchIndex];
+  var ok = answer === item.answer;
+  if(ok){
+    brainMatchCorrect++;
+    var speedBonus = Math.max(0, Math.ceil((brainGymDeadline - Date.now()) / 1000));
+    brainGymScore += 100 + Math.min(30, speedBonus);
+    if(!gameMuted) gameSnd.correct();
+  } else {
+    brainGymScore = Math.max(0, brainGymScore - 20);
+    if(!gameMuted) gameSnd.wrong();
+  }
+  document.querySelectorAll('.brain-option').forEach(function(option){
+    option.disabled = true;
+    var opt = option.textContent || '';
+    if(opt === item.answer) option.classList.add('ok');
+    else if(option === btn) option.classList.add('bad');
+  });
+  brainGymRenderStats(brainGymItems.length);
+  setTimeout(function(){
+    brainMatchIndex++;
+    brainGymRenderMatch();
+  }, ok ? 520 : 760);
+}
+
+function brainGymStartMemory(){
+  brainGymItems = brainGymBuildItems(8);
+  if(brainGymItems.length < 4){ brainGymNoData('Memory Grid'); return; }
+  brainGymScore = 0;
+  brainMemoryFirst = null;
+  brainMemoryMatches = 0;
+  brainMemoryMoves = 0;
+  brainMemoryCards = shuffle(brainGymItems.slice(0, 8).reduce(function(cards, item){
+    cards.push({pairId:item.id, kind:'q', text:item.prompt, matched:false, flipped:false});
+    cards.push({pairId:item.id, kind:'a', text:item.answer, matched:false, flipped:false});
+    return cards;
+  }, []));
+  brainGymUpdateTitle('Memory Grid', 'Lật cặp câu hỏi và đáp án đúng');
+  brainGymRenderMemory();
+  brainGymStartTimer(90000, function(){
+    brainGymFinish('Memory Grid kết thúc', 'Hết giờ', {
+      matches: brainMemoryMatches,
+      total: brainGymItems.slice(0, 8).length,
+      moves: brainMemoryMoves
+    });
+  });
+}
+
+function brainGymRenderMemory(){
+  var body = document.getElementById('brain-body');
+  if(!body) return;
+  brainGymRenderStats(brainGymItems.length);
+  body.innerHTML = '<div class="brain-memory-grid">'+brainMemoryCards.map(function(card, idx){
+    var visible = card.flipped || card.matched;
+    var label = visible ? escapeHtml(card.text) : (card.kind === 'q' ? 'Câu hỏi' : 'Đáp án');
+    var cls = 'brain-memory-card' + (card.flipped ? ' flipped' : '') + (card.matched ? ' matched' : '');
+    return '<button type="button" class="'+cls+'" onclick="brainGymFlipMemory('+idx+')" '+(card.matched ? 'disabled' : '')+'>'+label+'</button>';
+  }).join('')+'</div>';
+}
+
+function brainGymFlipMemory(idx){
+  if(brainGymLock) return;
+  var card = brainMemoryCards[idx];
+  if(!card || card.matched || card.flipped) return;
+  card.flipped = true;
+  if(brainMemoryFirst === null){
+    brainMemoryFirst = idx;
+    brainGymRenderMemory();
+    return;
+  }
+  brainGymLock = true;
+  brainMemoryMoves++;
+  var first = brainMemoryCards[brainMemoryFirst];
+  var ok = first && first.pairId === card.pairId && first.kind !== card.kind;
+  if(ok){
+    first.matched = true;
+    card.matched = true;
+    brainMemoryMatches++;
+    brainGymScore += Math.max(60, 140 - Math.max(0, brainMemoryMoves - brainMemoryMatches) * 5);
+    if(!gameMuted) gameSnd.correct();
+  } else {
+    brainGymScore = Math.max(0, brainGymScore - 10);
+    if(!gameMuted) gameSnd.wrong();
+  }
+  brainGymRenderMemory();
+  setTimeout(function(){
+    if(!ok){
+      if(first) first.flipped = false;
+      card.flipped = false;
+    }
+    brainMemoryFirst = null;
+    brainGymLock = false;
+    brainGymRenderMemory();
+    if(brainMemoryMatches >= brainGymItems.slice(0, 8).length){
+      brainGymFinish('Memory Grid hoàn tất', 'Bạn đã ghép đủ các cặp', {
+        matches: brainMemoryMatches,
+        total: brainGymItems.slice(0, 8).length,
+        moves: brainMemoryMoves
+      });
+    }
+  }, ok ? 360 : 760);
+}
+
+function gameRenderMiniGameReport(){
+  var box = document.getElementById('game-minigame-report');
+  if(!box) return;
+  if(!gameMiniGameResults.length){
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  var totalScore = gameMiniGameResults.reduce(function(sum, item){ return sum + (item.score || 0); }, 0);
+  var matchRuns = gameMiniGameResults.filter(function(item){ return item.type === 'match'; }).length;
+  var memoryRuns = gameMiniGameResults.filter(function(item){ return item.type === 'memory'; }).length;
+  box.classList.remove('hidden');
+  box.innerHTML =
+    '<b>Brain Gym:</b> '+gameMiniGameResults.length+' lượt · '+
+    'điểm mini-game <b>'+totalScore+'</b> · '+
+    'Match Sprint <b>'+matchRuns+'</b> · Memory Grid <b>'+memoryRuns+'</b>. '+
+    'Điểm này không cộng vào độ chính xác học thuật.';
+}
+
+function liveEnsurePlayerId(){
+  if(livePlayerId) return livePlayerId;
+  try{
+    livePlayerId = localStorage.getItem('quizhub.live.playerId') || '';
+    if(!livePlayerId){
+      livePlayerId = 'qh-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      localStorage.setItem('quizhub.live.playerId', livePlayerId);
+    }
+  }catch(e){
+    livePlayerId = livePlayerId || ('qh-' + Date.now().toString(36));
+  }
+  return livePlayerId;
+}
+
+function liveGenerateCode(){
+  return 'QH' + Math.floor(1000 + Math.random() * 9000);
+}
+
+function liveNormalizeCode(code){
+  return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+}
+
+function liveReadInputs(){
+  var serverEl = document.getElementById('live-server-url');
+  var codeEl = document.getElementById('live-join-code');
+  var nameEl = document.getElementById('live-player-name');
+  liveServerUrl = (serverEl && serverEl.value.trim()) || liveServerUrl || 'wss://hocba299-3-tutorhub-sync.hf.space/quizhub-live';
+  liveJoinCode = liveNormalizeCode(codeEl ? codeEl.value : liveJoinCode);
+  livePlayerName = (nameEl && nameEl.value.trim()) || gameCurrentAvatar().name || 'TutorHub Player';
+  if(codeEl) codeEl.value = liveJoinCode;
+  if(nameEl) nameEl.value = livePlayerName;
+}
+
+function liveWriteInputs(){
+  var serverEl = document.getElementById('live-server-url');
+  var codeEl = document.getElementById('live-join-code');
+  var nameEl = document.getElementById('live-player-name');
+  if(serverEl) serverEl.value = liveServerUrl || 'wss://hocba299-3-tutorhub-sync.hf.space/quizhub-live';
+  if(codeEl) codeEl.value = liveJoinCode || '';
+  if(nameEl) nameEl.value = livePlayerName || 'TutorHub Player';
+}
+
+function liveBuildWsUrl(baseUrl, code){
+  var base = String(baseUrl || 'wss://hocba299-3-tutorhub-sync.hf.space/quizhub-live').trim();
+  if(base.indexOf('http://') === 0) base = 'ws://' + base.slice(7);
+  if(base.indexOf('https://') === 0) base = 'wss://' + base.slice(8);
+  if(base.indexOf('ws://') !== 0 && base.indexOf('wss://') !== 0) base = 'ws://' + base;
+  var sep = base.indexOf('?') >= 0 ? '&' : '?';
+  return base + sep + 'roomId=' + encodeURIComponent('quizhub-' + code);
+}
+
+function liveSetStatus(text, mode){
+  liveLastStatus = text || liveLastStatus;
+  var el = document.getElementById('game-live-status');
+  if(!el) return;
+  el.textContent = liveLastStatus;
+  el.classList.toggle('on', mode === 'on');
+  el.classList.toggle('warn', mode === 'warn');
+}
+
+function liveInitPanel(){
+  liveEnsurePlayerId();
+  try{
+    liveServerUrl = localStorage.getItem('quizhub.live.serverUrl') || liveServerUrl;
+    livePlayerName = localStorage.getItem('quizhub.live.playerName') || livePlayerName;
+  }catch(e){}
+  liveWriteInputs();
+  liveRenderPanel();
+}
+
+function liveRenderPanel(){
+  liveWriteInputs();
+  var teacherActions = document.getElementById('game-live-teacher-actions');
+  if(teacherActions) teacherActions.classList.toggle('hidden', !(liveConnected && liveRole === 'teacher'));
+  liveRenderRoster();
+  liveRenderLeaderboard();
+}
+
+function liveRenderRoster(){
+  var box = document.getElementById('game-live-roster');
+  if(!box) return;
+  liveTrimRoster();
+  var people = Object.keys(liveRoster).map(function(id){ return liveRoster[id]; })
+    .sort(function(a,b){ return (a.role === b.role ? a.name.localeCompare(b.name) : (a.role === 'teacher' ? -1 : 1)); });
+  if(!people.length){
+    box.innerHTML = '<div class="game-live-empty">Chưa có ai trong phiên live.</div>';
+    return;
+  }
+  box.innerHTML = people.map(function(p){
+    return '<div class="game-live-row"><b>'+escapeHtml(p.name || 'Player')+'</b><span>'+escapeHtml(p.role === 'teacher' ? 'Giáo viên' : 'Học viên')+'</span></div>';
+  }).join('');
+}
+
+function liveRenderLeaderboard(){
+  var box = document.getElementById('game-live-leaderboard');
+  if(!box) return;
+  var rows = Object.keys(liveLeaderboard).map(function(id){ return liveLeaderboard[id]; })
+    .sort(function(a,b){
+      if((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+      if((b.accuracy || 0) !== (a.accuracy || 0)) return (b.accuracy || 0) - (a.accuracy || 0);
+      return (b.answered || 0) - (a.answered || 0);
+    }).slice(0, 8);
+  if(!rows.length){
+    box.innerHTML = '<div class="game-live-empty">Leaderboard sẽ cập nhật khi người chơi trả lời.</div>';
+    return;
+  }
+  box.innerHTML = rows.map(function(row, idx){
+    var pct = Math.round((row.accuracy || 0) * 100);
+    return '<div class="game-live-row"><span><span class="game-live-rank">#'+(idx+1)+'</span> <b>'+escapeHtml(row.name || 'Player')+'</b></span><span>'+Math.round(row.score || 0)+' · '+pct+'%</span></div>';
+  }).join('');
+}
+
+function liveTrimRoster(){
+  var now = Date.now();
+  Object.keys(liveRoster).forEach(function(id){
+    if(now - (liveRoster[id].lastSeen || 0) > 18000) delete liveRoster[id];
+  });
+}
+
+function liveApplyPresence(data){
+  if(!data || !data.playerId) return;
+  liveRoster[data.playerId] = {
+    playerId: data.playerId,
+    name: data.name || 'Player',
+    role: data.role || 'student',
+    lastSeen: Date.now()
+  };
+  liveRenderPanel();
+}
+
+function liveApplyLeaderboard(data){
+  if(!data || !data.playerId) return;
+  liveLeaderboard[data.playerId] = Object.assign({}, liveLeaderboard[data.playerId] || {}, data, {updatedAt: Date.now()});
+  liveRenderLeaderboard();
+}
+
+function liveApplySnapshot(snapshot){
+  if(!snapshot) return;
+  if(snapshot.joinCode) liveJoinCode = liveNormalizeCode(snapshot.joinCode);
+  liveSessionActive = !!snapshot.active && !snapshot.closed;
+  if(snapshot.teacherId && snapshot.teacherId !== livePlayerId && liveRole === 'teacher'){
+    liveRole = 'student';
+  }
+  liveRoster = {};
+  (snapshot.roster || []).forEach(function(p){
+    if(!p || !p.playerId) return;
+    liveRoster[p.playerId] = {
+      playerId: p.playerId,
+      name: p.name || 'Player',
+      role: p.role || 'student',
+      lastSeen: Date.now()
+    };
+  });
+  liveLeaderboard = {};
+  (snapshot.leaderboard || []).forEach(function(row){
+    if(!row || !row.playerId) return;
+    liveLeaderboard[row.playerId] = Object.assign({}, row, {updatedAt: Date.now()});
+  });
+  var statusText;
+  var statusMode;
+  if(snapshot.closed){
+    statusText = 'Phiên ' + liveJoinCode + ' đã kết thúc';
+    statusMode = 'warn';
+  } else if(liveSessionActive){
+    statusText = 'Live ' + liveJoinCode + ' đang chạy';
+    statusMode = 'on';
+  } else {
+    statusText = 'Phiên ' + liveJoinCode + ' sẵn sàng';
+    statusMode = 'on';
+  }
+  liveSetStatus(statusText, statusMode);
+  liveRenderPanel();
+}
+
+function liveHandleServerError(msg){
+  if(!msg) return;
+  if(msg.code === 'teacher_taken') liveRole = 'student';
+  liveSetStatus(msg.message || 'Server live từ chối thao tác', 'warn');
+  liveRenderPanel();
+  if(window.showToast) showToast(msg.message || 'Server live từ chối thao tác.');
+}
+
+function liveSend(type, payload){
+  if(!liveWs || liveWs.readyState !== WebSocket.OPEN) return false;
+  var msg = Object.assign({
+    protocol: 'quizhub.live.v1',
+    type: type,
+    joinCode: liveJoinCode,
+    deckId: String(deckNum),
+    deckTitle: TITLES[deckNum] || 'QuizHub',
+    playerId: liveEnsurePlayerId(),
+    name: livePlayerName,
+    role: liveRole,
+    sentAt: Date.now()
+  }, payload || {});
+  liveWs.send(JSON.stringify(msg));
+  return true;
+}
+
+function liveStartHeartbeat(){
+  if(liveHeartbeatId) clearInterval(liveHeartbeatId);
+  liveSend('presence', {playerId: liveEnsurePlayerId(), name: livePlayerName, role: liveRole});
+  liveHeartbeatId = setInterval(function(){
+    liveSend('presence', {playerId: liveEnsurePlayerId(), name: livePlayerName, role: liveRole});
+    liveRenderPanel();
+  }, 5000);
+}
+
+function liveStopHeartbeat(){
+  if(liveHeartbeatId){
+    clearInterval(liveHeartbeatId);
+    liveHeartbeatId = null;
+  }
+}
+
+function liveConnect(role){
+  liveReadInputs();
+  if(!liveJoinCode){
+    liveJoinCode = liveGenerateCode();
+    liveWriteInputs();
+  }
+  liveRole = role || liveRole || 'student';
+  try{
+    localStorage.setItem('quizhub.live.serverUrl', liveServerUrl);
+    localStorage.setItem('quizhub.live.playerName', livePlayerName);
+  }catch(e){}
+  if(liveWs) liveWs.close();
+  liveConnected = false;
+  liveSetStatus('Đang kết nối ' + liveJoinCode + '...', 'warn');
+  try{
+    liveWs = new WebSocket(liveBuildWsUrl(liveServerUrl, liveJoinCode));
+  }catch(e){
+    liveSetStatus('URL WebSocket không hợp lệ', 'warn');
+    return;
+  }
+  liveWs.onopen = function(){
+    liveConnected = true;
+    liveRoster = {};
+    liveLeaderboard = {};
+    liveApplyPresence({playerId: liveEnsurePlayerId(), name: livePlayerName, role: liveRole});
+    liveSetStatus((liveRole === 'teacher' ? 'Đang host ' : 'Đã tham gia ') + liveJoinCode, 'on');
+    liveStartHeartbeat();
+    liveSend('session.open', {active: liveSessionActive});
+    liveRenderPanel();
+  };
+  liveWs.onmessage = function(event){
+    liveHandleMessage(event.data);
+  };
+  liveWs.onerror = function(){
+    liveSetStatus('Không kết nối được server live', 'warn');
+  };
+  liveWs.onclose = function(){
+    liveConnected = false;
+    liveStopHeartbeat();
+    liveSetStatus('Đã ngắt live', 'warn');
+    liveRenderPanel();
+  };
+}
+
+function liveHandleMessage(raw){
+  var msg;
+  try{ msg = JSON.parse(raw); }catch(e){ return; }
+  if(!msg || msg.protocol !== 'quizhub.live.v1') return;
+  if(msg.joinCode && liveJoinCode && msg.joinCode !== liveJoinCode) return;
+  if(msg.type === 'session.snapshot'){ liveApplySnapshot(msg); return; }
+  if(msg.type === 'server.error'){ liveHandleServerError(msg); return; }
+  if(msg.playerId && msg.playerId === livePlayerId) return;
+  if(msg.type === 'presence') liveApplyPresence(msg);
+  else if(msg.type === 'presence.leave'){
+    delete liveRoster[msg.playerId];
+    delete liveLeaderboard[msg.playerId];
+    liveRenderPanel();
+  } else if(msg.type === 'session.open'){
+    liveApplyPresence(msg);
+    if(typeof msg.active === 'boolean') liveSessionActive = msg.active;
+    liveSetStatus('Phiên live ' + liveJoinCode + (liveSessionActive ? ' đang chạy' : ' sẵn sàng'), 'on');
+  } else if(msg.type === 'session.start'){
+    liveSessionActive = true;
+    liveSetStatus('Live đang chạy', 'on');
+    if(String(msg.deckId) === String(deckNum)){
+      if(window.showToast) showToast('Giáo viên đã bắt đầu Live Classic.');
+      if(!document.getElementById('game-intro').classList.contains('hidden')) gameBeginRound();
+    } else if(window.showToast) {
+      showToast('Live đang dùng đề khác: ' + (msg.deckTitle || msg.deckId));
+    }
+  } else if(msg.type === 'session.end'){
+    liveSessionActive = false;
+    liveSetStatus('Live đã kết thúc', 'warn');
+    if(window.showToast) showToast('Giáo viên đã kết thúc phiên live.');
+  } else if(msg.type === 'leaderboard.update'){
+    liveApplyLeaderboard(msg);
+  } else if(msg.type === 'teacher.powerup'){
+    gameGrantLivePower(msg.powerupType, msg.name || 'Giáo viên');
+  }
+}
+
+function liveHostSession(){
+  liveReadInputs();
+  if(!liveJoinCode) liveJoinCode = liveGenerateCode();
+  liveWriteInputs();
+  liveConnect('teacher');
+}
+
+function liveJoinSession(){
+  liveReadInputs();
+  if(!liveJoinCode){
+    liveSetStatus('Nhập mã lớp để tham gia', 'warn');
+    return;
+  }
+  liveConnect('student');
+}
+
+function liveReconnectSession(){
+  liveReadInputs();
+  if(!liveJoinCode){
+    liveSetStatus('Chưa có mã lớp để kết nối lại', 'warn');
+    return;
+  }
+  liveConnect(liveRole || 'student');
+}
+
+function liveLeaveSession(){
+  liveSend('presence.leave', {playerId: liveEnsurePlayerId()});
+  liveStopHeartbeat();
+  if(liveWs) liveWs.close();
+  liveWs = null;
+  liveConnected = false;
+  liveSessionActive = false;
+  liveRoster = {};
+  liveLeaderboard = {};
+  liveSetStatus('Chưa kết nối', '');
+  liveRenderPanel();
+}
+
+function liveStartSession(){
+  if(!liveConnected){
+    liveHostSession();
+    liveSetStatus('Đang host, bấm bắt đầu lại khi đã kết nối', 'warn');
+    return;
+  }
+  liveSessionActive = true;
+  liveSetStatus('Live đang chạy', 'on');
+  liveSend('session.start', {active:true});
+  gameBeginRound();
+}
+
+function liveEndSession(){
+  liveSessionActive = false;
+  liveSend('session.end', {active:false});
+  liveSetStatus('Live đã kết thúc', 'warn');
+  liveRenderPanel();
+}
+
+function gameGrantLivePower(type, senderName){
+  if(!GAME_POWERUP_DEFS[type]) return;
+  gamePowerupsEnabled = true;
+  var sw = document.getElementById('sw-game-powerups');
+  if(sw) sw.checked = true;
+  gamePowerups.push({id:'lp-'+Date.now()+'-'+type, type:type, used:false, consumedAt:null});
+  gamePowerUpEvents.push({
+    type: type,
+    action: 'grant',
+    questionId: '',
+    questionIndex: gameIdx + 1,
+    occurredAt: new Date().toISOString(),
+    successful: true,
+    scoreMultiplier: type === '2x' ? 2 : 1,
+    details: 'live_teacher_powerup'
+  });
+  gameRenderPowerups();
+  if(window.showToast) showToast((senderName || 'Giáo viên') + ' đã gửi power-up ' + (GAME_POWERUP_DEFS[type].name || type));
+}
+
+function liveDeployPowerup(type){
+  if(!liveConnected || liveRole !== 'teacher'){
+    liveSetStatus('Chỉ giáo viên đang host mới gửi power-up', 'warn');
+    return;
+  }
+  if(!liveSessionActive && document.getElementById('game-play').classList.contains('hidden')){
+    liveSetStatus('Hãy bắt đầu live trước khi gửi power-up', 'warn');
+    return;
+  }
+  gameGrantLivePower(type, 'Bạn');
+  liveSend('teacher.powerup', {powerupType:type});
+}
+
+function liveBroadcastProgress(status){
+  if(!liveConnected) return;
+  var answered = gameAnswerRecords.length;
+  var correct = gameAnswerRecords.filter(function(r){ return !!r.correct; }).length;
+  var total = Math.max(gameQuestions.length, answered);
+  var accuracy = answered ? correct / answered : 0;
+  var payload = {
+    playerId: liveEnsurePlayerId(),
+    name: livePlayerName,
+    role: liveRole,
+    status: status || 'playing',
+    score: gameScore,
+    correct: correct,
+    answered: answered,
+    total: total,
+    accuracy: accuracy,
+    bestStreak: gameBestStreak
+  };
+  liveApplyLeaderboard(payload);
+  liveSend('leaderboard.update', payload);
+}
+
 function gameApplySetup(){
   var topicEl = document.getElementById('game-topic-filter');
   var diffEl = document.getElementById('game-difficulty-filter');
@@ -5175,6 +6179,7 @@ function gameStoreAnswerRecord(ok, timedOut, scoreDetail, responseMs, streakBefo
     powerMultiplier: scoreDetail.powerMultiplier || 1,
     powerUpsUsed: powerUpsUsed || []
   });
+  liveBroadcastProgress('playing');
 }
 
 function gameSaveAttempt(totalCount, totalTimeSec){
@@ -5212,7 +6217,16 @@ function gameSaveAttempt(totalCount, totalTimeSec){
     masteryEnabled: gameMasteryEnabled,
     masteryGoalPercent: gameMasteryGoalPct,
     masterySummary: masterySummary,
-    masteryQuestionStats: gameMasteryStats
+    masteryQuestionStats: gameMasteryStats,
+    miniGameResults: gameMiniGameResults.slice(),
+    miniGameScore: gameMiniGameResults.reduce(function(sum, item){ return sum + (item.score || 0); }, 0),
+    liveSession: liveJoinCode ? {
+      joinCode: liveJoinCode,
+      role: liveRole,
+      playerId: liveEnsurePlayerId(),
+      playerName: livePlayerName,
+      connected: liveConnected
+    } : null
   };
   window.cefQuery({
     request: 'SAVE_ATTEMPT:' + String(deckNum) + '|' + JSON.stringify(payload),
@@ -5336,10 +6350,12 @@ function startGameMapped(){
   document.getElementById('quiz').classList.add('hidden');
   document.getElementById('flash').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
+  gameMiniGameResults = [];
   document.getElementById('game-title').textContent = '🎮 ' + (TITLES[deckNum]||'Trò chơi');
   gameRenderSetupOptions();
   gameLoadPhase4Prefs();
   gameSyncMasteryControls();
+  liveInitPanel();
   document.getElementById('game-intro-sub').textContent = baseQuiz.length + ' câu hỏi · độ chính xác tách riêng với điểm game';
   gameShowScreen('game-intro');
   window.scrollTo(0,0);
@@ -5349,7 +6365,7 @@ function gameSetTime(s){
   document.querySelectorAll('#seg-game-time button').forEach(function(b){b.classList.toggle('on', +b.dataset.v===s);});
 }
 function gameShowScreen(id){
-  ['game-intro','game-countdown','game-play','game-break','game-result'].forEach(function(s){
+  ['game-intro','game-brain','game-countdown','game-play','game-break','game-result'].forEach(function(s){
     document.getElementById(s).classList.toggle('hidden', s!==id);
   });
 }
@@ -5670,6 +6686,8 @@ function gameShowResults(){
     masteryReached: masterySummary ? masterySummary.reached : false
   });
   gameRenderMasteryReport(masterySummary);
+  gameRenderMiniGameReport();
+  liveBroadcastProgress('final');
 
   // Retry wrong button
   var retryBtn=document.getElementById('game-retry-wrong-btn');
@@ -5741,6 +6759,8 @@ function gameRetryWrong(){
 
 function gameExit(){
   cancelAnimationFrame(gameRafId);
+  brainGymClearTimer();
+  liveLeaveSession();
   document.getElementById('game').classList.add('hidden');
   document.getElementById('menu').classList.remove('hidden');
   loadBests();

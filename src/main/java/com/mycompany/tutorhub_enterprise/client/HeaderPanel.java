@@ -266,6 +266,7 @@ public class HeaderPanel extends JPanel {
     
     public JTextField getGlobalSearchInput() { return globalSearchBar.getField(); }
     public JPanel getGlobalSearchContainer() { return globalSearchContainer; }
+    public com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar getGlobalSearchBar() { return globalSearchBar; }
     public void updateAvatar(Image img) { this.hasCustomAvatar = true; if (avatarPanel != null) { avatarPanel.setAvatar(img); } }
     public Image getAvatar() { return avatarPanel != null ? avatarPanel.getAvatarImage() : null; }
 
@@ -285,7 +286,7 @@ public class HeaderPanel extends JPanel {
         serverSearchProvider = new com.mycompany.tutorhub_enterprise.client.search.providers.ServerSearchProvider();
         searchController.registerProvider(serverSearchProvider);
 
-        globalSearchBar.setGlobalDropdownEnabledSupplier(() -> dashboard != null && !dashboard.isCurrentCard("Chat"));
+        globalSearchBar.setGlobalDropdownEnabledSupplier(() -> dashboard != null);
         globalSearchBar.setDropdownResultsProvider(searchController::executeSearchAsync);
 
         globalSearchBar.addSubmitListener(SearchHistoryStore::addSearch);
@@ -785,12 +786,18 @@ public class HeaderPanel extends JPanel {
                 Image img = finalUrl.startsWith("http") ? new ImageIcon(new URL(finalUrl)).getImage() : new ImageIcon(finalUrl).getImage(); 
                 if (img != null) { 
                     MediaTracker tracker = new MediaTracker(label); tracker.addImage(img, 0); tracker.waitForID(0); 
+                    
+                    // Thu nhỏ ảnh mịn màng trước bằng thuật toán SCALE_SMOOTH để tránh hiện tượng mất nét răng cưa
+                    Image scaledImg = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+                    MediaTracker tracker2 = new MediaTracker(label); tracker2.addImage(scaledImg, 1); tracker2.waitForID(1);
+                    
                     java.awt.image.BufferedImage circleBuffer = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB); 
                     Graphics2D g2 = circleBuffer.createGraphics(); 
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR); 
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC); 
+                    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                     g2.setClip(new java.awt.geom.Ellipse2D.Float(0, 0, size, size)); 
-                    g2.drawImage(img, 0, 0, size, size, null); 
+                    g2.drawImage(scaledImg, 0, 0, null); 
                     g2.dispose(); 
                     ImageIcon circularIcon = new ImageIcon(circleBuffer); iconCache.put(key, circularIcon); 
                     SwingUtilities.invokeLater(() -> { label.setIcon(circularIcon); if (label.getParent() != null) { label.getParent().revalidate(); label.getParent().repaint(); } }); 

@@ -234,7 +234,7 @@ public class SearchDropdownPanel {
                 ? "Nhập từ khóa để tìm kiếm"
                 : "Không tìm thấy kết quả phù hợp";
         JLabel title = new JLabel(raw, SwingConstants.CENTER);
-        title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        title.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         title.setForeground(MUTED);
         panel.add(title, BorderLayout.CENTER);
         return panel;
@@ -303,13 +303,13 @@ public class SearchDropdownPanel {
             textPanel.setOpaque(false);
             textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
             JLabel title = new JLabel(result.getTitle());
-            title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            title.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             title.setForeground(TEXT);
             textPanel.add(title);
             if (result.getSubtitle() != null && !result.getSubtitle().isEmpty()) {
                 textPanel.add(Box.createVerticalStrut(1));
                 JLabel subtitle = new JLabel(result.getSubtitle());
-                subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 10));
                 subtitle.setForeground(MUTED);
                 textPanel.add(subtitle);
             }
@@ -317,7 +317,7 @@ public class SearchDropdownPanel {
 
             // Arrow hint on the right
             JLabel arrow = new JLabel("↵", SwingConstants.CENTER);
-            arrow.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            arrow.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             arrow.setForeground(new Color(0xC0C4CC));
             arrow.setPreferredSize(new Dimension(20, 34));
             add(arrow, BorderLayout.EAST);

@@ -183,6 +183,264 @@ const server = http.createServer(app);
 // Giữ lại WebSocket Broadcaster cũ cho chức năng đồng bộ Nét vẽ
 const wss = new WebSocket.Server({ server });
 const rooms = new Map();
+const QUIZHUB_PROTOCOL = 'quizhub.live.v1';
+const quizHubRooms = new Map();
+const QUIZHUB_ROOM_TTL_MS = 30 * 60 * 1000;
+const QUIZHUB_PARTICIPANT_TTL_MS = 30 * 1000;
+
+function isQuizHubMessage(raw) {
+  try {
+    const msg = JSON.parse(raw);
+    return msg && msg.protocol === QUIZHUB_PROTOCOL ? msg : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function cleanText(value, fallback, maxLength) {
+  const text = String(value || fallback || '').trim();
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+
+function getQuizHubRoom(roomId, msg) {
+  if (!quizHubRooms.has(roomId)) {
+    quizHubRooms.set(roomId, {
+      roomId,
+      joinCode: cleanText(msg && msg.joinCode, roomId.replace(/^quizhub-/, ''), 12),
+      deckId: cleanText(msg && msg.deckId, '', 80),
+      deckTitle: cleanText(msg && msg.deckTitle, 'QuizHub', 140),
+      teacherId: null,
+      active: false,
+      closed: false,
+      roster: new Map(),
+      leaderboard: new Map(),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
+  return quizHubRooms.get(roomId);
+}
+
+function sendJson(ws, payload) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload));
+  }
+}
+
+function broadcastJson(roomId, payload, exceptWs) {
+  const roomClients = rooms.get(roomId);
+  if (!roomClients) return;
+  roomClients.forEach(client => {
+    if (client !== exceptWs && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(payload));
+    }
+  });
+}
+
+function roomSnapshot(state) {
+  trimQuizHubRoster(state);
+  return {
+    protocol: QUIZHUB_PROTOCOL,
+    type: 'session.snapshot',
+    joinCode: state.joinCode,
+    deckId: state.deckId,
+    deckTitle: state.deckTitle,
+    teacherId: state.teacherId,
+    active: state.active,
+    closed: state.closed,
+    roster: Array.from(state.roster.values()),
+    leaderboard: Array.from(state.leaderboard.values()),
+    serverTime: Date.now()
+  };
+}
+
+function trimQuizHubRoster(state) {
+  const now = Date.now();
+  state.roster.forEach((participant, playerId) => {
+    if (now - (participant.lastSeen || 0) > QUIZHUB_PARTICIPANT_TTL_MS) {
+      state.roster.delete(playerId);
+      if (state.teacherId === playerId) {
+        state.teacherId = null;
+        state.active = false;
+      }
+    }
+  });
+}
+
+function upsertQuizHubPresence(state, msg, ws) {
+  const playerId = cleanText(msg.playerId, '', 80);
+  if (!playerId) return null;
+  const role = msg.role === 'teacher' ? 'teacher' : 'student';
+  const participant = {
+    playerId,
+    name: cleanText(msg.name, role === 'teacher' ? 'Giáo viên' : 'Học viên', 80),
+    role,
+    lastSeen: Date.now()
+  };
+  state.roster.set(playerId, participant);
+  state.updatedAt = Date.now();
+  ws.quizHubPlayerId = playerId;
+  return participant;
+}
+
+function isTeacherOwner(state, msg) {
+  return msg.role === 'teacher' && msg.playerId && state.teacherId === msg.playerId;
+}
+
+function rejectQuizHub(ws, code, message) {
+  sendJson(ws, {
+    protocol: QUIZHUB_PROTOCOL,
+    type: 'server.error',
+    code,
+    message
+  });
+}
+
+function handleQuizHubMessage(ws, roomId, msg) {
+  const state = getQuizHubRoom(roomId, msg);
+  state.joinCode = cleanText(msg.joinCode, state.joinCode, 12);
+  if (!state.deckId || !state.teacherId || state.teacherId === msg.playerId) {
+    state.deckId = cleanText(msg.deckId, state.deckId, 80);
+    state.deckTitle = cleanText(msg.deckTitle, state.deckTitle, 140);
+  }
+  state.updatedAt = Date.now();
+
+  if (msg.type === 'session.open' || msg.type === 'presence') {
+    const participant = upsertQuizHubPresence(state, msg, ws);
+    if (!participant) {
+      rejectQuizHub(ws, 'missing_player', 'Thiếu playerId cho phiên QuizHub live.');
+      return;
+    }
+    if (participant.role === 'teacher') {
+      if (!state.teacherId || state.teacherId === participant.playerId) {
+        state.teacherId = participant.playerId;
+        state.closed = false;
+        if (msg.active === true) state.active = true;
+      } else {
+        participant.role = 'student';
+        state.roster.set(participant.playerId, participant);
+        rejectQuizHub(ws, 'teacher_taken', 'Phiên này đã có giáo viên host. Bạn được đưa vào vai trò học viên.');
+      }
+    }
+    sendJson(ws, roomSnapshot(state));
+    broadcastJson(roomId, Object.assign({}, msg, participant, {
+      protocol: QUIZHUB_PROTOCOL,
+      type: 'presence',
+      joinCode: state.joinCode,
+      deckId: state.deckId,
+      deckTitle: state.deckTitle
+    }), ws);
+    return;
+  }
+
+  if (msg.type === 'presence.leave') {
+    const playerId = cleanText(msg.playerId, '', 80);
+    if (playerId) {
+      state.roster.delete(playerId);
+      state.leaderboard.delete(playerId);
+      if (state.teacherId === playerId) {
+        state.teacherId = null;
+        state.active = false;
+      }
+      state.updatedAt = Date.now();
+      broadcastJson(roomId, Object.assign({}, msg, { protocol: QUIZHUB_PROTOCOL, type: 'presence.leave' }), ws);
+    }
+    return;
+  }
+
+  if (msg.type === 'session.start') {
+    if (!isTeacherOwner(state, msg)) {
+      rejectQuizHub(ws, 'teacher_required', 'Chỉ giáo viên đang host mới được bắt đầu phiên live.');
+      return;
+    }
+    state.active = true;
+    state.closed = false;
+    state.deckId = cleanText(msg.deckId, state.deckId, 80);
+    state.deckTitle = cleanText(msg.deckTitle, state.deckTitle, 140);
+    state.updatedAt = Date.now();
+    broadcastJson(roomId, Object.assign({}, msg, {
+      protocol: QUIZHUB_PROTOCOL,
+      type: 'session.start',
+      active: true,
+      joinCode: state.joinCode,
+      deckId: state.deckId,
+      deckTitle: state.deckTitle
+    }), null);
+    return;
+  }
+
+  if (msg.type === 'session.end') {
+    if (!isTeacherOwner(state, msg)) {
+      rejectQuizHub(ws, 'teacher_required', 'Chỉ giáo viên đang host mới được kết thúc phiên live.');
+      return;
+    }
+    state.active = false;
+    state.closed = true;
+    state.updatedAt = Date.now();
+    broadcastJson(roomId, Object.assign({}, msg, {
+      protocol: QUIZHUB_PROTOCOL,
+      type: 'session.end',
+      active: false,
+      closed: true,
+      joinCode: state.joinCode
+    }), null);
+    return;
+  }
+
+  if (msg.type === 'teacher.powerup') {
+    if (!isTeacherOwner(state, msg)) {
+      rejectQuizHub(ws, 'teacher_required', 'Chỉ giáo viên đang host mới được gửi power-up.');
+      return;
+    }
+    if (!state.active) {
+      rejectQuizHub(ws, 'session_inactive', 'Phiên live chưa bắt đầu.');
+      return;
+    }
+    broadcastJson(roomId, Object.assign({}, msg, {
+      protocol: QUIZHUB_PROTOCOL,
+      type: 'teacher.powerup',
+      joinCode: state.joinCode
+    }), ws);
+    return;
+  }
+
+  if (msg.type === 'leaderboard.update') {
+    const playerId = cleanText(msg.playerId, '', 80);
+    if (!playerId) return;
+    const row = {
+      playerId,
+      name: cleanText(msg.name, 'Player', 80),
+      role: msg.role === 'teacher' ? 'teacher' : 'student',
+      status: cleanText(msg.status, 'playing', 24),
+      score: Number(msg.score || 0),
+      correct: Number(msg.correct || 0),
+      answered: Number(msg.answered || 0),
+      total: Number(msg.total || 0),
+      accuracy: Number(msg.accuracy || 0),
+      bestStreak: Number(msg.bestStreak || 0),
+      updatedAt: Date.now()
+    };
+    state.leaderboard.set(playerId, row);
+    state.updatedAt = Date.now();
+    broadcastJson(roomId, Object.assign({}, row, {
+      protocol: QUIZHUB_PROTOCOL,
+      type: 'leaderboard.update',
+      joinCode: state.joinCode,
+      deckId: state.deckId,
+      deckTitle: state.deckTitle
+    }), null);
+  }
+}
+
+setInterval(() => {
+  const now = Date.now();
+  quizHubRooms.forEach((state, roomId) => {
+    trimQuizHubRoster(state);
+    if (now - state.updatedAt > QUIZHUB_ROOM_TTL_MS) {
+      quizHubRooms.delete(roomId);
+    }
+  });
+}, 60 * 1000);
 
 wss.on('connection', (ws, req) => {
   const urlParams = new URLSearchParams(req.url.split('?')[1]);
@@ -192,11 +450,17 @@ wss.on('connection', (ws, req) => {
   rooms.get(roomId).add(ws);
   
   ws.on('message', (message) => {
+    const text = message.toString();
+    const quizHubMsg = isQuizHubMessage(text);
+    if (quizHubMsg) {
+      handleQuizHubMessage(ws, roomId, quizHubMsg);
+      return;
+    }
     const roomClients = rooms.get(roomId);
     if (roomClients) {
       roomClients.forEach(client => {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(message.toString());
+          client.send(text);
         }
       });
     }

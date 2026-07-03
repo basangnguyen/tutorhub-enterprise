@@ -18,7 +18,7 @@ import com.mycompany.tutorhub_enterprise.utils.AutoUpdater;
 
 public class LoginFrame extends JFrame {
 
-    public static final String CURRENT_VERSION = "1.0.9";
+    public static final String CURRENT_VERSION = "1.0.10";
 
     private final Color PRIMARY_GREEN = Color.decode("#10B981");
     private final Color FB_BLUE = Color.decode("#1877F2");

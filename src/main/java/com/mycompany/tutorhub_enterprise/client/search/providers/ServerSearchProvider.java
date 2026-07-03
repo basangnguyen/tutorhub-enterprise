@@ -17,6 +17,18 @@ import java.util.concurrent.CompletableFuture;
 public class ServerSearchProvider implements SearchProvider {
 
     private CompletableFuture<List<SearchResult>> currentFuture;
+    private SearchQuery lastQuery;
+
+    private static class CachedResult {
+        List<SearchResult> results;
+        long timestamp;
+        CachedResult(List<SearchResult> results) {
+            this.results = results;
+            this.timestamp = System.currentTimeMillis();
+        }
+    }
+    private final java.util.Map<String, CachedResult> cache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long CACHE_TTL = 5 * 60 * 1000;
 
     @Override
     public String id() {
@@ -36,6 +48,15 @@ public class ServerSearchProvider implements SearchProvider {
         }
         
         currentFuture = new CompletableFuture<>();
+        this.lastQuery = query;
+        String normalizedQuery = query.getNormalizedText();
+
+        CachedResult cached = cache.get(normalizedQuery);
+        if (cached != null && (System.currentTimeMillis() - cached.timestamp < CACHE_TTL)) {
+            // Trả về cache ngay lập tức nếu còn hạn
+            currentFuture.complete(cached.results);
+            return currentFuture;
+        }
         
         try {
             NetworkManager.getInstance().sendPacket(new Packet("GLOBAL_SEARCH", query.getNormalizedText()));
@@ -56,6 +77,7 @@ public class ServerSearchProvider implements SearchProvider {
             return;
         }
 
+        String q = (lastQuery != null) ? lastQuery.getRawText() : "";
         List<SearchResult> results = new ArrayList<>();
         for (GlobalSearchDto dto : rawResults) {
             SearchResultType type;
@@ -65,15 +87,24 @@ public class ServerSearchProvider implements SearchProvider {
                 type = SearchResultType.PROFILE;
             }
 
+            double score = com.mycompany.tutorhub_enterprise.client.search.SearchRanking.rank(dto.title, q);
+            // Có thể cộng thêm điểm ưu tiên tùy thuộc vào loại dữ liệu
+            if (type == SearchResultType.CLASS) score += 5.0; 
+
             results.add(SearchResult.builder()
                 .title(dto.title)
                 .subtitle(dto.subtitle)
                 .type(type)
-                .score(80) 
+                .score(score) 
                 .action(SearchAction.noop()) 
                 .build());
         }
         
+        // Lưu vào cache
+        if (!q.isEmpty()) {
+            cache.put(lastQuery.getNormalizedText(), new CachedResult(new ArrayList<>(results)));
+        }
+
         currentFuture.complete(results);
     }
 }

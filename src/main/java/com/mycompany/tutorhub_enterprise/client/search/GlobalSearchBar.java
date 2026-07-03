@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.sound.sampled.*;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.file.Files;
 
 /**
  * Google-style global search bar.
@@ -35,6 +40,25 @@ public class GlobalSearchBar extends JPanel {
     private final GhostTextTextField searchField;
     private final ThumbnailPane thumbnailPane;
 
+    private JLabel searchIcon;
+    private JButton btnPlus;  // "+" icon (left) – opens upload popup
+    private JButton btnMic;
+    private JButton btnClear;
+
+    // Voice recording fields
+    private boolean isRecording = false;
+    private TargetDataLine targetDataLine;
+    private AudioFormat audioFormat;
+    private ByteArrayOutputStream audioOutputStream;
+
+    // File upload callbacks
+    private Consumer<File> onImageUploaded;
+    private Consumer<File> onFileUploaded;
+    private Consumer<String> onUrlSubmitted;
+
+    /** Lazy-initialized Google Lens upload popup. */
+    private LensUploadPopup lensPopup;
+
     /** Lazy-initialized on first show so we have an owner Window. */
     private SearchDropdownWindow dropdownWindow;
 
@@ -51,6 +75,7 @@ public class GlobalSearchBar extends JPanel {
     private boolean isFocused  = false;
     private boolean isHovered  = false;
     private boolean isExpanded = true;
+    private boolean externalDropdownShowing = false;
 
     // Animation values (0.0–1.0)
     private float focusAlpha  = 0.0f;
@@ -65,7 +90,7 @@ public class GlobalSearchBar extends JPanel {
     // Dimensions
     private static final int PILL_X           = 10;
     private static final int PILL_Y           = 6;
-    private static final int PILL_W_EXPANDED  = 440;
+    private static final int PILL_W_EXPANDED  = 380;
     private static final int PILL_W_COLLAPSED = 40;
     private static final int PILL_H           = 40;
     private static final int ARC              = 40;
@@ -77,44 +102,69 @@ public class GlobalSearchBar extends JPanel {
     public GlobalSearchBar() {
         super(null);
         setOpaque(false);
-        setPreferredSize(new Dimension(460, 52));
+        setPreferredSize(new Dimension(400, 52));
 
         currentHighlight = SearchHighlightProvider.getTodayHighlight();
 
-        // ── 1. Search icon (left) ────────────────────────────
-        JLabel searchIcon = buildSearchIcon();
-        searchIcon.setBounds(PILL_X + 2, PILL_Y, 36, PILL_H);
-        add(searchIcon);
+        // ── 1. Plus icon (left) – replaces magnifying glass ──
+        this.searchIcon = buildPlusIcon();
+        this.searchIcon.setBounds(PILL_X + 4, PILL_Y, 24, PILL_H);
+        this.searchIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        this.searchIcon.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                showLensPopup();
+            }
+        });
+        add(this.searchIcon);
 
         // ── 2. Search field ──────────────────────────────────
         searchField = new GhostTextTextField();
-        searchField.putClientProperty("JTextField.placeholderText", "Tìm kiếm trong TutorHub...");
-        searchField.putClientProperty("JTextField.showClearButton", true);
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        searchField.putClientProperty("JTextField.placeholderText", "Hỏi bất cứ điều gì");
+        searchField.setFont(new Font("Arial", Font.PLAIN, 14));
         searchField.setForeground(new Color(0x111827));
         searchField.setOpaque(false);
+        searchField.setBackground(new Color(0,0,0,0));
         searchField.setBorder(new EmptyBorder(0, 0, 0, 0));
-        searchField.setBounds(PILL_X + 44, PILL_Y, 230, PILL_H);
+        searchField.putClientProperty("JTextField.hasBorder", false);
+        searchField.putClientProperty("JComponent.focusWidth", 0);
+        searchField.putClientProperty("JComponent.innerFocusWidth", 0);
+        searchField.setBounds(PILL_X + 34, PILL_Y, 160, PILL_H);
         searchField.setVisible(false);
         add(searchField);
 
-        // ── 3. Thumbnail (right) ─────────────────────────────
+        // ── 3. Action Buttons (Mic, Clear) ──────────────────
+        btnMic = buildIconButton("images/icon/search_mic.svg", "Tìm kiếm bằng giọng nói");
+        btnClear = buildIconButton("images/icon/close.svg", "Xóa");
+
+        int btnBY = PILL_Y + (PILL_H - 28) / 2;
+        btnMic.setBounds(PILL_X + 250, btnBY, 28, 28);
+        btnClear.setBounds(PILL_X + 282, btnBY, 28, 28);
+
+        btnMic.setVisible(false);
+        btnClear.setVisible(false);
+
+        add(btnMic);
+        add(btnClear);
+
+        wireActionButtons();
+
+        // ── 4. Thumbnail (right) ─────────────────────────────
         thumbnailPane = new ThumbnailPane();
-        int thumbW = 150, thumbH = 32;
+        int thumbW = 120, thumbH = 32;
         thumbnailPane.setBounds(PILL_X + PILL_W_EXPANDED - thumbW - 4,
                                 PILL_Y + (PILL_H - thumbH) / 2, thumbW, thumbH);
         thumbnailPane.setVisible(false);
         add(thumbnailPane);
 
         // ── 4. Animation engine ──────────────────────────────
-        animTimer = new Timer(16, e -> tickAnimation(searchIcon));
+        animTimer = new Timer(16, e -> tickAnimation(this.searchIcon));
         animTimer.start();
 
         // ── 5. Search field events ───────────────────────────
         wireSearchFieldEvents();
 
         // ── 6. Mouse listeners ────────────────────────────────
-        wireMouseListeners(searchIcon);
+        wireMouseListeners(this.searchIcon);
 
         // ── 7. Thumbnail rotation (every 60s) ────────────────
         Timer rotationTimer = new Timer(60_000, e -> rotateThumbnail());
@@ -127,6 +177,17 @@ public class GlobalSearchBar extends JPanel {
     // =========================================================
     // Public API
     // =========================================================
+
+    public void setExternalDropdownShowing(boolean showing) {
+        if (this.externalDropdownShowing != showing) {
+            this.externalDropdownShowing = showing;
+            repaint();
+        }
+    }
+
+    private boolean isDropdownShowing() {
+        return (dropdownWindow != null && dropdownWindow.isShowing()) || externalDropdownShowing;
+    }
 
     public JTextField getField()       { return searchField; }
     public JTextField getSearchField() { return searchField; }
@@ -221,6 +282,11 @@ public class GlobalSearchBar extends JPanel {
     private void onTextChanged() {
         searchField.setGhostText("");
         thumbnailPane.fade(searchField.getText().isEmpty());
+        if (btnClear != null) {
+            btnClear.setVisible(!searchField.getText().isEmpty());
+        }
+        int currentW = (int)(PILL_W_COLLAPSED + (PILL_W_EXPANDED - PILL_W_COLLAPSED) * expandAlpha);
+        updateButtonBounds(currentW);
         notifyQueryChanged(searchField.getText());
         scheduleSearch();
     }
@@ -253,16 +319,19 @@ public class GlobalSearchBar extends JPanel {
             currentSearchFuture.cancel(true);
         }
 
-        // Get screen position right below the pill
+        // Get screen position flush with bottom of the pill (Google style: no gap)
         Point screenPt = getLocationOnScreen();
-        int sx = screenPt.x + PILL_X;
-        int sy = screenPt.y + getHeight() - 4;
+        int inset = 3;
+        int sx = screenPt.x + PILL_X - inset;
+        int sy = screenPt.y + PILL_Y + PILL_H;
 
         SearchDropdownWindow win = getOrCreateDropdown();
-        win.setDropdownWidth(PILL_W_EXPANDED);
+        win.setDropdownWidth(PILL_W_EXPANDED + inset * 2);
         
-        // Hiển thị trạng thái loading trước
-        win.showLoadingState(sx, sy, query);
+        // Hiển thị trạng thái loading trước (chỉ khi dropdown chưa mở để tránh chớp giật)
+        if (!win.isVisible()) {
+            win.showLoadingState(sx, sy, query);
+        }
 
         // Gọi provider
         currentSearchFuture = dropdownResultsProvider.apply(query);
@@ -402,6 +471,7 @@ public class GlobalSearchBar extends JPanel {
         if (dropdownWindow == null) {
             Window ownerWindow = SwingUtilities.getWindowAncestor(this);
             dropdownWindow = new SearchDropdownWindow(ownerWindow);
+            dropdownWindow.setOnResultDeleted(this::scheduleSearch);
         }
         return dropdownWindow;
     }
@@ -469,20 +539,42 @@ public class GlobalSearchBar extends JPanel {
 
         if (changed) {
             int currentW = (int)(PILL_W_COLLAPSED + (PILL_W_EXPANDED - PILL_W_COLLAPSED) * expandAlpha);
-            int thumbW = 150, thumbH = 32;
+            int thumbW = 120, thumbH = 32;
 
             if (expandAlpha > 0.3f && !searchField.isVisible()) {
                 searchField.setVisible(true);
                 thumbnailPane.setVisible(true);
+                if (btnMic != null) btnMic.setVisible(true);
+                if (btnClear != null) btnClear.setVisible(!searchField.getText().isEmpty());
             } else if (expandAlpha <= 0.3f && searchField.isVisible()) {
                 searchField.setVisible(false);
                 thumbnailPane.setVisible(false);
+                if (btnMic != null) btnMic.setVisible(false);
+                if (btnClear != null) btnClear.setVisible(false);
             }
 
             thumbnailPane.setBounds(PILL_X + currentW - thumbW - 4,
                                     PILL_Y + (PILL_H - thumbH) / 2, thumbW, thumbH);
+
+            // Re-position mic & clear button before thumbnail
+            updateButtonBounds(currentW);
             repaint();
             searchIcon.repaint();
+        }
+    }
+
+    private void updateButtonBounds(int currentW) {
+        int thumbW = 120;
+        int btnY = PILL_Y + (PILL_H - 28) / 2;
+        if (btnClear != null && btnClear.isVisible()) {
+            btnClear.setBounds(PILL_X + currentW - thumbW - 32, btnY, 28, 28);
+            if (btnMic != null) {
+                btnMic.setBounds(PILL_X + currentW - thumbW - 60, btnY, 28, 28);
+            }
+        } else {
+            if (btnMic != null) {
+                btnMic.setBounds(PILL_X + currentW - thumbW - 32, btnY, 28, 28);
+            }
         }
     }
 
@@ -509,49 +601,110 @@ public class GlobalSearchBar extends JPanel {
         Color bgH = new Color(255, 255, 255, 240);
         Color bgF = new Color(255, 255, 255, 255);
         g2.setColor(blendColor(blendColor(bgN, bgH, hoverAlpha), bgF, focusAlpha));
-        g2.fillRoundRect(PILL_X, PILL_Y, currentW, PILL_H, ARC, ARC);
+        if (isDropdownShowing()) {
+            java.awt.geom.Path2D.Float bgPath = new java.awt.geom.Path2D.Float();
+            int r = ARC / 2;
+            bgPath.moveTo(PILL_X, PILL_Y + PILL_H);
+            bgPath.lineTo(PILL_X, PILL_Y + r);
+            bgPath.quadTo(PILL_X, PILL_Y, PILL_X + r, PILL_Y);
+            bgPath.lineTo(PILL_X + currentW - r, PILL_Y);
+            bgPath.quadTo(PILL_X + currentW, PILL_Y, PILL_X + currentW, PILL_Y + r);
+            bgPath.lineTo(PILL_X + currentW, PILL_Y + PILL_H);
+            bgPath.closePath();
+            g2.fill(bgPath);
+        } else {
+            g2.fillRoundRect(PILL_X, PILL_Y, currentW, PILL_H, ARC, ARC);
+        }
 
         // Border
         Color borderN = new Color(0, 0, 0, 20);
         Color borderH = new Color(0, 0, 0, 40);
-        Color themeA  = new Color(74, 144, 226);
-        Color themeB  = new Color(144, 19, 254);
+        Color themeA  = new Color(174, 204, 246); // Lighter blue
+        Color themeB  = new Color(204, 153, 255); // Lighter purple
         GradientPaint focusGrad = new GradientPaint(
-                PILL_X, PILL_Y, themeA, PILL_X + currentW, PILL_Y + PILL_H, themeB);
+                PILL_X, PILL_Y, themeA, PILL_X + currentW, PILL_Y + 400, themeB);
 
         if (focusAlpha > 0.01f) {
             if (focusAlpha < 1.0f) {
                 g2.setPaint(blendColor(borderN, borderH, hoverAlpha));
                 g2.setStroke(new BasicStroke(1f));
-                g2.drawRoundRect(PILL_X, PILL_Y, currentW - 1, PILL_H - 1, ARC, ARC);
+                if (isDropdownShowing()) {
+                    java.awt.geom.Path2D.Float borderPath = new java.awt.geom.Path2D.Float();
+                    int r = ARC / 2;
+                    borderPath.moveTo(PILL_X, PILL_Y + PILL_H);
+                    borderPath.lineTo(PILL_X, PILL_Y + r);
+                    borderPath.quadTo(PILL_X, PILL_Y, PILL_X + r, PILL_Y);
+                    borderPath.lineTo(PILL_X + currentW - 1 - r, PILL_Y);
+                    borderPath.quadTo(PILL_X + currentW - 1, PILL_Y, PILL_X + currentW - 1, PILL_Y + r);
+                    borderPath.lineTo(PILL_X + currentW - 1, PILL_Y + PILL_H);
+                    g2.draw(borderPath);
+                } else {
+                    g2.drawRoundRect(PILL_X, PILL_Y, currentW - 1, PILL_H - 1, ARC, ARC);
+                }
                 g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, focusAlpha));
             }
             g2.setPaint(focusGrad);
             g2.setStroke(new BasicStroke(1.5f));
-            g2.drawRoundRect(PILL_X, PILL_Y, currentW - 1, PILL_H - 1, ARC, ARC);
+            if (isDropdownShowing()) {
+                java.awt.geom.Path2D.Float borderPath = new java.awt.geom.Path2D.Float();
+                int r = ARC / 2;
+                borderPath.moveTo(PILL_X, PILL_Y + PILL_H);
+                borderPath.lineTo(PILL_X, PILL_Y + r);
+                borderPath.quadTo(PILL_X, PILL_Y, PILL_X + r, PILL_Y);
+                borderPath.lineTo(PILL_X + currentW - 1 - r, PILL_Y);
+                borderPath.quadTo(PILL_X + currentW - 1, PILL_Y, PILL_X + currentW - 1, PILL_Y + r);
+                borderPath.lineTo(PILL_X + currentW - 1, PILL_Y + PILL_H);
+                g2.draw(borderPath);
+            } else {
+                g2.drawRoundRect(PILL_X, PILL_Y, currentW - 1, PILL_H - 1, ARC, ARC);
+            }
         } else {
             g2.setPaint(blendColor(borderN, borderH, hoverAlpha));
             g2.setStroke(new BasicStroke(1f));
-            g2.drawRoundRect(PILL_X, PILL_Y, currentW - 1, PILL_H - 1, ARC, ARC);
+            if (isDropdownShowing()) {
+                java.awt.geom.Path2D.Float borderPath = new java.awt.geom.Path2D.Float();
+                int r = ARC / 2;
+                borderPath.moveTo(PILL_X, PILL_Y + PILL_H);
+                borderPath.lineTo(PILL_X, PILL_Y + r);
+                borderPath.quadTo(PILL_X, PILL_Y, PILL_X + r, PILL_Y);
+                borderPath.lineTo(PILL_X + currentW - 1 - r, PILL_Y);
+                borderPath.quadTo(PILL_X + currentW - 1, PILL_Y, PILL_X + currentW - 1, PILL_Y + r);
+                borderPath.lineTo(PILL_X + currentW - 1, PILL_Y + PILL_H);
+                g2.draw(borderPath);
+            } else {
+                g2.drawRoundRect(PILL_X, PILL_Y, currentW - 1, PILL_H - 1, ARC, ARC);
+            }
         }
 
         g2.dispose();
     }
 
-    private JLabel buildSearchIcon() {
+    /** Draws a "+" icon like Google's 2025 search bar. */
+    private JLabel buildPlusIcon() {
         return new JLabel() {
+            private boolean isIconHovered = false;
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override public void mouseEntered(MouseEvent e) { isIconHovered = true; repaint(); }
+                    @Override public void mouseExited(MouseEvent e)  { isIconHovered = false; repaint(); }
+                });
+            }
             @Override
             protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(blendColor(new Color(0x64748B), new Color(0, 103, 192), focusAlpha));
-                g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                
+                g2.setColor(isIconHovered ? new Color(225, 228, 230) : new Color(241, 243, 244));
+                g2.fillOval(0, (getHeight() - 24) / 2, 24, 24);
+                
+                g2.setColor(new Color(0x202124));
+                g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 int cx = getWidth() / 2, cy = getHeight() / 2;
-                int r = 6;
-                g2.drawOval(cx - r - 2, cy - r - 2, r * 2, r * 2);
-                g2.drawLine(cx + 2, cy + 2, cx + 7, cy + 7);
+                int half = 5;
+                g2.drawLine(cx, cy - half, cx, cy + half);  // vertical
+                g2.drawLine(cx - half, cy, cx + half, cy);  // horizontal
                 g2.dispose();
+                super.paintComponent(g);
             }
         };
     }
@@ -563,6 +716,230 @@ public class GlobalSearchBar extends JPanel {
         float b = c1.getBlue()  + ratio * (c2.getBlue()  - c1.getBlue());
         float a = c1.getAlpha() + ratio * (c2.getAlpha() - c1.getAlpha());
         return new Color(Math.round(r), Math.round(g), Math.round(b), Math.round(a));
+    }
+
+    // =========================================================
+    // Action Buttons & Recording Logic
+    // =========================================================
+
+    private JButton buildIconButton(String iconPath, String tooltip) {
+        JButton btn = new JButton();
+        try {
+            com.formdev.flatlaf.extras.FlatSVGIcon icon = new com.formdev.flatlaf.extras.FlatSVGIcon(iconPath, 15, 15);
+            icon.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> new Color(0x5F6368)));
+            btn.setIcon(icon);
+        } catch (Exception e) {
+            // fallback
+        }
+        btn.setToolTipText(tooltip);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setMargin(new Insets(0,0,0,0));
+        
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) {
+                if (btn.getIcon() instanceof com.formdev.flatlaf.extras.FlatSVGIcon) {
+                    ((com.formdev.flatlaf.extras.FlatSVGIcon)btn.getIcon()).setColorFilter(
+                            new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> new Color(0x202124))
+                    );
+                    btn.repaint();
+                }
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                if (btn.getIcon() instanceof com.formdev.flatlaf.extras.FlatSVGIcon) {
+                    ((com.formdev.flatlaf.extras.FlatSVGIcon)btn.getIcon()).setColorFilter(
+                            new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> new Color(0x5F6368))
+                    );
+                    btn.repaint();
+                }
+            }
+        });
+        return btn;
+    }
+
+    private void wireActionButtons() {
+        btnMic.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) startVoiceRecording();
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) stopVoiceRecording();
+            }
+        });
+
+        btnClear.addActionListener(e -> {
+            searchField.setText("");
+            searchField.setGhostText("");
+            hideDropdown();
+            thumbnailPane.fade(true);
+            btnClear.setVisible(false);
+            int currentW = (int)(PILL_W_COLLAPSED + (PILL_W_EXPANDED - PILL_W_COLLAPSED) * expandAlpha);
+            updateButtonBounds(currentW);
+            notifyQueryChanged("");
+            repaint();
+            searchField.requestFocusInWindow();
+        });
+    }
+
+    private void showLensPopup() {
+        if (lensPopup == null) {
+            Window ownerWindow = SwingUtilities.getWindowAncestor(this);
+            lensPopup = new LensUploadPopup(ownerWindow);
+            lensPopup.setOnImageSelected(file -> {
+                if (onImageUploaded != null) {
+                    onImageUploaded.accept(file);
+                }
+            });
+            lensPopup.setOnDocumentSelected(file -> {
+                if (onFileUploaded != null) {
+                    onFileUploaded.accept(file);
+                }
+            });
+        }
+        if (lensPopup.isShowing()) {
+            lensPopup.hide();
+        } else {
+            hideDropdown();
+            lensPopup.show(searchIcon, 4);
+        }
+    }
+
+    public void setOnImageUploaded(Consumer<File> listener) { this.onImageUploaded = listener; }
+    public void setOnFileUploaded(Consumer<File> listener) { this.onFileUploaded = listener; }
+    public void setOnUrlSubmitted(Consumer<String> listener) { this.onUrlSubmitted = listener; }
+
+    private void startVoiceRecording() {
+        if (isRecording) return;
+        try {
+            audioFormat = new AudioFormat(16000, 16, 1, true, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, audioFormat);
+            if (!AudioSystem.isLineSupported(info)) {
+                JOptionPane.showMessageDialog(this, "Microphone không được hỗ trợ", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            targetDataLine = (TargetDataLine) AudioSystem.getLine(info);
+            targetDataLine.open(audioFormat);
+            targetDataLine.start();
+            audioOutputStream = new ByteArrayOutputStream();
+            isRecording = true;
+            searchField.setText("Đang nghe...");
+
+            if (btnMic.getIcon() instanceof com.formdev.flatlaf.extras.FlatSVGIcon) {
+                ((com.formdev.flatlaf.extras.FlatSVGIcon)btnMic.getIcon()).setColorFilter(
+                        new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> new Color(0xEA4335))
+                );
+                btnMic.repaint();
+            }
+
+            Thread captureThread = new Thread(() -> {
+                byte[] buffer = new byte[4096];
+                while (isRecording) {
+                    int bytesRead = targetDataLine.read(buffer, 0, buffer.length);
+                    if (bytesRead > 0) audioOutputStream.write(buffer, 0, bytesRead);
+                }
+            });
+            captureThread.start();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void stopVoiceRecording() {
+        if (!isRecording) return;
+        isRecording = false;
+        targetDataLine.stop();
+        targetDataLine.close();
+        
+        if (btnMic.getIcon() instanceof com.formdev.flatlaf.extras.FlatSVGIcon) {
+            ((com.formdev.flatlaf.extras.FlatSVGIcon)btnMic.getIcon()).setColorFilter(
+                    new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> new Color(0x5F6368))
+            );
+            btnMic.repaint();
+        }
+
+        try {
+            byte[] audioData = audioOutputStream.toByteArray();
+            File tempAudioFile = File.createTempFile("voice_search", ".wav");
+            try (AudioInputStream ais = new AudioInputStream(
+                    new ByteArrayInputStream(audioData), audioFormat, audioData.length / audioFormat.getFrameSize())) {
+                AudioSystem.write(ais, AudioFileFormat.Type.WAVE, tempAudioFile);
+            }
+            searchField.setText("Đang xử lý...");
+            
+            // Call API asynchronously
+            new Thread(() -> sendVoiceToAPI(tempAudioFile)).start();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            searchField.setText("");
+        }
+    }
+
+    private void sendVoiceToAPI(File wavFile) {
+        String urlString = "https://hocba299-3-tutorhub-ai.hf.space/api/chat/voice";
+        String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (OutputStream os = connection.getOutputStream();
+                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, "UTF-8"), true)) {
+                
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"audio\"; filename=\"").append(wavFile.getName()).append("\"\r\n");
+                writer.append("Content-Type: audio/wav\r\n\r\n").flush();
+
+                Files.copy(wavFile.toPath(), os);
+                os.flush();
+                
+                writer.append("\r\n").append("--").append(boundary).append("--\r\n").flush();
+            }
+
+            if (connection.getResponseCode() == 200) {
+                try (InputStreamReader isr = new InputStreamReader(connection.getInputStream(), "UTF-8")) {
+                    StringBuilder sb = new StringBuilder();
+                    int c;
+                    while ((c = isr.read()) != -1) sb.append((char) c);
+                    
+                    String json = sb.toString();
+                    // simple JSON extraction for user_text
+                    String userText = "";
+                    int utIdx = json.indexOf("\"user_text\":");
+                    if (utIdx != -1) {
+                        int startQuote = json.indexOf("\"", utIdx + 12);
+                        if (startQuote != -1) {
+                            int endQuote = json.indexOf("\"", startQuote + 1);
+                            if (endQuote != -1) {
+                                userText = json.substring(startQuote + 1, endQuote);
+                                // Unescape basic sequences
+                                userText = userText.replace("\\\"", "\"").replace("\\n", " ").replace("\\\\", "\\");
+                            }
+                        }
+                    }
+                    
+                    String finalText = userText;
+                    SwingUtilities.invokeLater(() -> {
+                        if (!finalText.isEmpty()) {
+                            searchField.setText(finalText);
+                            notifySubmitted(finalText);
+                        } else {
+                            searchField.setText("");
+                        }
+                    });
+                }
+            } else {
+                SwingUtilities.invokeLater(() -> searchField.setText(""));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            SwingUtilities.invokeLater(() -> searchField.setText(""));
+        } finally {
+            wavFile.delete();
+        }
     }
 
     // =========================================================

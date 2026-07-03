@@ -48,4 +48,15 @@ public class SearchHistoryStore {
         Preferences prefs = Preferences.userNodeForPackage(SearchHistoryStore.class);
         prefs.remove(PREF_KEY);
     }
+    
+    public static void removeSearch(String query) {
+        if (query == null || query.isBlank()) {
+            return;
+        }
+        String trimmedQuery = query.trim();
+        List<String> history = getRecentSearches();
+        if (history.remove(trimmedQuery)) {
+            saveHistory(history);
+        }
+    }
 }

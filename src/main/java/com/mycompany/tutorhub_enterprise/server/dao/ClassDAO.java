@@ -79,4 +79,23 @@ public class ClassDAO {
             return false;
         }
     }
+
+    public static List<String[]> searchClasses(String keyword) {
+        List<String[]> results = new ArrayList<>();
+        String sql = "SELECT class_code, title FROM classes WHERE status = 'OPEN' AND (LOWER(title) LIKE ? OR LOWER(class_code) LIKE ?) LIMIT 10";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+            String term = "%" + keyword.toLowerCase() + "%";
+            pst.setString(1, term);
+            pst.setString(2, term);
+            try (ResultSet rs = pst.executeQuery()) {
+                while (rs.next()) {
+                    results.add(new String[]{rs.getString("class_code"), rs.getString("title")});
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("[DAO LỖI] Lỗi tìm kiếm lớp: " + e.getMessage());
+        }
+        return results;
+    }
 }

@@ -868,13 +868,6 @@ public class ClientHandler {
                 }
                 
                 case "GLOBAL_SEARCH": {
-                    long now = System.currentTimeMillis();
-                    if (now - this.lastGlobalSearchTime < 500) {
-                        sendPacket(new Packet("GLOBAL_SEARCH_RESULT", java.util.Collections.emptyList()));
-                        break;
-                    }
-                    this.lastGlobalSearchTime = now;
-
                     String keyword = packet.payload;
                     if (keyword == null || keyword.length() < 2) {
                         sendPacket(new Packet("GLOBAL_SEARCH_RESULT", java.util.Collections.emptyList()));
@@ -886,9 +879,17 @@ public class ClientHandler {
                         com.mycompany.tutorhub_enterprise.server.dao.UserDAO.searchUsers(keyword, this.userId);
                     for (com.mycompany.tutorhub_enterprise.models.UserInfo u : users) {
                         results.add(new com.mycompany.tutorhub_enterprise.models.GlobalSearchDto(
-                            String.valueOf(u.id), "PROFILE", u.fullName, "Người dùng"
+                            String.valueOf(u.userId), "PROFILE", u.fullName, "Người dùng"
                         ));
                     }
+
+                    List<String[]> classes = com.mycompany.tutorhub_enterprise.server.dao.ClassDAO.searchClasses(keyword);
+                    for (String[] c : classes) {
+                        results.add(new com.mycompany.tutorhub_enterprise.models.GlobalSearchDto(
+                            c[0], "CLASS", c[1], "Lớp học - " + c[0]
+                        ));
+                    }
+
                     sendPacket(new Packet("GLOBAL_SEARCH_RESULT", results));
                     break;
                 }

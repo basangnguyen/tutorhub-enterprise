@@ -1,6 +1,8 @@
 package com.mycompany.tutorhub_enterprise.client;
 
 import com.mycompany.tutorhub_enterprise.client.services.MessageSyncService;
+import com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.mycompany.tutorhub_enterprise.models.ConversationInfo;
 import com.mycompany.tutorhub_enterprise.models.Message;
 import com.mycompany.tutorhub_enterprise.models.MessageStatus;
@@ -16,6 +18,14 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
+import javax.sound.sampled.*;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.nio.file.Files;
 
 
 
@@ -30,7 +40,7 @@ public class ChatTab extends JPanel {
     private final Color PRIMARY_LIGHT = Color.decode("#EEF2FF"); // Active item background
     private final Color BG_MAIN       = Color.decode("#F0F2F5"); // Chat area – Telegram-style
     private final Color BG_LEFT       = Color.decode("#FFFFFF"); // Left panel
-    private final Color BG_ME         = Color.decode("#4F6EF7"); // Self bubble (primary)
+    private final Color BG_ME         = Color.decode("#EEF2FF"); // Self bubble (light indigo/purple)
     private final Color BG_OTHER      = Color.decode("#FFFFFF"); // Incoming bubble
     private final Color BORDER_COLOR  = Color.decode("#E5E7EB"); // Dividers
     private final Color TEXT_MAIN     = Color.decode("#111827"); // Primary text
@@ -48,6 +58,13 @@ public class ChatTab extends JPanel {
     private List<Message> currentMessages = new ArrayList<>();
     
     private int CURRENT_USER_ID;
+    
+    // Voice recording fields for chat input
+    private boolean isChatRecording = false;
+    private TargetDataLine chatTargetDataLine;
+    private AudioFormat chatAudioFormat;
+    private ByteArrayOutputStream chatAudioOutputStream;
+    private FlatSVGIcon btnChatMicIcon;
     private long lastSearchCloseTime = 0;
     private String searchKeyword = "";
     private javax.swing.Timer searchDebounce;
@@ -71,7 +88,7 @@ public class ChatTab extends JPanel {
     private JTextField txtGlobalSearch;
     private JPanel globalSearchContainer;
 
-    private JPopupMenu searchPopup;
+    private JWindow searchPopup = null;
     private JPanel popupContentPanel;
     private List<JPanel> popupClickableItems = new ArrayList<>();
     private int audioCallDurationSeconds = 0;
@@ -288,22 +305,8 @@ public class ChatTab extends JPanel {
     }
 
     private void executeSearch() {
-        if (!isGlobalSearchPopupEnabled()) {
-            if (searchPopup != null) {
-                searchPopup.setVisible(false);
-            }
-            return;
-        }
-        // Cập nhật giao diện Chat ngay khi gõ (Lọc tin nhắn)
         refreshMessages();
-        
-        if (searchKeyword.isEmpty()) {
-            searchPopup.setVisible(false);
-            refreshConversationList();
-            return;
-        }
-        renderSearchLoading();
-        try { NetworkManager.getInstance().sendPacket(new Packet("SEARCH_USER", searchKeyword)); } catch (Exception e) {}
+        refreshConversationList();
     }
 
     public void updateConversationList(List<ConversationInfo> list) {
@@ -327,7 +330,6 @@ public class ChatTab extends JPanel {
         }
 
         refreshConversationList(); 
-        if (isGlobalSearchPopupEnabled() && searchPopup.isVisible() && !searchKeyword.isEmpty()) renderSearchPopupResults();
         notifyUnreadCountChanged();
     }
 
@@ -337,9 +339,6 @@ public class ChatTab extends JPanel {
 
     public void updateSearchResults(List<UserInfo> users) {
         this.searchResults = users;
-        if (isGlobalSearchPopupEnabled()) {
-            renderSearchPopupResults();
-        }
     }
 
     private void fetchMessagesFromServer(int conversationId) {
@@ -390,7 +389,7 @@ public class ChatTab extends JPanel {
         this.txtGlobalSearch = searchInput;
         this.globalSearchContainer = searchContainer;
 
-        txtGlobalSearch.putClientProperty("JTextField.placeholderText", "Tìm kiếm trong TutorHub...");
+        txtGlobalSearch.putClientProperty("JTextField.placeholderText", "Hỏi Google");
 
         txtGlobalSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { handleTyping(); }
@@ -411,35 +410,7 @@ public class ChatTab extends JPanel {
             }
         });
 
-        txtGlobalSearch.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e) {
-                if (!isGlobalSearchPopupEnabled()) return;
-                if (System.currentTimeMillis() - lastSearchCloseTime < 200) return;
-                if (!searchKeyword.isEmpty() && !searchPopup.isVisible()) {
-                    searchPopup.show(globalSearchContainer, 0, globalSearchContainer.getHeight() + 8);
-                }
-            }
-        });
 
-        txtGlobalSearch.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
-                if (!isGlobalSearchPopupEnabled()) return;
-                if(e.getKeyCode() == KeyEvent.VK_ESCAPE) { searchPopup.setVisible(false); }
-                else if (searchPopup.isVisible() && !popupClickableItems.isEmpty()) {
-                    if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-                        selectedPopupIndex = (selectedPopupIndex + 1) % popupClickableItems.size();
-                        updatePopupSelection();
-                    } else if (e.getKeyCode() == KeyEvent.VK_UP) {
-                        selectedPopupIndex = (selectedPopupIndex - 1 < 0) ? popupClickableItems.size() - 1 : selectedPopupIndex - 1;
-                        updatePopupSelection();
-                    } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                        if(selectedPopupIndex >= 0) {
-                            for(MouseListener ml : popupClickableItems.get(selectedPopupIndex).getMouseListeners()) ml.mouseClicked(null);
-                        }
-                    }
-                }
-            }
-        });
     }
 
     // =========================================================================
@@ -464,12 +435,7 @@ public class ChatTab extends JPanel {
         lblTitle.setForeground(TEXT_MAIN);
         topBar.add(lblTitle, BorderLayout.WEST);
 
-        JPanel topActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
-        topActions.setOpaque(false);
-        JPanel btnCompose = createActionIcon(
-            "https://img.icons8.com/fluency-systems-regular/48/64748B/compose.png");
-        topActions.add(btnCompose);
-        topBar.add(topActions, BorderLayout.EAST);
+
 
         // ── FILTER CHIPS ───────────────────────────────────────────────────
         JPanel filterWrap = new JPanel(new BorderLayout());
@@ -655,26 +621,28 @@ public class ChatTab extends JPanel {
         JPanel p = new JPanel(new BorderLayout(0, 0)) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
-                // Nền
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Nền bo góc
                 if (isActive) {
                     g2.setColor(PRIMARY_LIGHT);
+                    g2.fillRoundRect(8, 2, getWidth() - 16, getHeight() - 4, 12, 12);
                 } else if (Boolean.TRUE.equals(getClientProperty("hovered"))) {
                     g2.setColor(HOVER_BG);
-                } else {
-                    g2.setColor(BG_LEFT);
+                    g2.fillRoundRect(8, 2, getWidth() - 16, getHeight() - 4, 12, 12);
                 }
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                // Left accent bar khi active
+                
+                // Thanh accent đứng bo góc khi active
                 if (isActive) {
                     g2.setColor(PRIMARY);
-                    g2.fillRect(0, 0, 3, getHeight());
+                    g2.fillRoundRect(12, 12, 3, getHeight() - 24, 3, 3);
                 }
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         p.setOpaque(false);
-        p.setBorder(new EmptyBorder(11, 18, 11, 14));
+        p.setBorder(new EmptyBorder(10, 18, 10, 14));
+        p.setPreferredSize(new Dimension(280, 72));
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
         p.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
@@ -762,150 +730,15 @@ public class ChatTab extends JPanel {
     }
 
     private void initSearchPopup() {
-        searchPopup = new JPopupMenu();
-        searchPopup.setFocusable(false); 
-        searchPopup.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
-        searchPopup.setBackground(Color.WHITE);
-        
-        popupContentPanel = new JPanel();
-        popupContentPanel.setLayout(new BoxLayout(popupContentPanel, BoxLayout.Y_AXIS));
-        popupContentPanel.setBackground(Color.WHITE);
-        
-        JScrollPane scroll = new JScrollPane(popupContentPanel);
-        scroll.setBorder(null);
-        scroll.setPreferredSize(new Dimension(360, 420));
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
-        scroll.getVerticalScrollBar().setPreferredSize(new Dimension(5, 0));
-        
-        searchPopup.add(scroll);
-        searchPopup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
-            @Override public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {}
-            @Override public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) { 
-                lastSearchCloseTime = System.currentTimeMillis(); 
-            }
-            @Override public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {}
-        });
+    }
+
+    private void showPopupAtCorrectLocation() {
     }
 
     private void renderSearchLoading() {
-        if (!isGlobalSearchPopupEnabled()) {
-            if (searchPopup != null) {
-                searchPopup.setVisible(false);
-            }
-            return;
-        }
-        if(globalSearchContainer == null) return;
-        popupContentPanel.removeAll();
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER)); p.setBackground(Color.WHITE); p.setBorder(new EmptyBorder(30, 0, 30, 0));
-        JLabel lbl = new JLabel("Đang tìm kiếm..."); lbl.setFont(new Font("Segoe UI", Font.ITALIC, 13)); lbl.setForeground(TEXT_MUTED);
-        p.add(lbl); popupContentPanel.add(p);
-        
-        searchPopup.pack();
-        if(!searchPopup.isVisible()) searchPopup.show(globalSearchContainer, 0, globalSearchContainer.getHeight() + 8);
     }
 
-   private void renderSearchPopupResults() {
-        if (!isGlobalSearchPopupEnabled()) {
-            if (searchPopup != null) {
-                searchPopup.setVisible(false);
-            }
-            return;
-        }
-        if(globalSearchContainer == null) return;
-        popupContentPanel.removeAll();
-        popupClickableItems.clear();
-        selectedPopupIndex = -1;
-        boolean hasAnyResult = false;
-        String rawKey = removeAccents(searchKeyword);
-
-        // 1. ƯU TIÊN KIỂM TRA TIN NHẮN TRONG ĐOẠN CHAT HIỆN TẠI (LOCAL MATCH)
-        int localMatchCount = 0;
-        if (activeConversation != null && currentMessages != null && !searchKeyword.isEmpty()) {
-            for (Message m : currentMessages) {
-                if (m.content != null && m.content.toLowerCase().contains(searchKeyword)) {
-                    localMatchCount++;
-                }
-            }
-        }
-
-        // NẾU CÓ TIN NHẮN PHÙ HỢP -> HIỂN THỊ NÚT TRUY CẬP NHANH VÀO CHAT
-        if (localMatchCount > 0) {
-            popupContentPanel.add(createPopupSectionTitle("TRONG ĐOẠN CHAT HIỆN TẠI"));
-            JPanel pLocal = new JPanel(new BorderLayout(12, 0)); 
-            pLocal.setBackground(Color.WHITE); 
-            pLocal.setBorder(new EmptyBorder(8, 15, 8, 15)); 
-            pLocal.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50)); 
-            pLocal.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            
-            JLabel lblIcon = new JLabel(); 
-            setNetworkIcon(lblIcon, "https://img.icons8.com/fluency-systems-regular/48/2563EB/search-message.png", 28, 28); 
-            pLocal.add(lblIcon, BorderLayout.WEST);
-            
-            JLabel lblText = new JLabel("<html>Tìm thấy <b style='color:#4F6EF7;'>" + localMatchCount + "</b> tin nhắn phù hợp (Nhấn để xem)</html>"); 
-            lblText.setFont(new Font("Segoe UI", Font.PLAIN, 13)); 
-            lblText.setForeground(TEXT_MAIN); 
-            pLocal.add(lblText, BorderLayout.CENTER);
-
-            // Bấm vào kết quả này sẽ ĐÓNG Popup lại để người dùng xem tin nhắn
-            pLocal.addMouseListener(new MouseAdapter() { 
-                @Override public void mouseEntered(MouseEvent e) { pLocal.setBackground(Color.decode("#F1F5F9")); } 
-                @Override public void mouseExited(MouseEvent e) { pLocal.setBackground(Color.WHITE); } 
-                @Override public void mouseClicked(MouseEvent e) { searchPopup.setVisible(false); } 
-            });
-            
-            popupClickableItems.add(pLocal);
-            popupContentPanel.add(pLocal);
-            hasAnyResult = true;
-        }
-
-        // 2. TÌM TRONG LỊCH SỬ BẠN BÈ / NHÓM CHAT (BÊN TRÁI)
-        List<ConversationInfo> localMatches = new ArrayList<>();
-        if (conversations != null && !searchKeyword.isEmpty()) {
-            for(ConversationInfo c : conversations) {
-                if (removeAccents(c.displayName).contains(rawKey) || 
-                   (c.lastMessage != null && removeAccents(c.lastMessage).contains(rawKey))) {
-                    localMatches.add(c);
-                }
-            }
-        }
-
-        if (!localMatches.isEmpty()) {
-            if (hasAnyResult) popupContentPanel.add(createPopupSeparator());
-            popupContentPanel.add(createPopupSectionTitle("TIN NHẮN & BẠN BÈ KHÁC"));
-            for (ConversationInfo c : localMatches) {
-                JPanel item = createPopupMessageItem(c);
-                popupClickableItems.add(item);
-                popupContentPanel.add(item);
-            }
-            hasAnyResult = true;
-        }
-
-        // 3. TÌM KIẾM NGƯỜI DÙNG LẠ TỪ SERVER
-        if (searchResults != null && !searchResults.isEmpty()) {
-            if (hasAnyResult) popupContentPanel.add(createPopupSeparator());
-            popupContentPanel.add(createPopupSectionTitle("KẾT QUẢ TỪ HỆ THỐNG"));
-            for (UserInfo u : searchResults) {
-                boolean isAlreadyFriend = localMatches.stream().anyMatch(c -> removeAccents(c.displayName).equals(removeAccents(u.fullName)));
-                if(!isAlreadyFriend) {
-                    JPanel item = createPopupUserItem(u);
-                    popupClickableItems.add(item);
-                    popupContentPanel.add(item);
-                    hasAnyResult = true;
-                }
-            }
-        }
-
-        // 4. NẾU KHÔNG CÓ BẤT KỲ KẾT QUẢ NÀO Ở CẢ 3 MỤC TRÊN -> MỚI BÁO LỖI
-        if (!hasAnyResult) {
-            JPanel p = new JPanel(); p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setBackground(Color.WHITE); p.setBorder(new EmptyBorder(40, 20, 40, 20));
-            JLabel icon = new JLabel(); setNetworkIcon(icon, "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/search.png", 36, 36); icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-            JLabel lbl1 = new JLabel("Không tìm thấy kết quả phù hợp"); lbl1.setFont(new Font("Segoe UI", Font.BOLD, 13)); lbl1.setForeground(TEXT_MAIN); lbl1.setAlignmentX(Component.CENTER_ALIGNMENT);
-            p.add(icon); p.add(Box.createVerticalStrut(10)); p.add(lbl1);
-            popupContentPanel.add(p);
-        }
-
-        searchPopup.pack();
-        if(!searchPopup.isVisible()) searchPopup.show(globalSearchContainer, 0, globalSearchContainer.getHeight() + 8);
+    private void renderSearchPopupResults() {
     }
     
     private void updatePopupSelection() {
@@ -989,7 +822,10 @@ public class ChatTab extends JPanel {
     }
 
     private void openChatWith(ConversationInfo c) {
-        searchPopup.setVisible(false);
+        if (searchPopup != null) searchPopup.setVisible(false);
+        GlobalSearchBar bar = (GlobalSearchBar) SwingUtilities.getAncestorOfClass(GlobalSearchBar.class, txtGlobalSearch);
+        if (bar != null) bar.hideDropdown();
+
         if(txtGlobalSearch != null) txtGlobalSearch.setText("");
         setActiveConversation(c);
         if(txtChatInput != null) txtChatInput.requestFocusInWindow();
@@ -997,7 +833,10 @@ public class ChatTab extends JPanel {
     }
     
     private void openChatWithStranger(UserInfo u) {
-        searchPopup.setVisible(false);
+        if (searchPopup != null) searchPopup.setVisible(false);
+        GlobalSearchBar bar = (GlobalSearchBar) SwingUtilities.getAncestorOfClass(GlobalSearchBar.class, txtGlobalSearch);
+        if (bar != null) bar.hideDropdown();
+
         if(txtGlobalSearch != null) txtGlobalSearch.setText("");
         ConversationInfo temp = new ConversationInfo();
         temp.conversationId = -u.userId; 
@@ -1013,10 +852,11 @@ public class ChatTab extends JPanel {
     // =========================================================================
     // 2. CỘT GIỮA (KHUNG CHAT CHÍNH)
     // =========================================================================
-   private JPanel createChatCenterColumn() {
+    private JPanel createChatCenterColumn() {
         centerCardLayout = new CardLayout();
         centerChatPanel = new JPanel(centerCardLayout); 
         centerChatPanel.setBackground(BG_MAIN); 
+        centerChatPanel.setBorder(null);
 
         // --- LÁ BÀI 1: MÀN HÌNH CHÀO MỪNG (SLIDER) ---
         JPanel welcomeWrapper = new JPanel(new BorderLayout());
@@ -1055,7 +895,7 @@ public class ChatTab extends JPanel {
         header.setBackground(Color.WHITE);
         header.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
-            new EmptyBorder(12, 20, 12, 14)
+            new EmptyBorder(10, 20, 10, 14)
         ));
         header.setPreferredSize(new Dimension(0, 66));
 
@@ -1099,7 +939,7 @@ public class ChatTab extends JPanel {
         rightHeader.setOpaque(false);
 
         JPanel btnSearch = createActionIcon(
-            "https://img.icons8.com/fluency-systems-regular/48/64748B/search.png");
+            "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/search.svg#64748B");
         btnSearch.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 if (txtGlobalSearch != null) txtGlobalSearch.requestFocusInWindow();
@@ -1117,13 +957,13 @@ public class ChatTab extends JPanel {
         vSep.setPreferredSize(new Dimension(10, 32));
 
         JPanel btnAudioCall = createActionIcon(
-            "https://img.icons8.com/fluency-systems-regular/48/64748B/phone.png");
+            "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/phone.svg#64748B");
         btnAudioCall.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { startAudioCall(); }
         });
 
         JPanel btnVideoCall = createActionIcon(
-            "https://img.icons8.com/fluency-systems-regular/48/64748B/video-call.png");
+            "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/video.svg#64748B");
         btnVideoCall.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { startVideoCall(); }
         });
@@ -1141,7 +981,7 @@ public class ChatTab extends JPanel {
         messageArea = new JPanel();
         messageArea.setLayout(new BoxLayout(messageArea, BoxLayout.Y_AXIS));
         messageArea.setBackground(BG_MAIN);
-        messageArea.setBorder(new EmptyBorder(20, 22, 20, 22));
+        messageArea.setBorder(new EmptyBorder(20, 22, 0, 22));
 
         JPanel scrollContentWrapper = new JPanel(new BorderLayout());
         scrollContentWrapper.setBackground(BG_MAIN);
@@ -1153,51 +993,56 @@ public class ChatTab extends JPanel {
         chatScrollPane.getVerticalScrollBar().setUnitIncrement(20);
         chatScrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(6, 0));
         chatScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        activeChatContainer.add(chatScrollPane, BorderLayout.CENTER);
 
-        // ── KHU VỰC 3: SOUTH (scroll-to-bottom + input) ───────────────────
-        JPanel btnScrollDown = new JPanel(new BorderLayout()) {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(255, 255, 255, 235));
-                g2.fillOval(0, 0, getWidth(), getHeight());
-                g2.setColor(BORDER_COLOR);
-                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
-                g2.dispose();
-            }
-        };
-        btnScrollDown.setOpaque(false);
+        // Nút cuộn xuống dưới dạng tròn floating (không chiếm diện tích layout)
+        CircleButton btnScrollDown = new CircleButton("↓");
+        btnScrollDown.setForeground(PRIMARY);
+        btnScrollDown.setFont(new Font("Segoe UI", Font.BOLD, 18));
         btnScrollDown.setPreferredSize(new Dimension(36, 36));
-        btnScrollDown.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        JLabel iconDown = new JLabel();
-        setNetworkIcon(iconDown, "https://img.icons8.com/fluency-systems-filled/48/4F6EF7/down.png", 20, 20);
-        btnScrollDown.add(iconDown, BorderLayout.CENTER);
         btnScrollDown.setVisible(false);
 
-        btnScrollDown.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) {
-                JScrollBar vBar = chatScrollPane.getVerticalScrollBar();
-                vBar.setValue(vBar.getMaximum());
-            }
+        btnScrollDown.addActionListener(e -> {
+            JScrollBar vBar = chatScrollPane.getVerticalScrollBar();
+            vBar.setValue(vBar.getMaximum());
         });
+
+        // Wrapper để vẽ đè nút lên trên JScrollPane (Overlay Layout bằng doLayout)
+        JPanel scrollWrapper = new JPanel(null) {
+            @Override
+            public void doLayout() {
+                chatScrollPane.setBounds(0, 0, getWidth(), getHeight());
+                int btnW = btnScrollDown.getPreferredSize().width;
+                int btnH = btnScrollDown.getPreferredSize().height;
+                int x = (getWidth() - btnW) / 2;
+                int y = getHeight() - btnH - 12; // nổi lên trên mép dưới 12px
+                btnScrollDown.setBounds(x, y, btnW, btnH);
+            }
+        };
+        scrollWrapper.setOpaque(false);
+        scrollWrapper.add(chatScrollPane);
+        scrollWrapper.add(btnScrollDown);
+        
+        // Đảm bảo nút nằm trên cùng trong Z-order
+        scrollWrapper.setComponentZOrder(btnScrollDown, 0);
+        scrollWrapper.setComponentZOrder(chatScrollPane, 1);
+
+        // Đảm bảo viewport không vẽ đè đè lên thành phần nổi khi cuộn
+        chatScrollPane.getViewport().setScrollMode(javax.swing.JViewport.SIMPLE_SCROLL_MODE);
 
         chatScrollPane.getVerticalScrollBar().addAdjustmentListener(e -> {
             JScrollBar vBar = (JScrollBar) e.getAdjustable();
             int max = vBar.getMaximum() - vBar.getVisibleAmount();
-            btnScrollDown.setVisible(vBar.getValue() < max - 150);
+            boolean shouldBeVisible = vBar.getValue() < max - 150;
+            if (shouldBeVisible != btnScrollDown.isVisible()) {
+                btnScrollDown.setVisible(shouldBeVisible);
+                scrollWrapper.repaint();
+            }
         });
 
-        JPanel scrollOverlay = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 10));
-        scrollOverlay.setOpaque(false);
-        scrollOverlay.add(btnScrollDown);
+        activeChatContainer.add(scrollWrapper, BorderLayout.CENTER);
 
-        JPanel southPanel = new JPanel(new BorderLayout());
-        southPanel.setOpaque(false);
-        southPanel.add(scrollOverlay, BorderLayout.NORTH);
-        southPanel.add(createMessageInputBar(), BorderLayout.SOUTH);
-
-        activeChatContainer.add(southPanel, BorderLayout.SOUTH);
+        // ── KHU VỰC 3: SOUTH (input) ──────────────────────────────────────
+        activeChatContainer.add(createMessageInputBar(), BorderLayout.SOUTH);
         activeChatContainer.revalidate();
         activeChatContainer.repaint();
     }
@@ -1245,7 +1090,9 @@ public class ChatTab extends JPanel {
                 }
 
                 messageArea.add(msgPanel);
-                messageArea.add(Box.createVerticalStrut(isFirstInGroup ? 16 : 4)); 
+                if (i < currentMessages.size() - 1) {
+                    messageArea.add(Box.createVerticalStrut(isFirstInGroup ? 16 : 4)); 
+                }
                 lastSenderType = m.senderType;
             }
         }
@@ -1267,63 +1114,48 @@ public class ChatTab extends JPanel {
     // KHU VỰC NHẬP TIN NHẮN CHUẨN SAAS
     // =========================================================================
     private JPanel createMessageInputBar() {
-        // Footer: nền trắng + border top — tách biệt khỏi vùng chat
+        // Footer: nền xám của cửa sổ chat, không có đường kẻ chia vùng
         JPanel footer = new JPanel(new BorderLayout(10, 0));
-        footer.setBackground(Color.WHITE);
-        footer.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR),
-            new EmptyBorder(10, 18, 13, 18)
-        ));
+        footer.setBackground(BG_MAIN);
+        footer.setBorder(new EmptyBorder(2, 18, 10, 18));
 
-        // Input bubble: INPUT_BG khi bình thường, WHITE khi focus, PRIMARY border khi focus
-        JPanel inputBubble = new JPanel(new BorderLayout(8, 0)) {
+        // Input bubble: Luôn luôn WHITE, bo tròn 16px nổi trên nền xám
+        JPanel inputBubble = new JPanel(new BorderLayout(0, 2)) {
             private boolean isFocused = false;
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(isFocused ? Color.WHITE : INPUT_BG);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 26, 26);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
                 g2.setColor(isFocused ? PRIMARY : BORDER_COLOR);
                 g2.setStroke(new BasicStroke(isFocused ? 1.5f : 1.0f));
-                g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 26, 26);
+                g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, 16, 16);
                 g2.dispose();
             }
             public void setFocused(boolean f) { this.isFocused = f; repaint(); }
         };
         inputBubble.setOpaque(false);
-        inputBubble.setBorder(new EmptyBorder(7, 14, 7, 10));
+        inputBubble.setBorder(new EmptyBorder(5, 10, 4, 10));
 
-        JPanel leftIcons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        leftIcons.setOpaque(false);
-
-        JPanel btnPlus = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/plus-math.png");
-
-        JPanel btnImage = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/image.png");
-        btnImage.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) { chooseAndSendImage(); }
-        });
-
-        JPanel btnAttach = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/attach.png");
-        btnAttach.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) {
-                if (activeConversation == null || activeConversation.conversationId < 0) {
-                    JOptionPane.showMessageDialog(ChatTab.this, "Vui lòng chọn một người bạn để gửi tài liệu!", "Thông báo", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                JFileChooser fc = new JFileChooser();
-                fc.setDialogTitle("Chọn tài liệu để gửi...");
-                fc.setMultiSelectionEnabled(true);
-                if (fc.showOpenDialog(ChatTab.this) == JFileChooser.APPROVE_OPTION) {
-                    uploadDocumentFiles(fc.getSelectedFiles());
+        txtChatInput = new JTextArea() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (getText().isEmpty()) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(TEXT_MUTED);
+                    g2.setFont(getFont());
+                    Insets insets = getInsets();
+                    int x = (insets != null ? insets.left : 0) + 2;
+                    FontMetrics fm = g2.getFontMetrics();
+                    int y = (insets != null ? insets.top : 0) + fm.getAscent() + 2;
+                    String targetName = (activeConversation != null ? activeConversation.displayName : "");
+                    String placeholder = "Nhập tin nhắn tới " + targetName;
+                    g2.drawString(placeholder, x, y);
+                    g2.dispose();
                 }
             }
-        });
-        leftIcons.add(btnPlus);
-        leftIcons.add(btnImage);
-        leftIcons.add(btnAttach);
-        inputBubble.add(leftIcons, BorderLayout.WEST);
-
-        txtChatInput = new JTextArea();
+        };
         txtChatInput.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         txtChatInput.setBackground(new Color(0, 0, 0, 0));
         txtChatInput.setBorder(null);
@@ -1373,65 +1205,156 @@ public class ChatTab extends JPanel {
         scrollInput.setBorder(null);
         scrollInput.setOpaque(false);
         scrollInput.getViewport().setOpaque(false);
-        scrollInput.setPreferredSize(new Dimension(0, 44));
+        scrollInput.setPreferredSize(new Dimension(0, 24));
         inputBubble.add(scrollInput, BorderLayout.CENTER);
 
-        JPanel btnEmoji = createActionIcon("https://img.icons8.com/fluency-systems-regular/48/64748B/happy.png");
+        // Thanh công cụ phía dưới nằm trong inputBubble
+        JPanel toolbar = new JPanel(new BorderLayout());
+        toolbar.setOpaque(false);
+
+        // leftIcons dùng GridBagLayout căn giữa
+        JPanel leftIcons = new JPanel(new GridBagLayout());
+        leftIcons.setOpaque(false);
+        GridBagConstraints gbcLeft = new GridBagConstraints();
+        gbcLeft.gridy = 0;
+        gbcLeft.insets = new Insets(0, 0, 0, 8);
+        gbcLeft.anchor = GridBagConstraints.CENTER;
+
+        JPanel btnPlus = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/plus.svg#64748B");
+
+        JPanel btnImage = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/image.svg#64748B");
+        btnImage.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { chooseAndSendImage(); }
+        });
+
+        JPanel btnAttach = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/paperclip.svg#64748B");
+        btnAttach.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (activeConversation == null || activeConversation.conversationId < 0) {
+                    JOptionPane.showMessageDialog(ChatTab.this, "Vui lòng chọn một người bạn để gửi tài liệu!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                JFileChooser fc = new JFileChooser();
+                fc.setDialogTitle("Chọn tài liệu để gửi...");
+                fc.setMultiSelectionEnabled(true);
+                if (fc.showOpenDialog(ChatTab.this) == JFileChooser.APPROVE_OPTION) {
+                    uploadDocumentFiles(fc.getSelectedFiles());
+                }
+            }
+        });
+        leftIcons.add(btnPlus, gbcLeft);
+        leftIcons.add(btnImage, gbcLeft);
+        leftIcons.add(btnAttach, gbcLeft);
+        toolbar.add(leftIcons, BorderLayout.WEST);
+
+        // rightActions dùng GridBagLayout căn giữa
+        JPanel rightActions = new JPanel(new GridBagLayout());
+        rightActions.setOpaque(false);
+        GridBagConstraints gbcRight = new GridBagConstraints();
+        gbcRight.gridy = 0;
+        gbcRight.insets = new Insets(0, 8, 0, 0);
+        gbcRight.anchor = GridBagConstraints.CENTER;
+
+        // 1. Nút Mic thu âm
+        btnChatMicIcon = new FlatSVGIcon("images/icon/search_mic.svg", 18, 18);
+        btnChatMicIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#64748B")));
+        JPanel btnVoiceMic = new JPanel(new BorderLayout()) {
+            boolean hover = false;
+            @Override protected void paintComponent(Graphics g) {
+                if (hover) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(BORDER_COLOR);
+                    g2.fillOval(0, 0, getWidth(), getHeight());
+                    g2.dispose();
+                }
+            }
+            public void setHover(boolean h) { this.hover = h; repaint(); }
+        };
+        btnVoiceMic.setOpaque(false);
+        btnVoiceMic.setPreferredSize(new Dimension(28, 28));
+        btnVoiceMic.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        JLabel lblMic = new JLabel(btnChatMicIcon, SwingConstants.CENTER);
+        btnVoiceMic.add(lblMic, BorderLayout.CENTER);
+        btnVoiceMic.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { try { btnVoiceMic.getClass().getMethod("setHover", boolean.class).invoke(btnVoiceMic, true); } catch(Exception ex){} }
+            @Override public void mouseExited(MouseEvent e) { try { btnVoiceMic.getClass().getMethod("setHover", boolean.class).invoke(btnVoiceMic, false); } catch(Exception ex){} }
+            @Override public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) startChatVoiceRecording();
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) stopChatVoiceRecording();
+            }
+        });
+        rightActions.add(btnVoiceMic, gbcRight);
+
+        // 2. Nút Emoji
+        JPanel btnEmoji = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/smile.svg#64748B");
         btnEmoji.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { showEmojiPicker(btnEmoji); }
         });
-        inputBubble.add(btnEmoji, BorderLayout.EAST);
+        rightActions.add(btnEmoji, gbcRight);
 
-        // Typing indicator — nhỏ, trên input
-        lblTypingIndicator = new JLabel(" ");
-        lblTypingIndicator.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        lblTypingIndicator.setForeground(TEXT_MUTED);
-        lblTypingIndicator.setBorder(new EmptyBorder(0, 4, 2, 0));
-        footer.add(lblTypingIndicator, BorderLayout.NORTH);
-        footer.add(inputBubble, BorderLayout.CENTER);
-
-        // Send button — giữ nguyên custom icon logic
-        JPanel btnSendWrapper = new JPanel() {
-            private Image iconImage; private boolean isHover = false;
+        // 3. Nút Send (kích thước lớn hơn 34x34 nổi bật)
+        JPanel btnSendWrapper = new JPanel(new BorderLayout()) {
+            private FlatSVGIcon sendIcon;
+            private boolean isHover = false;
             {
-                try { URL iconUrl = getClass().getResource("/images/icon/iconnutgui.png"); if (iconUrl != null) iconImage = new ImageIcon(iconUrl).getImage(); } catch (Exception e) {}
-                setOpaque(false); setPreferredSize(new Dimension(44, 44)); setCursor(new Cursor(Cursor.HAND_CURSOR));
+                setOpaque(false);
+                setPreferredSize(new Dimension(34, 34));
+                setCursor(new Cursor(Cursor.HAND_CURSOR));
+                try {
+                    sendIcon = new FlatSVGIcon("images/icon/send-svgrepo-com (1).svg", 20, 20);
+                } catch (Exception e) {}
             }
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (iconImage != null) {
-                    int drawSize = 44; int offset = (getWidth() - drawSize) / 2;
-                    g2.drawImage(iconImage, offset, offset, drawSize, drawSize, null);
+                
+                if (sendIcon != null) {
+                    if (isHover) {
+                        g2.setColor(PRIMARY_LIGHT);
+                        g2.fillOval(0, 0, getWidth(), getHeight());
+                        sendIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> PRIMARY_DARK));
+                    } else {
+                        sendIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> PRIMARY));
+                    }
+                    int x = (getWidth() - sendIcon.getIconWidth()) / 2;
+                    int y = (getHeight() - sendIcon.getIconHeight()) / 2;
+                    sendIcon.paintIcon(this, g2, x, y);
                 } else {
-                    // Fallback: vẽ vòng tròn PRIMARY + mũi tên
                     g2.setColor(isHover ? PRIMARY_DARK : PRIMARY);
                     g2.fillOval(0, 0, getWidth(), getHeight());
                     g2.setColor(Color.WHITE);
-                    int[] xp = {11, 33, 22}; int[] yp = {22, 22, 12};
+                    int[] xp = {9, 25, 17}; int[] yp = {17, 17, 9};
                     g2.fillPolygon(xp, yp, 3);
-                    g2.fillRect(20, 22, 4, 14);
+                    g2.fillRect(15, 17, 4, 10);
                 }
-                if (isHover) { g2.setColor(new Color(255, 255, 255, 40)); g2.fillOval(2, 2, getWidth() - 4, getHeight() - 4); }
                 g2.dispose();
             }
             public void setHover(boolean h) { this.isHover = h; repaint(); }
         };
         btnSendWrapper.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { try { btnSendWrapper.getClass().getMethod("setHover", boolean.class).invoke(btnSendWrapper, true); } catch(Exception ex){} }
-            @Override public void mouseExited(MouseEvent e)  { try { btnSendWrapper.getClass().getMethod("setHover", boolean.class).invoke(btnSendWrapper, false); } catch(Exception ex){} }
+            @Override public void mouseExited(MouseEvent e) { try { btnSendWrapper.getClass().getMethod("setHover", boolean.class).invoke(btnSendWrapper, false); } catch(Exception ex){} }
             @Override public void mousePressed(MouseEvent e)  { btnSendWrapper.setLocation(btnSendWrapper.getX(), btnSendWrapper.getY() + 1); }
             @Override public void mouseReleased(MouseEvent e) { btnSendWrapper.setLocation(btnSendWrapper.getX(), btnSendWrapper.getY() - 1); }
             @Override public void mouseClicked(MouseEvent e)  { sendCurrentMessage(); }
         });
+        rightActions.add(btnSendWrapper, gbcRight);
 
-        JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        rightActions.setOpaque(false);
-        rightActions.add(Box.createHorizontalStrut(8));
-        rightActions.add(btnSendWrapper);
-        footer.add(rightActions, BorderLayout.EAST);
+        toolbar.add(rightActions, BorderLayout.EAST);
+        inputBubble.add(toolbar, BorderLayout.SOUTH);
+
+        // Typing indicator — nhỏ, trên input
+        lblTypingIndicator = new JLabel("");
+        lblTypingIndicator.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        lblTypingIndicator.setForeground(TEXT_MUTED);
+        lblTypingIndicator.setBorder(new EmptyBorder(0, 4, 0, 0));
+        lblTypingIndicator.setVisible(false);
+        footer.add(lblTypingIndicator, BorderLayout.NORTH);
+        footer.add(inputBubble, BorderLayout.CENTER);
 
         return footer;
     }
@@ -1455,7 +1378,7 @@ public class ChatTab extends JPanel {
         p.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
         JLabel lbl = new JLabel("", SwingConstants.CENTER); 
-        setNetworkIcon(lbl, iconUrl, 18, 18); 
+        setNetworkIcon(lbl, iconUrl, 20, 20); 
         p.add(lbl, BorderLayout.CENTER);
         
         p.addMouseListener(new MouseAdapter() {
@@ -1477,6 +1400,7 @@ public class ChatTab extends JPanel {
         JPanel avatarWrap = new JPanel(new BorderLayout()); 
         avatarWrap.setOpaque(false); 
         avatarWrap.setPreferredSize(new Dimension(36, 36));
+        avatarWrap.setMinimumSize(new Dimension(36, 36));
         if (isFirstInGroup) { 
             JLabel lblAvatar = new JLabel(); 
             setAvatarIcon(lblAvatar, activeConversation.avatarUrl, 36); 
@@ -1490,12 +1414,9 @@ public class ChatTab extends JPanel {
         boolean isImage = m.content != null && (m.content.startsWith("[IMG]") || m.content.startsWith("[IMG_URL]"));
         boolean isFile = m.content != null && m.content.startsWith("[FILE]");
 
-        RoundedPanel bubble = new RoundedPanel(18, isImage ? new Color(0,0,0,0) : BG_OTHER);
+        RoundedPanel bubble = new RoundedPanel(16, isImage ? new Color(0,0,0,0) : BG_OTHER, isImage ? null : BORDER_COLOR);
         if (isImage) bubble.setBorder(new EmptyBorder(0, 0, 0, 0));
-        else bubble.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR, 1),
-            new EmptyBorder(10, 14, 10, 14)
-        ));
+        else bubble.setBorder(new EmptyBorder(10, 14, 10, 14));
         bubble.setLayout(new BorderLayout());
         
         if (isImage) {
@@ -1611,9 +1532,9 @@ public class ChatTab extends JPanel {
             String displayContent = m.content.replace("\n", "<br>");
             if (!searchKeyword.isEmpty() && displayContent.toLowerCase().contains(searchKeyword)) displayContent = displayContent.replaceAll("(?i)(" + searchKeyword + ")", "<span style='background-color: #FEF08A; color: #B45309; font-weight: bold;'>$1</span>");
             displayContent = parseEmojis(displayContent);
-            String htmlAuto = "<html><div style='font-size:14px; font-family: Segoe UI; color:#0F172A; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>";
+            String htmlAuto = "<html><div style='font-size:13px; font-family: Segoe UI, sans-serif; color:#0F172A; line-height: 1.4; margin:0; padding:0;'>" + displayContent + "</div></html>";
             JLabel lblText = new JLabel(htmlAuto); 
-            if (lblText.getPreferredSize().width > 280) lblText.setText("<html><div style='width: 280px; font-size:14px; font-family: Segoe UI; color:#0F172A; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>");
+            if (lblText.getPreferredSize().width > 280) lblText.setText("<html><div style='width: 280px; font-size:13px; font-family: Segoe UI, sans-serif; color:#0F172A; line-height: 1.4; margin:0; padding:0;'>" + displayContent + "</div></html>");
             bubble.add(lblText, BorderLayout.CENTER);
         }
         
@@ -1646,8 +1567,12 @@ public class ChatTab extends JPanel {
         boolean isUploading = m.content != null && m.content.contains("UPLOADING"); // Khai báo isUploading CHUẨN ở đây
 
         Color zaloBlue = Color.decode("#E5EFFF");  // giữ tương thích, dùng BG_ME thay thế
-        RoundedPanel bubble = new RoundedPanel(18, isImage ? new Color(0,0,0,0) : BG_ME);
-        bubble.setBorder(new EmptyBorder(isImage ? 0 : 10, isImage ? 0 : 14, isImage ? 0 : 10, isImage ? 0 : 14));
+        RoundedPanel bubble = new RoundedPanel(16, isImage ? new Color(0,0,0,0) : BG_ME, isImage ? null : Color.decode("#C7D2FE"));
+        if (isImage) {
+            bubble.setBorder(new EmptyBorder(0, 0, 0, 0));
+        } else {
+            bubble.setBorder(new EmptyBorder(10, 14, 10, 14));
+        }
         bubble.setLayout(new BorderLayout());
         
         if (isImage) {
@@ -1732,7 +1657,7 @@ public class ChatTab extends JPanel {
             new Thread(() -> { try { Image img = new ImageIcon(new java.net.URL(finalIconUrl)).getImage().getScaledInstance(36, 36, Image.SCALE_SMOOTH); SwingUtilities.invokeLater(() -> lblIcon.setIcon(new ImageIcon(img))); } catch (Exception e) {} }).start();
             String sizeHtml = fileSize.isEmpty() ? "" : " <span style='color:#C7D2FE;'>(" + fileSize + ")</span>";
             String textDisplay = isUploading ? "<html><u>" + fileName + "</u> <i style='color:#C7D2FE;'>(Đang gửi...)</i></html>" : "<html><u>" + fileName + "</u>" + sizeHtml + "</html>";
-            JLabel lblName = new JLabel(textDisplay); lblName.setFont(new Font("Segoe UI", Font.BOLD, 13)); lblName.setForeground(isUploading ? new Color(199, 210, 254) : Color.WHITE); 
+            JLabel lblName = new JLabel(textDisplay); lblName.setFont(new Font("Segoe UI", Font.BOLD, 13)); lblName.setForeground(isUploading ? new Color(148, 163, 184) : Color.decode("#2563EB")); 
             if (!isUploading) {
                 lblName.setCursor(new Cursor(Cursor.HAND_CURSOR)); lblName.setToolTipText("Nhấp vào đây để tải xuống tài liệu");
                 lblName.addMouseListener(new java.awt.event.MouseAdapter() { public void mouseClicked(java.awt.event.MouseEvent e) { try { java.awt.Desktop.getDesktop().browse(new java.net.URI(fileUrl)); } catch(Exception ex) { JOptionPane.showMessageDialog(ChatTab.this, "Lỗi tải file!"); } } });
@@ -1742,9 +1667,9 @@ public class ChatTab extends JPanel {
             String displayContent = m.content.replace("\n", "<br>");
             if (!searchKeyword.isEmpty() && displayContent.toLowerCase().contains(searchKeyword)) displayContent = displayContent.replaceAll("(?i)(" + searchKeyword + ")", "<span style='background-color: #FBBF24; color: #000000; font-weight: bold;'>$1</span>");
             displayContent = parseEmojis(displayContent);
-            String htmlAuto = "<html><div style='font-size:14px; font-family: Segoe UI; color:#FFFFFF; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>";
+            String htmlAuto = "<html><div style='font-size:13px; font-family: Segoe UI, sans-serif; color:#0F172A; line-height: 1.4; margin:0; padding:0;'>" + displayContent + "</div></html>";
             JLabel lblText = new JLabel(htmlAuto); 
-            if (lblText.getPreferredSize().width > 280) lblText.setText("<html><div style='width: 280px; font-size:14px; font-family: Segoe UI; color:#FFFFFF; line-height: 1.5; margin:0; padding:0;'>" + displayContent + "</div></html>");
+            if (lblText.getPreferredSize().width > 280) lblText.setText("<html><div style='width: 280px; font-size:13px; font-family: Segoe UI, sans-serif; color:#0F172A; line-height: 1.4; margin:0; padding:0;'>" + displayContent + "</div></html>");
             bubble.add(lblText, BorderLayout.CENTER);
         }
         
@@ -1766,9 +1691,9 @@ public class ChatTab extends JPanel {
 
         JLabel checkIcon = new JLabel(); 
         if (isUploading || isPending) {
-            setNetworkIcon(checkIcon, "https://img.icons8.com/fluency-systems-regular/48/94A3B8/clock--v1.png", 14, 14); // Icon đồng hồ mờ
+            setNetworkIcon(checkIcon, "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/clock.svg#94A3B8", 14, 14); // Icon đồng hồ mờ
         } else {
-            setNetworkIcon(checkIcon, isRead ? "https://img.icons8.com/fluency-systems-filled/48/4F6EF7/double-tick.png" : "https://img.icons8.com/fluency-systems-filled/48/94A3B8/double-tick.png", 14, 14); 
+            setNetworkIcon(checkIcon, isRead ? "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/check-check.svg#4F6EF7" : "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/check-check.svg#94A3B8", 14, 14); 
         }
 
         timePanel.add(lblTime); 
@@ -1843,17 +1768,14 @@ public class ChatTab extends JPanel {
         Color borderColor = isMe ? Color.decode("#D1E0FF") : BORDER_COLOR;
         if (!isMe && !isEnded) borderColor = Color.decode("#A7F3D0"); // Viền xanh lá mờ cho cuộc gọi đến
 
-        RoundedPanel bubble = new RoundedPanel(24, bubbleBg); 
+        RoundedPanel bubble = new RoundedPanel(16, bubbleBg, borderColor); 
         bubble.setLayout(new BorderLayout(15, 0)); 
-        bubble.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(borderColor, 1), 
-            new EmptyBorder(12, 20, 12, 20)
-        ));
+        bubble.setBorder(new EmptyBorder(12, 20, 12, 20));
         
         // Vòng tròn chứa Icon
         Color iconBgColor = isEnded ? Color.decode("#F1F5F9") : (isMe ? Color.decode("#E0E7FF") : Color.decode("#D1FAE5"));
         String iconColor = isEnded ? "94A3B8" : (isMe ? "2563EB" : "10B981");
-        String iconUrl = isVideo ? "https://img.icons8.com/fluency-systems-filled/48/"+iconColor+"/video-call.png" : "https://img.icons8.com/fluency-systems-filled/48/"+iconColor+"/phone.png";
+        String iconUrl = isVideo ? "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/video.svg#" + iconColor : "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/phone.svg#" + iconColor;
         
         JPanel iconWrapper = new JPanel(new GridBagLayout()) {
             @Override protected void paintComponent(Graphics g) {
@@ -1897,7 +1819,7 @@ public class ChatTab extends JPanel {
         
         JPanel wrapper = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0)); wrapper.setOpaque(false); wrapper.add(bubble);
         if (!isMe) {
-            JPanel avaWrap = new JPanel(new BorderLayout()); avaWrap.setOpaque(false); avaWrap.setPreferredSize(new Dimension(36, 36));
+            JPanel avaWrap = new JPanel(new BorderLayout()); avaWrap.setOpaque(false); avaWrap.setPreferredSize(new Dimension(36, 36)); avaWrap.setMinimumSize(new Dimension(36, 36));
             if(isFirstInGroup) { JLabel ava = new JLabel(); setAvatarIcon(ava, activeConversation.avatarUrl, 36); avaWrap.add(ava, BorderLayout.NORTH); }
             p.add(avaWrap, BorderLayout.WEST);
         }
@@ -1927,11 +1849,13 @@ public class ChatTab extends JPanel {
     public void showTypingIndicator(String convoId, String senderName) {
         if (activeConversation == null || !String.valueOf(activeConversation.conversationId).equals(convoId)) return;
         lblTypingIndicator.setText(senderName + " đang soạn tin...");
+        lblTypingIndicator.setVisible(true);
         if (typingTimer != null) {
             typingTimer.stop();
         }
         typingTimer = new javax.swing.Timer(3000, e -> {
-            lblTypingIndicator.setText(" ");
+            lblTypingIndicator.setText("");
+            lblTypingIndicator.setVisible(false);
         });
         typingTimer.setRepeats(false);
         typingTimer.start();
@@ -2241,18 +2165,87 @@ public class ChatTab extends JPanel {
     // HELPER & CÁC LỚP TIỆN ÍCH UI
     // =========================================================================
     private void setNetworkIcon(JLabel label, String urlStr, int width, int height) { 
-        if (urlStr == null || urlStr.trim().isEmpty()) urlStr = "https://img.icons8.com/color/48/circled-user-male-skin-type-4--v1.png"; 
-        final String finalUrl = urlStr; String key = finalUrl + "_" + width + "x" + height; 
-        if (iconCache.containsKey(key)) { label.setIcon(iconCache.get(key)); return; } 
+        if (urlStr == null || urlStr.trim().isEmpty()) {
+            urlStr = "https://img.icons8.com/color/48/circled-user-male-skin-type-4--v1.png"; 
+        }
+        
+        final String finalUrlStr = urlStr;
+        String key = finalUrlStr + "_" + width + "x" + height; 
+        if (iconCache.containsKey(key)) { 
+            label.setIcon(iconCache.get(key)); 
+            return; 
+        } 
+        
         new Thread(() -> { 
             try { 
-                Image img = finalUrl.startsWith("http") ? new ImageIcon(new URL(finalUrl)).getImage() : new ImageIcon(finalUrl).getImage(); 
-                if (img != null) { 
-                    Image scaledImg = img.getScaledInstance(width, height, Image.SCALE_SMOOTH); 
-                    ImageIcon scaled = new ImageIcon(scaledImg); iconCache.put(key, scaled); 
-                    SwingUtilities.invokeLater(() -> { label.setIcon(scaled); if (label.getParent() != null) { label.getParent().revalidate(); label.getParent().repaint(); } }); 
-                } 
-            } catch (Exception e) {} 
+                String[] parts = finalUrlStr.split("#");
+                String cleanUrl = parts[0];
+                String hexColor = parts.length > 1 ? parts[1] : null;
+                
+                if (cleanUrl.toLowerCase().endsWith(".svg")) {
+                    java.net.URL url = new java.net.URL(cleanUrl);
+                    java.io.File tempFile = java.io.File.createTempFile("svg_icon_", ".svg");
+                    tempFile.deleteOnExit();
+                    try (java.io.InputStream in = url.openStream();
+                         java.io.FileOutputStream out = new java.io.FileOutputStream(tempFile)) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, bytesRead);
+                        }
+                    }
+                    
+                    FlatSVGIcon svgIcon = new FlatSVGIcon(tempFile);
+                    FlatSVGIcon scaledIcon = svgIcon.derive(width, height);
+                    
+                    if (hexColor != null) {
+                        Color filterColor = Color.decode("#" + hexColor);
+                        scaledIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> filterColor));
+                    }
+                    
+                    iconCache.put(key, scaledIcon);
+                    SwingUtilities.invokeLater(() -> { 
+                        label.setIcon(scaledIcon); 
+                        if (label.getParent() != null) { 
+                            label.getParent().revalidate(); 
+                            label.getParent().repaint(); 
+                        } 
+                    });
+                } else {
+                    Image img = cleanUrl.startsWith("http") ? new ImageIcon(new URL(cleanUrl)).getImage() : new ImageIcon(cleanUrl).getImage(); 
+                    if (img != null) { 
+                        Image scaledImg = img.getScaledInstance(width, height, Image.SCALE_SMOOTH); 
+                        ImageIcon scaled = new ImageIcon(scaledImg); 
+                        iconCache.put(key, scaled); 
+                        SwingUtilities.invokeLater(() -> { 
+                            label.setIcon(scaled); 
+                            if (label.getParent() != null) { 
+                                label.getParent().revalidate(); 
+                                label.getParent().repaint(); 
+                            } 
+                        }); 
+                    }
+                }
+            } catch (Exception e) {
+                // Thử lại bằng cách tải thường nếu SVG lỗi
+                try {
+                    String[] parts = finalUrlStr.split("#");
+                    String cleanUrl = parts[0];
+                    Image img = cleanUrl.startsWith("http") ? new ImageIcon(new URL(cleanUrl)).getImage() : new ImageIcon(cleanUrl).getImage(); 
+                    if (img != null) { 
+                        Image scaledImg = img.getScaledInstance(width, height, Image.SCALE_SMOOTH); 
+                        ImageIcon scaled = new ImageIcon(scaledImg); 
+                        iconCache.put(key, scaled); 
+                        SwingUtilities.invokeLater(() -> { 
+                            label.setIcon(scaled); 
+                            if (label.getParent() != null) { 
+                                label.getParent().revalidate(); 
+                                label.getParent().repaint(); 
+                            } 
+                        }); 
+                    }
+                } catch (Exception ex) {}
+            } 
         }).start(); 
     }
 
@@ -2265,18 +2258,153 @@ public class ChatTab extends JPanel {
                 Image img = finalUrl.startsWith("http") ? new ImageIcon(new URL(finalUrl)).getImage() : new ImageIcon(finalUrl).getImage(); 
                 if (img != null) { 
                     MediaTracker tracker = new MediaTracker(label); tracker.addImage(img, 0); tracker.waitForID(0); 
+                    
+                    // Thu nhỏ ảnh mịn màng trước bằng thuật toán SCALE_SMOOTH để tránh hiện tượng mất nét răng cưa
+                    Image scaledImg = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+                    MediaTracker tracker2 = new MediaTracker(label); tracker2.addImage(scaledImg, 1); tracker2.waitForID(1);
+                    
                     java.awt.image.BufferedImage circleBuffer = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB); 
                     Graphics2D g2 = circleBuffer.createGraphics(); 
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR); 
-                    g2.setClip(new java.awt.geom.Ellipse2D.Float(0, 0, size, size)); 
-                    g2.drawImage(img, 0, 0, size, size, null); 
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC); 
+                    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    
+                    // Vẽ hình tròn thu hẹp 1px mỗi bên để đảm bảo không bị cọ xát mép ảnh cắt cụt
+                    g2.setClip(new java.awt.geom.Ellipse2D.Float(1, 1, size - 2, size - 2)); 
+                    g2.drawImage(scaledImg, 1, 1, size - 2, size - 2, null); 
                     g2.dispose(); 
                     ImageIcon circularIcon = new ImageIcon(circleBuffer); iconCache.put(key, circularIcon); 
                     SwingUtilities.invokeLater(() -> { label.setIcon(circularIcon); if (label.getParent() != null) { label.getParent().revalidate(); label.getParent().repaint(); } }); 
                 } 
             } catch (Exception e) {} 
         }).start(); 
+    }
+
+    // =========================================================================
+    // CHỨC NĂNG TIN NHẮN THOẠI (SPEECH-TO-TEXT CHAT)
+    // =========================================================================
+    private void startChatVoiceRecording() {
+        if (isChatRecording) return;
+        try {
+            chatAudioFormat = new AudioFormat(16000, 16, 1, true, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, chatAudioFormat);
+            if (!AudioSystem.isLineSupported(info)) {
+                JOptionPane.showMessageDialog(this, "Microphone không được hỗ trợ", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            chatTargetDataLine = (TargetDataLine) AudioSystem.getLine(info);
+            chatTargetDataLine.open(chatAudioFormat);
+            chatTargetDataLine.start();
+            chatAudioOutputStream = new ByteArrayOutputStream();
+            isChatRecording = true;
+            txtChatInput.setText("Đang nghe...");
+
+            if (btnChatMicIcon != null) {
+                btnChatMicIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(0xEA4335))); // Màu đỏ khi đang thu âm
+                btnChatMicIcon.repaint();
+            }
+
+            Thread captureThread = new Thread(() -> {
+                byte[] buffer = new byte[4096];
+                while (isChatRecording) {
+                    int bytesRead = chatTargetDataLine.read(buffer, 0, buffer.length);
+                    if (bytesRead > 0) chatAudioOutputStream.write(buffer, 0, bytesRead);
+                }
+            });
+            captureThread.start();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void stopChatVoiceRecording() {
+        if (!isChatRecording) return;
+        isChatRecording = false;
+        if (chatTargetDataLine != null) {
+            chatTargetDataLine.stop();
+            chatTargetDataLine.close();
+        }
+        
+        if (btnChatMicIcon != null) {
+            btnChatMicIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#64748B"))); // Trả về màu xám
+            btnChatMicIcon.repaint();
+        }
+
+        try {
+            byte[] audioData = chatAudioOutputStream.toByteArray();
+            File tempAudioFile = File.createTempFile("chat_voice", ".wav");
+            try (AudioInputStream ais = new AudioInputStream(
+                    new ByteArrayInputStream(audioData), chatAudioFormat, audioData.length / chatAudioFormat.getFrameSize())) {
+                AudioSystem.write(ais, AudioFileFormat.Type.WAVE, tempAudioFile);
+            }
+            txtChatInput.setText("Đang xử lý...");
+            
+            new Thread(() -> sendChatVoiceToAPI(tempAudioFile)).start();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            txtChatInput.setText("");
+        }
+    }
+
+    private void sendChatVoiceToAPI(File wavFile) {
+        String urlString = "https://hocba299-3-tutorhub-ai.hf.space/api/chat/voice";
+        String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (OutputStream os = connection.getOutputStream();
+                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, "UTF-8"), true)) {
+                
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"audio\"; filename=\"").append(wavFile.getName()).append("\"\r\n");
+                writer.append("Content-Type: audio/wav\r\n\r\n").flush();
+
+                Files.copy(wavFile.toPath(), os);
+                os.flush();
+                
+                writer.append("\r\n").append("--").append(boundary).append("--\r\n").flush();
+            }
+
+            if (connection.getResponseCode() == 200) {
+                try (InputStreamReader isr = new InputStreamReader(connection.getInputStream(), "UTF-8")) {
+                    StringBuilder sb = new StringBuilder();
+                    int c;
+                    while ((c = isr.read()) != -1) sb.append((char) c);
+                    
+                    String json = sb.toString();
+                    String userText = "";
+                    int utIdx = json.indexOf("\"user_text\":");
+                    if (utIdx != -1) {
+                        int startQuote = json.indexOf("\"", utIdx + 12);
+                        if (startQuote != -1) {
+                            int endQuote = json.indexOf("\"", startQuote + 1);
+                            if (endQuote != -1) {
+                                userText = json.substring(startQuote + 1, endQuote);
+                                userText = userText.replace("\\\"", "\"").replace("\\n", " ").replace("\\\\", "\\");
+                            }
+                        }
+                    }
+                    
+                    String finalText = userText;
+                    SwingUtilities.invokeLater(() -> {
+                        if (!finalText.isEmpty()) {
+                            txtChatInput.setText(finalText);
+                        } else {
+                            txtChatInput.setText("");
+                        }
+                    });
+                }
+            } else {
+                SwingUtilities.invokeLater(() -> txtChatInput.setText(""));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            SwingUtilities.invokeLater(() -> txtChatInput.setText(""));
+        }
     }
     
     // =========================================================================
@@ -2305,16 +2433,16 @@ public class ChatTab extends JPanel {
         
         // ĐÃ ĐẢO LẠI THỨ TỰ THEO ĐÚNG YÊU CẦU CỦA BẠN
         EmojiCategory[] categories = {
-            new EmojiCategory("Cảm xúc", "mat", "https://img.icons8.com/fluency-systems-regular/48/64748B/happy.png"),
-            new EmojiCategory("Cử chỉ", "cuchi", "https://img.icons8.com/fluency-systems-regular/48/64748B/hand.png"),
-            new EmojiCategory("Con người", "connguoi", "https://img.icons8.com/fluency-systems-regular/48/64748B/user.png"),
-            new EmojiCategory("Tự nhiên", "tunhien", "https://img.icons8.com/fluency-systems-regular/48/64748B/deciduous-tree.png"),
-            new EmojiCategory("Con vật", "convat", "https://img.icons8.com/fluency-systems-regular/48/64748B/cat-profile.png"),
-            new EmojiCategory("Trang trí", "trangtri", "https://img.icons8.com/fluency-systems-regular/48/64748B/party-baloon.png"),
-            new EmojiCategory("Ăn uống", "anuong", "https://img.icons8.com/fluency-systems-regular/48/64748B/hamburger.png"), 
-            new EmojiCategory("Trò chơi", "trochoi", "https://img.icons8.com/fluency-systems-regular/48/64748B/football2.png"),
-            new EmojiCategory("Công cụ", "congcu", "https://img.icons8.com/fluency-systems-regular/48/64748B/light.png"),
-            new EmojiCategory("Cờ", "co", "https://img.icons8.com/fluency-systems-regular/48/64748B/flag.png")
+            new EmojiCategory("Cảm xúc", "mat", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/smile.svg#64748B"),
+            new EmojiCategory("Cử chỉ", "cuchi", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/thumbs-up.svg#64748B"),
+            new EmojiCategory("Con người", "connguoi", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/user.svg#64748B"),
+            new EmojiCategory("Tự nhiên", "tunhien", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/leaf.svg#64748B"),
+            new EmojiCategory("Con vật", "convat", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/cat.svg#64748B"),
+            new EmojiCategory("Trang trí", "trangtri", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/party-popper.svg#64748B"),
+            new EmojiCategory("Ăn uống", "anuong", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/utensils.svg#64748B"), 
+            new EmojiCategory("Trò chơi", "trochoi", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/trophy.svg#64748B"),
+            new EmojiCategory("Công cụ", "congcu", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/wrench.svg#64748B"),
+            new EmojiCategory("Cờ", "co", "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/flag.svg#64748B")
         };
 
         // Panel chính chứa TẤT CẢ các mục, xếp theo chiều dọc
@@ -2388,7 +2516,7 @@ public class ChatTab extends JPanel {
         bottomNav.setBorder(new EmptyBorder(4, 4, 4, 4));
         
         // Thêm nút "Gần đây"
-        bottomNav.add(createNavIconButton("https://img.icons8.com/fluency-systems-regular/48/2563EB/time.png", () -> {
+        bottomNav.add(createNavIconButton("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/clock.svg#2563EB", () -> {
             scrollPane.getViewport().setViewPosition(new Point(0, 0));
         }));
         bottomNav.add(Box.createHorizontalStrut(6));
@@ -2668,8 +2796,8 @@ public class ChatTab extends JPanel {
         bubbleWrap.setOpaque(false);
         
         // Bọc viền ảnh (Màu xanh Primary giống trong mockup của bạn)
-        RoundedPanel bubble = new RoundedPanel(12, Color.WHITE); 
-        bubble.setBorder(BorderFactory.createLineBorder(isMe ? PRIMARY : BORDER_COLOR, 2)); 
+        RoundedPanel bubble = new RoundedPanel(16, Color.WHITE, isMe ? PRIMARY : BORDER_COLOR); 
+        bubble.setBorder(new EmptyBorder(1, 1, 1, 1)); 
         bubble.setLayout(new BorderLayout());
         
         JLabel lblImg = new JLabel("", SwingConstants.CENTER); 
@@ -2744,7 +2872,7 @@ public class ChatTab extends JPanel {
         align.setOpaque(false); align.add(bubbleWrap); 
         
         if (!isMe) {
-            JPanel avaWrap = new JPanel(new BorderLayout()); avaWrap.setOpaque(false); avaWrap.setPreferredSize(new Dimension(36, 36));
+            JPanel avaWrap = new JPanel(new BorderLayout()); avaWrap.setOpaque(false); avaWrap.setPreferredSize(new Dimension(36, 36)); avaWrap.setMinimumSize(new Dimension(36, 36));
             if(isFirstInGroup) { JLabel ava = new JLabel(); setAvatarIcon(ava, activeConversation.avatarUrl, 36); avaWrap.add(ava, BorderLayout.NORTH); }
             p.add(avaWrap, BorderLayout.WEST);
         }
@@ -2767,12 +2895,18 @@ public class ChatTab extends JPanel {
     }
 
     class RoundedPanel extends JPanel { 
-        private int radius; private Color bgColor; 
-        public RoundedPanel(int radius, Color bgColor) { this.radius = radius; this.bgColor = bgColor; setOpaque(false); } 
+        private int radius; private Color bgColor; private Color borderColor;
+        public RoundedPanel(int radius, Color bgColor) { this(radius, bgColor, null); } 
+        public RoundedPanel(int radius, Color bgColor, Color borderColor) { this.radius = radius; this.bgColor = bgColor; this.borderColor = borderColor; setOpaque(false); }
         @Override protected void paintComponent(Graphics g) { 
             Graphics2D g2 = (Graphics2D) g.create(); 
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
             g2.setColor(bgColor); g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius); 
+            if (borderColor != null) {
+                g2.setColor(borderColor);
+                g2.setStroke(new BasicStroke(1.0f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+            }
             g2.dispose(); 
         } 
     }
@@ -3149,17 +3283,17 @@ public class ChatTab extends JPanel {
             headerWrap.setBorder(new EmptyBorder(30, 20, 20, 20)); // Padding phía trên
 
             lblWelcome = new JLabel("Chào mừng đến với TutorHub Enterprise!");
-            lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 28)); // Phóng to font
-            lblWelcome.setForeground(TEXT_MAIN);
+            lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 20)); // Giống Zalo PC (font 20px Bold)
+            lblWelcome.setForeground(new Color(0x1E293B)); // Sẫm màu tinh tế
             lblWelcome.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-            lblSub = new JLabel("Khám phá hệ thống quản lý và tương tác giáo dục tối ưu nhất dành cho bạn.");
-            lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 16)); // Phóng to font
-            lblSub.setForeground(TEXT_MUTED);
+            lblSub = new JLabel("Khám phá những tiện ích hỗ trợ học tập và trò chuyện cùng người thân, bạn bè được tối ưu hóa cho máy tính của bạn.");
+            lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 13)); // Giống Zalo PC (font 13px Plain)
+            lblSub.setForeground(new Color(0x64748B));
             lblSub.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             headerWrap.add(lblWelcome);
-            headerWrap.add(Box.createVerticalStrut(12)); // Khoảng cách
+            headerWrap.add(Box.createVerticalStrut(10)); // Thu hẹp khoảng cách
             headerWrap.add(lblSub);
             
             add(headerWrap, BorderLayout.NORTH); // Đặt ở phía trên
@@ -3170,46 +3304,102 @@ public class ChatTab extends JPanel {
             centerWrap.setOpaque(false);
 
             // 1. Panel chứa ảnh và nút mũi tên (Tăng kích thước)
-            lblImage = new JLabel("", SwingConstants.CENTER);
+            lblImage = new JLabel("", SwingConstants.CENTER) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    
+                    int w = getWidth();
+                    int h = getHeight();
+                    int bezel = 12;
+                    int offset = 1;
+                    
+                    // 1. Draw outer bezel (silver-gray screen frame - reverted style with offset protection)
+                    g2.setColor(Color.decode("#E2E8F0")); // Sleek light gray
+                    g2.fillRoundRect(offset, offset, w - offset * 2, h - offset * 2, 20, 20);
+                    
+                    // Outer bezel outline (with offset protection)
+                    g2.setColor(Color.decode("#CBD5E1"));
+                    g2.setStroke(new BasicStroke(1f));
+                    g2.drawRoundRect(offset, offset, w - offset * 2 - 1, h - offset * 2 - 1, 20, 20);
+                    
+                    // 2. Draw webcam dot at top center of bezel (new blue glass style)
+                    g2.setColor(Color.decode("#1E293B"));
+                    g2.fillOval(w / 2 - 4, 4, 8, 8);
+                    g2.setColor(Color.decode("#1E40AF")); // Deep blue glass lens reflection
+                    g2.fillOval(w / 2 - 2, 6, 4, 4);
+                    
+                    // 3. Clip and draw inner screen image
+                    Graphics2D gScreen = (Graphics2D) g2.create();
+                    Shape screenClip = new java.awt.geom.RoundRectangle2D.Float(
+                        bezel, bezel, 
+                        w - bezel * 2, h - bezel * 2, 
+                        8, 8
+                    );
+                    gScreen.setClip(screenClip);
+                    super.paintComponent(gScreen);
+                    
+                    // Inner screen outline (thin border to separate image from light gray bezel)
+                    gScreen.setClip(null);
+                    gScreen.setColor(Color.decode("#94A3B8"));
+                    gScreen.setStroke(new BasicStroke(1f));
+                    gScreen.drawRoundRect(
+                        bezel, bezel, 
+                        w - bezel * 2 - 1, h - bezel * 2 - 1, 
+                        8, 8
+                    );
+                    
+                    gScreen.dispose();
+                    g2.dispose();
+                }
+            };
+            lblImage.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
             lblImage.setPreferredSize(new Dimension(TARGET_WIDTH, TARGET_HEIGHT));
-            // Tạo border để ảnh không bị dính sát lề
-            lblImage.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(1, 1, 1, 1, BORDER_COLOR), // Viền mảnh xám
-                    new EmptyBorder(0,0,0,0) // Padding trong ảnh
-            ));
 
             JPanel imgNavWrap = new JPanel(new BorderLayout(15, 0)); // Tăng khoảng cách giữa mũi tên và ảnh
             imgNavWrap.setOpaque(false);
             // Kích thước tối đa của cụm ảnh + mũi tên
             imgNavWrap.setMaximumSize(new Dimension(TARGET_WIDTH + 120, TARGET_HEIGHT + 10));
 
-            JLabel btnPrev = new JLabel();
-            setNetworkIcon(btnPrev, "https://img.icons8.com/fluency-systems-regular/48/94A3B8/back.png", 36, 36);
-            btnPrev.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            btnPrev.addMouseListener(new MouseAdapter() {
-                public void mouseClicked(MouseEvent e) { currentSlide = (currentSlide - 1 + slides.length) % slides.length; updateSlide(); timer.restart(); }
+            CircleButton btnPrev = new CircleButton("‹");
+            btnPrev.setPreferredSize(new Dimension(36, 36));
+            btnPrev.addActionListener(e -> {
+                currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+                updateSlide();
+                timer.restart();
             });
 
-            JLabel btnNext = new JLabel();
-            setNetworkIcon(btnNext, "https://img.icons8.com/fluency-systems-regular/48/Forward.png", 36, 36);
-            btnNext.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            btnNext.addMouseListener(new MouseAdapter() {
-                public void mouseClicked(MouseEvent e) { currentSlide = (currentSlide + 1) % slides.length; updateSlide(); timer.restart(); }
+            CircleButton btnNext = new CircleButton("›");
+            btnNext.setPreferredSize(new Dimension(36, 36));
+            btnNext.addActionListener(e -> {
+                currentSlide = (currentSlide + 1) % slides.length;
+                updateSlide();
+                timer.restart();
             });
 
-            imgNavWrap.add(btnPrev, BorderLayout.WEST);
+            JPanel prevWrap = new JPanel(new GridBagLayout());
+            prevWrap.setOpaque(false);
+            prevWrap.add(btnPrev);
+
+            JPanel nextWrap = new JPanel(new GridBagLayout());
+            nextWrap.setOpaque(false);
+            nextWrap.add(btnNext);
+
+            imgNavWrap.add(prevWrap, BorderLayout.WEST);
             imgNavWrap.add(lblImage, BorderLayout.CENTER);
-            imgNavWrap.add(btnNext, BorderLayout.EAST);
+            imgNavWrap.add(nextWrap, BorderLayout.EAST);
 
             // 2. Nội dung text (Dưới ảnh)
             lblTitle = new JLabel("", SwingConstants.CENTER);
-            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 19)); // Phóng to font
-            lblTitle.setForeground(PRIMARY);
+            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 15)); // Giống Zalo PC (font 15px Bold)
+            lblTitle.setForeground(new Color(0x0068FF)); // Màu xanh Zalo đặc trưng
             lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             lblDesc = new JLabel("", SwingConstants.CENTER);
-            lblDesc.setFont(new Font("Segoe UI", Font.PLAIN, 15)); // Phóng to font
-            lblDesc.setForeground(TEXT_MUTED);
+            lblDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13)); // Giống Zalo PC (font 13px Plain)
+            lblDesc.setForeground(new Color(0x475569));
             lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             // 3. Thanh dấu chấm (Dưới text)
@@ -3275,7 +3465,7 @@ public class ChatTab extends JPanel {
                     // PHÓNG TO ẢNH FULL THEO KÍCH THƯỚC TARGET
                     java.net.URL imgUrl = getClass().getResource(imagePath);
                     if (imgUrl != null) {
-                        Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(TARGET_WIDTH, TARGET_HEIGHT, Image.SCALE_SMOOTH);
+                        Image img = new ImageIcon(imgUrl).getImage().getScaledInstance(TARGET_WIDTH - 24, TARGET_HEIGHT - 24, Image.SCALE_SMOOTH);
                         lblImage.setIcon(new ImageIcon(img));
                         lblImage.setText(""); 
                     } else {
@@ -3289,6 +3479,113 @@ public class ChatTab extends JPanel {
                 
                 dotsPanel.repaint();
             });
+        }
+    }
+
+    private static class CircleButton extends JButton {
+        private boolean isHovered = false;
+
+        public CircleButton(String text) {
+            super(text);
+            setContentAreaFilled(false);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setForeground(Color.DARK_GRAY);
+            setFont(new Font("Segoe UI", Font.BOLD, 18));
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setMargin(new Insets(0, 0, 0, 0));
+
+            addMouseListener(new MouseAdapter() {
+                @Override public void mouseEntered(MouseEvent e) { isHovered = true; repaint(); }
+                @Override public void mouseExited(MouseEvent e) { isHovered = false; repaint(); }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            if (isHovered) {
+                g2.setColor(new Color(255, 255, 255, 230)); // Trắng đục hơn khi hover
+            } else {
+                g2.setColor(new Color(255, 255, 255, 160)); // Trắng mờ
+            }
+            g2.fillOval(0, 0, getWidth(), getHeight());
+            
+            g2.setColor(getForeground());
+            g2.setFont(getFont());
+            FontMetrics fm = g2.getFontMetrics();
+            int x = (getWidth() - fm.stringWidth(getText())) / 2;
+            int y = ((getHeight() - fm.getHeight()) / 2) + fm.getAscent();
+            if ("‹".equals(getText())) x -= 1;
+            if ("›".equals(getText())) x += 1;
+            
+            g2.drawString(getText(), x, y - 1);
+            g2.dispose();
+        }
+    }
+
+    private static final class DropdownContentPanel extends JPanel {
+        private static final int ARC = 40;
+        private static final Color BG = Color.WHITE;
+
+        DropdownContentPanel() {
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int w = getWidth();
+            int h = getHeight();
+            int inset = 3;
+
+            int r = ARC / 2;
+
+            for (int i = 3; i >= 1; i--) {
+                g2.setColor(new Color(0, 0, 0, Math.max(0, 10 - i * 2)));
+                java.awt.geom.Path2D.Float shadowPath = new java.awt.geom.Path2D.Float();
+                int sr = r + i;
+                shadowPath.moveTo(inset - i, 0);
+                shadowPath.lineTo(inset - i, h - inset + i - sr);
+                shadowPath.quadTo(inset - i, h - inset + i, inset - i + sr, h - inset + i);
+                shadowPath.lineTo(w - inset + i - sr, h - inset + i);
+                shadowPath.quadTo(w - inset + i, h - inset + i, w - inset + i, h - inset + i - sr);
+                shadowPath.lineTo(w - inset + i, 0);
+                shadowPath.closePath();
+                g2.fill(shadowPath);
+            }
+
+            g2.setColor(BG);
+            java.awt.geom.Path2D.Float bgPath = new java.awt.geom.Path2D.Float();
+            bgPath.moveTo(inset, 0);
+            bgPath.lineTo(inset, h - inset - r);
+            bgPath.quadTo(inset, h - inset, inset + r, h - inset);
+            bgPath.lineTo(w - inset - r, h - inset);
+            bgPath.quadTo(w - inset, h - inset, w - inset, h - inset - r);
+            bgPath.lineTo(w - inset, 0);
+            bgPath.closePath();
+            g2.fill(bgPath);
+
+            Color themeA  = new Color(174, 204, 246);
+            Color themeB  = new Color(204, 153, 255);
+            GradientPaint focusGrad = new GradientPaint(
+                    inset, -40, themeA, w - inset, 400, themeB);
+            g2.setPaint(focusGrad);
+            g2.setStroke(new BasicStroke(1.5f));
+            java.awt.geom.Path2D.Float borderPath = new java.awt.geom.Path2D.Float();
+            borderPath.moveTo(inset, 0);
+            borderPath.lineTo(inset, h - inset - 1 - r);
+            borderPath.quadTo(inset, h - inset - 1, inset + r, h - inset - 1);
+            borderPath.lineTo(w - inset - 1 - r, h - inset - 1);
+            borderPath.quadTo(w - inset - 1, h - inset - 1, w - inset - 1, h - inset - 1 - r);
+            borderPath.lineTo(w - inset - 1, 0);
+            g2.draw(borderPath);
+
+            g2.dispose();
+            super.paintComponent(g);
         }
     }
 }
