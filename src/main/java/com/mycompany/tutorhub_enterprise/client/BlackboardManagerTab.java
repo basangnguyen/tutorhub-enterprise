@@ -31,6 +31,7 @@ public class BlackboardManagerTab extends JPanel {
     private final MainDashboard dashboard;
     private final List<BoardMeta> originalBoards = new ArrayList<>();
     private final List<BoardMeta> currentBoards = new ArrayList<>();
+    private java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.BlackboardSearchProvider.BoardEntry>> onSearchDataUpdated;
 
     private JPanel listPanel;
     private JPanel paginationPanel;
@@ -183,6 +184,24 @@ public class BlackboardManagerTab extends JPanel {
         return card;
     }
 
+    public void setOnSearchDataUpdated(java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.BlackboardSearchProvider.BoardEntry>> onSearchDataUpdated) {
+        this.onSearchDataUpdated = onSearchDataUpdated;
+    }
+
+    private void notifySearchData() {
+        if (onSearchDataUpdated != null) {
+            List<com.mycompany.tutorhub_enterprise.client.search.providers.BlackboardSearchProvider.BoardEntry> entries = new ArrayList<>();
+            for (BoardMeta board : originalBoards) {
+                entries.add(new com.mycompany.tutorhub_enterprise.client.search.providers.BlackboardSearchProvider.BoardEntry(
+                    board.title,
+                    board.sizeMB + " MB - " + board.totalPages + " trang",
+                    () -> { dashboard.openExistingBlackboard(board); }
+                ));
+            }
+            onSearchDataUpdated.accept(entries);
+        }
+    }
+
     public void syncBoardsFromServer(String payload) {
         SwingUtilities.invokeLater(() -> {
             originalBoards.clear();
@@ -196,6 +215,7 @@ public class BlackboardManagerTab extends JPanel {
                     }
                 }
             }
+            notifySearchData();
             applyFilters();
         });
     }

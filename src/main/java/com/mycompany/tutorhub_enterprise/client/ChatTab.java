@@ -89,6 +89,7 @@ public class ChatTab extends JPanel {
     private static java.util.List<String> recentEmojis = new java.util.ArrayList<>();
     // ===== UI COMPONENTS =====
     private java.util.function.IntConsumer onUnreadCountChanged; // Thêm dòng này
+    private java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry>> onSearchDataUpdated;
     private CardLayout centerCardLayout;
     private JPanel activeChatContainer; // Container mới chứa giao diện nhắn tin
 
@@ -307,9 +308,31 @@ public class ChatTab extends JPanel {
 
     public void updateConversationList(List<ConversationInfo> list) {
         this.conversations = list;
+
+        if (onSearchDataUpdated != null && list != null) {
+            List<com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry> entries = new ArrayList<>();
+            for (ConversationInfo c : list) {
+                entries.add(new com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry(
+                    c.displayName,
+                    c.lastMessage,
+                    () -> {
+                        setActiveConversation(c);
+                        if (onSwitchToChatCallback != null) {
+                            onSwitchToChatCallback.run();
+                        }
+                    }
+                ));
+            }
+            onSearchDataUpdated.accept(entries);
+        }
+
         refreshConversationList(); 
         if (isGlobalSearchPopupEnabled() && searchPopup.isVisible() && !searchKeyword.isEmpty()) renderSearchPopupResults();
         notifyUnreadCountChanged();
+    }
+
+    public void setOnSearchDataUpdated(java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry>> onSearchDataUpdated) {
+        this.onSearchDataUpdated = onSearchDataUpdated;
     }
 
     public void updateSearchResults(List<UserInfo> users) {

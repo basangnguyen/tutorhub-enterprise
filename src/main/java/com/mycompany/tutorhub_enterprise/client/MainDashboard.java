@@ -745,12 +745,18 @@ public class MainDashboard extends JFrame {
                 headerPanel.updateChatBadge(totalUnread);
             }
         });
+        chatTab.setOnSearchDataUpdated(entries -> {
+            if (headerPanel != null) headerPanel.updateChatSearchEntries(entries);
+        });
         
         headerPanel.bindChatTab(chatTab);
 
         scheduleTab = new ScheduleTab();
         acceptedTab = new AcceptedClassTab(this);
         blackboardManagerTab = new BlackboardManagerTab(this);
+        blackboardManagerTab.setOnSearchDataUpdated(entries -> {
+            if (headerPanel != null) headerPanel.updateBoardSearchEntries(entries);
+        });
 
         
         // 👇 BƯỚC 2: Khởi tạo DriveTab 👇
@@ -758,6 +764,9 @@ public class MainDashboard extends JFrame {
 
         mainCardPanel.add(homeTab, "Home");
         classManagerTab = new ClassManagerTab(this);
+        classManagerTab.setOnSearchDataUpdated(entries -> {
+            if (headerPanel != null) headerPanel.updateClassSearchEntries(entries);
+        });
         mainCardPanel.add(classManagerTab, "Saved"); 
         mainCardPanel.add(chatTab, "Chat"); 
         mainCardPanel.add(acceptedTab, "Taken"); 

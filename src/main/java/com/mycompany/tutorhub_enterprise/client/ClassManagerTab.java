@@ -49,6 +49,7 @@ public class ClassManagerTab extends JPanel {
     private final MainDashboard dashboard;
     private final List<ClassroomGroupModel> classrooms = new ArrayList<>();
     private final List<ClassroomLessonModel> lessons = new ArrayList<>();
+    private java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.ClassSearchProvider.ClassEntry>> onSearchDataUpdated;
     private final Map<String, Image> coverImageCache = new HashMap<>();
 
     private JPanel filterTabs;
@@ -479,6 +480,33 @@ public class ClassManagerTab extends JPanel {
         }
     }
 
+    public void setOnSearchDataUpdated(java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.ClassSearchProvider.ClassEntry>> onSearchDataUpdated) {
+        this.onSearchDataUpdated = onSearchDataUpdated;
+    }
+
+    private void notifySearchData() {
+        if (onSearchDataUpdated != null) {
+            List<com.mycompany.tutorhub_enterprise.client.search.providers.ClassSearchProvider.ClassEntry> entries = new ArrayList<>();
+            for (ClassroomGroupModel group : classrooms) {
+                entries.add(new com.mycompany.tutorhub_enterprise.client.search.providers.ClassSearchProvider.ClassEntry(
+                    group.getName(),
+                    group.getOrganizationName() != null ? group.getOrganizationName() : "Lớp học chung",
+                    "Lớp học",
+                    () -> { this.showClassroomDetail(group); }
+                ));
+            }
+            for (ClassroomLessonModel lesson : lessons) {
+                entries.add(new com.mycompany.tutorhub_enterprise.client.search.providers.ClassSearchProvider.ClassEntry(
+                    lesson.getTitle(),
+                    lesson.getClassroomName(),
+                    "Buổi học",
+                    () -> { this.enterLesson(lesson); }
+                ));
+            }
+            onSearchDataUpdated.accept(entries);
+        }
+    }
+
     public void loadClassrooms(List<ClassroomGroupModel> list) {
         classrooms.clear();
         if (list != null) {
@@ -486,6 +514,7 @@ public class ClassManagerTab extends JPanel {
         }
         classroomsLoaded = true;
         updateLoadingState();
+        notifySearchData();
         renderClassCards();
     }
 
@@ -496,6 +525,7 @@ public class ClassManagerTab extends JPanel {
         }
         lessonsLoaded = true;
         updateLoadingState();
+        notifySearchData();
         renderClassCards();
     }
 
