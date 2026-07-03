@@ -8,6 +8,7 @@ import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubDeck;
 import com.mycompany.tutorhub_enterprise.client.quizhub.model.QuizHubDeckSummary;
 import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubAttemptService;
 import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubDeckService;
+import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubReportService;
 
 import java.nio.file.Paths;
 import java.util.List;
@@ -24,10 +25,12 @@ public class QuizHubBridge {
 
     private final QuizHubDeckService deckService;
     private final QuizHubAttemptService attemptService;
+    private final QuizHubReportService reportService;
 
     public QuizHubBridge(QuizHubDeckService deckService, QuizHubAttemptService attemptService) {
         this.deckService = deckService;
         this.attemptService = attemptService;
+        this.reportService = new QuizHubReportService(attemptService);
     }
 
     public String listDecks() {
@@ -124,6 +127,14 @@ public String importExcelRows(String rowsJson) {
     }
 
     // ---------- helper định dạng JSON trả về cho JS ----------
+
+    public String getAttemptReport(String deckId) {
+        try {
+            return ok(reportService.summarizeDeck(deckId));
+        } catch (Exception e) {
+            return err("Khong tao duoc bao cao QuizHub: " + e.getMessage());
+        }
+    }
 
     private static String ok(Object data) {
         return GSON.toJson(new BridgeResponse(true, data, null));

@@ -10,5 +10,6 @@ public enum SearchResultType {
     BLACKBOARD,
     PROFILE,
     WEB,
+    HISTORY,
     EMPTY
 }

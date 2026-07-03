@@ -49,6 +49,7 @@ public class QuizHubCefRouterHandler extends CefMessageRouterHandlerAdapter {
             return bridge.saveAttempt(p[0], p[1]);
         }
         if (request.startsWith("GET_ATTEMPTS:")) return bridge.getAttempts(after(request, "GET_ATTEMPTS:"));
+        if (request.startsWith("GET_ATTEMPT_REPORT:")) return bridge.getAttemptReport(after(request, "GET_ATTEMPT_REPORT:"));
         return null;
     }
 

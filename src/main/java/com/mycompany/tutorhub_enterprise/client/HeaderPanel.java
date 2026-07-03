@@ -5,6 +5,14 @@ import com.mycompany.tutorhub_enterprise.client.search.SearchAction;
 import com.mycompany.tutorhub_enterprise.client.search.SearchQuery;
 import com.mycompany.tutorhub_enterprise.client.search.SearchResult;
 import com.mycompany.tutorhub_enterprise.client.search.SearchResultType;
+import com.mycompany.tutorhub_enterprise.client.search.SearchController;
+import com.mycompany.tutorhub_enterprise.client.search.SearchHistoryStore;
+import com.mycompany.tutorhub_enterprise.client.search.providers.CommandSearchProvider;
+import com.mycompany.tutorhub_enterprise.client.search.providers.HistorySearchProvider;
+import com.mycompany.tutorhub_enterprise.client.search.providers.WebSearchProvider;
+import com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider;
+import com.mycompany.tutorhub_enterprise.client.search.providers.ClassSearchProvider;
+import com.mycompany.tutorhub_enterprise.client.search.providers.BlackboardSearchProvider;
 
 import javax.swing.*;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -61,6 +69,11 @@ public class HeaderPanel extends JPanel {
     private long lastChatCloseTime = 0;
     private long lastNotifCloseTime = 0;
     private long lastProfileCloseTime = 0;
+
+    // Search data stores – tabs push data here for the global search to scan
+    private volatile List<ChatSearchProvider.ChatEntry> chatSearchEntries = new ArrayList<>();
+    private volatile List<ClassSearchProvider.ClassEntry> classSearchEntries = new ArrayList<>();
+    private volatile List<BlackboardSearchProvider.BoardEntry> boardSearchEntries = new ArrayList<>();
 
     public HeaderPanel(MainDashboard dashboard, String userName) {
         this.dashboard = dashboard;
@@ -255,55 +268,39 @@ public class HeaderPanel extends JPanel {
     public Image getAvatar() { return avatarPanel != null ? avatarPanel.getAvatarImage() : null; }
 
     private void configureGlobalSearchCommands() {
+        SearchController searchController = new SearchController();
+
+        searchController.registerProvider(new HistorySearchProvider(query -> {
+            globalSearchBar.getField().setText(query);
+            globalSearchBar.getField().setCaretPosition(query.length());
+        }));
+        searchController.registerProvider(new CommandSearchProvider(this::switchCardAction));
+        searchController.registerProvider(new ChatSearchProvider(() -> chatSearchEntries));
+        searchController.registerProvider(new ClassSearchProvider(() -> classSearchEntries));
+        searchController.registerProvider(new BlackboardSearchProvider(() -> boardSearchEntries));
+        searchController.registerProvider(new WebSearchProvider());
+
         globalSearchBar.setGlobalDropdownEnabledSupplier(() -> dashboard != null && !dashboard.isCurrentCard("Chat"));
-        globalSearchBar.setDropdownResultsProvider(this::buildGlobalCommandResults);
+        globalSearchBar.setDropdownResultsProvider(searchController::executeSearch);
+
+        globalSearchBar.addSubmitListener(SearchHistoryStore::addSearch);
     }
 
-    private List<SearchResult> buildGlobalCommandResults(SearchQuery query) {
-        List<SearchResult> results = new ArrayList<>();
-        addCommandIfMatches(results, query, "Mở Bảng tin", "Đi tới màn hình tổng quan", "HOME", "Home", "bang tin home dashboard tong quan");
-        addCommandIfMatches(results, query, "Mở Tin nhắn", "Mở hội thoại và tìm bạn bè", "MSG", "Chat", "tin nhan chat message hoi thoai");
-        addCommandIfMatches(results, query, "Mở Lớp học", "Quản lý lớp học của tôi", "CLS", "Saved", "lop hoc class classroom quan ly");
-        addCommandIfMatches(results, query, "Mở Lịch", "Xem lịch học và lịch dạy", "CAL", "Schedule", "lich calendar schedule");
-        addCommandIfMatches(results, query, "Mở QuizHub", "Ôn tập và luyện quiz", "QUIZ", "QuizHub", "quiz quizhub on tap luyen tap");
-        addCommandIfMatches(results, query, "Mở Tài liệu", "Mở drive tài liệu học tập", "DOC", "Docs", "tai lieu document docs drive");
-        addCommandIfMatches(results, query, "Mở Hồ sơ", "Xem thông tin tài khoản", "USR", "Profile", "ho so profile tai khoan user");
-        addCommandIfMatches(results, query, "Mở Nâng cấp", "Xem các gói TutorHub Premium", "PRO", "Upgrade", "nang cap upgrade premium vip");
+    // ── Search Data Setters (called from tabs) ───────────────────────
 
-        if (query != null && !query.isBlank()) {
-            results.add(SearchResult.builder()
-                    .title("Tìm trong TutorHub: " + query.getRawText())
-                    .subtitle("Kết quả nội bộ đầy đủ sẽ được mở ở phase sau")
-                    .type(SearchResultType.WEB)
-                    .score(0.05)
-                    .iconText("TH")
-                    .action(SearchAction.noop())
-                    .build());
-        }
-        return results;
+    /** Called by ChatTab to push conversation list into global search. */
+    public void updateChatSearchEntries(List<ChatSearchProvider.ChatEntry> entries) {
+        this.chatSearchEntries = entries != null ? entries : new ArrayList<>();
     }
 
-    private void addCommandIfMatches(List<SearchResult> results, SearchQuery query, String title,
-                                     String subtitle, String iconText, String cardKey, String aliases) {
-        if (!matchesSearch(query, title, subtitle, aliases)) {
-            return;
-        }
-        results.add(SearchResult.builder()
-                .title(title)
-                .subtitle(subtitle)
-                .type(SearchResultType.COMMAND)
-                .score(1.0)
-                .iconText(iconText)
-                .action(switchCardAction(cardKey))
-                .build());
+    /** Called by ClassManagerTab/AcceptedClassTab to push class list into global search. */
+    public void updateClassSearchEntries(List<ClassSearchProvider.ClassEntry> entries) {
+        this.classSearchEntries = entries != null ? entries : new ArrayList<>();
     }
 
-    private boolean matchesSearch(SearchQuery query, String title, String subtitle, String aliases) {
-        if (query == null || query.isBlank()) {
-            return true;
-        }
-        String haystack = SearchQuery.of(title + " " + subtitle + " " + aliases).getNormalizedText();
-        return haystack.contains(query.getNormalizedText());
+    /** Called by BlackboardManagerTab to push board list into global search. */
+    public void updateBoardSearchEntries(List<BlackboardSearchProvider.BoardEntry> entries) {
+        this.boardSearchEntries = entries != null ? entries : new ArrayList<>();
     }
 
     private SearchAction switchCardAction(String cardKey) {
@@ -318,6 +315,7 @@ public class HeaderPanel extends JPanel {
             }
         });
     }
+
 
     private void showNotificationPopup(Component invoker) {
         JPopupMenu popup = new JPopupMenu();

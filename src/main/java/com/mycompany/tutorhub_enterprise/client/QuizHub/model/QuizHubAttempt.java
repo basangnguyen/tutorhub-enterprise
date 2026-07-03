@@ -16,6 +16,19 @@ public class QuizHubAttempt {
     private int totalCount;
     private double score;
     private long durationSeconds;
+    private int accuracyPoints;
+    private int maxAccuracyPoints;
+    private int sessionScore;
+    private int bestStreak;
+    private double averageResponseMs;
+    private long timeLimitMs;
+    private int questionLimit;
+    private String topicFilter;
+    private String difficultyFilter;
+    private boolean soundEnabled;
+    private boolean motionEnabled;
+    private boolean powerupsEnabled;
+    private List<QuizHubPowerUpEvent> powerUpEvents = new ArrayList<>();
 
     public QuizHubAttempt() {
     }
@@ -98,5 +111,109 @@ public class QuizHubAttempt {
 
     public void setDurationSeconds(long durationSeconds) {
         this.durationSeconds = durationSeconds;
+    }
+
+    public int getAccuracyPoints() {
+        return accuracyPoints;
+    }
+
+    public void setAccuracyPoints(int accuracyPoints) {
+        this.accuracyPoints = accuracyPoints;
+    }
+
+    public int getMaxAccuracyPoints() {
+        return maxAccuracyPoints;
+    }
+
+    public void setMaxAccuracyPoints(int maxAccuracyPoints) {
+        this.maxAccuracyPoints = maxAccuracyPoints;
+    }
+
+    public int getSessionScore() {
+        return sessionScore;
+    }
+
+    public void setSessionScore(int sessionScore) {
+        this.sessionScore = sessionScore;
+    }
+
+    public int getBestStreak() {
+        return bestStreak;
+    }
+
+    public void setBestStreak(int bestStreak) {
+        this.bestStreak = bestStreak;
+    }
+
+    public double getAverageResponseMs() {
+        return averageResponseMs;
+    }
+
+    public void setAverageResponseMs(double averageResponseMs) {
+        this.averageResponseMs = averageResponseMs;
+    }
+
+    public long getTimeLimitMs() {
+        return timeLimitMs;
+    }
+
+    public void setTimeLimitMs(long timeLimitMs) {
+        this.timeLimitMs = timeLimitMs;
+    }
+
+    public int getQuestionLimit() {
+        return questionLimit;
+    }
+
+    public void setQuestionLimit(int questionLimit) {
+        this.questionLimit = questionLimit;
+    }
+
+    public String getTopicFilter() {
+        return topicFilter;
+    }
+
+    public void setTopicFilter(String topicFilter) {
+        this.topicFilter = topicFilter;
+    }
+
+    public String getDifficultyFilter() {
+        return difficultyFilter;
+    }
+
+    public void setDifficultyFilter(String difficultyFilter) {
+        this.difficultyFilter = difficultyFilter;
+    }
+
+    public boolean isSoundEnabled() {
+        return soundEnabled;
+    }
+
+    public void setSoundEnabled(boolean soundEnabled) {
+        this.soundEnabled = soundEnabled;
+    }
+
+    public boolean isMotionEnabled() {
+        return motionEnabled;
+    }
+
+    public void setMotionEnabled(boolean motionEnabled) {
+        this.motionEnabled = motionEnabled;
+    }
+
+    public boolean isPowerupsEnabled() {
+        return powerupsEnabled;
+    }
+
+    public void setPowerupsEnabled(boolean powerupsEnabled) {
+        this.powerupsEnabled = powerupsEnabled;
+    }
+
+    public List<QuizHubPowerUpEvent> getPowerUpEvents() {
+        return powerUpEvents;
+    }
+
+    public void setPowerUpEvents(List<QuizHubPowerUpEvent> powerUpEvents) {
+        this.powerUpEvents = powerUpEvents;
     }
 }

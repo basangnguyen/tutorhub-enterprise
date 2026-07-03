@@ -7,6 +7,8 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -27,20 +29,26 @@ import java.util.List;
 import java.util.Map;
 
 public class SearchDropdownPanel {
-    private static final int POPUP_WIDTH = 520;
-    private static final int ROW_HEIGHT = 54;
+    private static final int ROW_HEIGHT = 46;
+    private static final int MAX_VISIBLE_HEIGHT = 420;
+    private static final int ARC = 16;
     private static final Color BG = Color.WHITE;
-    private static final Color BORDER = new Color(0xE5E7EB);
-    private static final Color TEXT = new Color(0x111827);
-    private static final Color MUTED = new Color(0x64748B);
-    private static final Color SELECTED_BG = new Color(0xF1F5FF);
+    private static final Color BORDER = new Color(0xE2E5EA);
+    private static final Color TEXT = new Color(0x1A1D23);
+    private static final Color MUTED = new Color(0x6B7280);
+    private static final Color SELECTED_BG = new Color(0xF0F3FF);
     private static final Color ACCENT = new Color(0x6D5DF6);
+    private static final Color DIVIDER = new Color(0xF0F1F3);
+    private static final Color SHADOW = new Color(0, 0, 0, 20);
+    private static final Color HIST_ICON_COLOR = new Color(0x9CA3AF);
+    private static final Color WEB_ICON_COLOR = new Color(0x3B82F6);
 
     private final JPopupMenu popup;
     private final JPanel content;
     private final List<SearchResult> visibleResults = new ArrayList<>();
     private final List<ResultRow> rowPanels = new ArrayList<>();
     private int selectedIndex = -1;
+    private int popupWidth = 440; // default, will be set dynamically
 
     public SearchDropdownPanel() {
         JPopupMenu.setDefaultLightWeightPopupEnabled(false);
@@ -51,17 +59,29 @@ public class SearchDropdownPanel {
 
         content = new RoundedContentPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        content.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
         popup.add(content, BorderLayout.CENTER);
     }
 
-    public void show(Component invoker, int x, int y, List<SearchResult> results, SearchQuery query) {
+    /** Update the popup to match invoker width */
+    public void setPopupWidth(int width) {
+        this.popupWidth = Math.max(300, width);
+    }
+
+    public void updateAndShow(Component invoker, int x, int y, List<SearchResult> results, SearchQuery query) {
         setResults(results, query);
-        popup.show(invoker, x, y);
+        if (!popup.isVisible()) {
+            popup.show(invoker, x, y);
+        }
+    }
+
+    /** @deprecated Use {@link #updateAndShow} instead */
+    public void show(Component invoker, int x, int y, List<SearchResult> results, SearchQuery query) {
+        updateAndShow(invoker, x, y, results, query);
     }
 
     public void showDemo(Component invoker, int x, int y, SearchQuery query) {
-        show(invoker, x, y, Collections.emptyList(), query);
+        updateAndShow(invoker, x, y, Collections.emptyList(), query);
     }
 
     public void setResults(List<SearchResult> results, SearchQuery query) {
@@ -72,21 +92,25 @@ public class SearchDropdownPanel {
 
         if (results == null || results.isEmpty()) {
             content.add(createEmptyState(query));
-            refreshSize(150);
+            refreshSize(120);
             return;
         }
 
         Map<SearchResultType, List<SearchResult>> grouped = groupResults(results);
+        boolean isFirstGroup = true;
         for (SearchResultType type : SearchResultType.values()) {
             List<SearchResult> group = grouped.get(type);
             if (group == null || group.isEmpty()) {
                 continue;
             }
+            if (!isFirstGroup) {
+                content.add(createDivider());
+            }
+            isFirstGroup = false;
             content.add(createGroupTitle(labelFor(type)));
             for (SearchResult result : group) {
                 addResultRow(result);
             }
-            content.add(Box.createVerticalStrut(4));
         }
 
         if (!visibleResults.isEmpty()) {
@@ -95,8 +119,11 @@ public class SearchDropdownPanel {
         }
 
         int groupCount = grouped.size();
-        int height = Math.min(480, 38 + rowPanels.size() * ROW_HEIGHT + groupCount * 28);
-        refreshSize(Math.max(150, height));
+        int height = 16 + rowPanels.size() * ROW_HEIGHT + groupCount * 26;
+        if (groupCount > 1) {
+            height += (groupCount - 1) * 9; // divider space
+        }
+        refreshSize(Math.min(MAX_VISIBLE_HEIGHT, Math.max(100, height)));
     }
 
     public void moveUp() {
@@ -138,9 +165,9 @@ public class SearchDropdownPanel {
         int rowIndex = visibleResults.size();
         visibleResults.add(result);
 
-        ResultRow row = new ResultRow(result);
+        ResultRow row = new ResultRow(result, popupWidth);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, ROW_HEIGHT));
-        row.setPreferredSize(new Dimension(POPUP_WIDTH - 20, ROW_HEIGHT));
+        row.setPreferredSize(new Dimension(popupWidth - 16, ROW_HEIGHT));
         row.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -167,7 +194,7 @@ public class SearchDropdownPanel {
     }
 
     private void refreshSize(int height) {
-        content.setPreferredSize(new Dimension(POPUP_WIDTH, height));
+        content.setPreferredSize(new Dimension(popupWidth, height));
         content.revalidate();
         content.repaint();
         popup.pack();
@@ -181,11 +208,20 @@ public class SearchDropdownPanel {
         return grouped;
     }
 
+    private static JComponent createDivider() {
+        JPanel divider = new JPanel();
+        divider.setOpaque(false);
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        divider.setPreferredSize(new Dimension(100, 1));
+        divider.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, DIVIDER));
+        return divider;
+    }
+
     private static JComponent createGroupTitle(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        JLabel label = new JLabel(text.toUpperCase());
+        label.setFont(new Font("Segoe UI", Font.BOLD, 10));
         label.setForeground(MUTED);
-        label.setBorder(BorderFactory.createEmptyBorder(8, 12, 5, 12));
+        label.setBorder(BorderFactory.createEmptyBorder(8, 10, 4, 10));
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
@@ -193,18 +229,14 @@ public class SearchDropdownPanel {
     private static JComponent createEmptyState(SearchQuery query) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(26, 24, 26, 24));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         String raw = query == null || query.isBlank()
                 ? "Nhập từ khóa để tìm kiếm"
-                : "Không tìm thấy trong TutorHub";
+                : "Không tìm thấy kết quả phù hợp";
         JLabel title = new JLabel(raw, SwingConstants.CENTER);
-        title.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        title.setForeground(TEXT);
-        JLabel subtitle = new JLabel("Phase này chỉ hỗ trợ lệnh nhanh nội bộ, chưa gọi server hoặc web.", SwingConstants.CENTER);
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        subtitle.setForeground(MUTED);
+        title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        title.setForeground(MUTED);
         panel.add(title, BorderLayout.CENTER);
-        panel.add(subtitle, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -227,7 +259,9 @@ public class SearchDropdownPanel {
             case PROFILE:
                 return "Hồ sơ";
             case WEB:
-                return "Tìm trong TutorHub";
+                return "Tìm trên web";
+            case EMPTY:
+                return "Gần đây";
             default:
                 return "Khác";
         }
@@ -237,32 +271,65 @@ public class SearchDropdownPanel {
         private final SearchResult result;
         private boolean selected;
 
-        ResultRow(SearchResult result) {
+        ResultRow(SearchResult result, int parentWidth) {
             this.result = result;
             setOpaque(false);
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            setBorder(BorderFactory.createEmptyBorder(7, 10, 7, 10));
-            setLayout(new BorderLayout(12, 0));
+            setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
+            setLayout(new BorderLayout(10, 0));
 
-            JLabel icon = new JLabel(result.getIconText(), SwingConstants.CENTER);
-            icon.setFont(new Font("Segoe UI", Font.BOLD, 11));
-            icon.setForeground(ACCENT);
-            icon.setPreferredSize(new Dimension(42, 40));
+            // Icon badge
+            Color iconColor = getIconColor(result.getType());
+            JLabel icon = new JLabel(result.getIconText(), SwingConstants.CENTER) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    // Draw background pill
+                    Color bg = new Color(iconColor.getRed(), iconColor.getGreen(), iconColor.getBlue(), 18);
+                    g2.setColor(bg);
+                    g2.fillRoundRect(2, 4, getWidth() - 4, getHeight() - 8, 10, 10);
+                    g2.dispose();
+                    super.paintComponent(g);
+                }
+            };
+            icon.setFont(new Font("Segoe UI", Font.BOLD, 10));
+            icon.setForeground(iconColor);
+            icon.setPreferredSize(new Dimension(40, 34));
             add(icon, BorderLayout.WEST);
 
+            // Text
             JPanel textPanel = new JPanel();
             textPanel.setOpaque(false);
             textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
             JLabel title = new JLabel(result.getTitle());
-            title.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            title.setFont(new Font("Segoe UI", Font.PLAIN, 13));
             title.setForeground(TEXT);
-            JLabel subtitle = new JLabel(result.getSubtitle());
-            subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-            subtitle.setForeground(MUTED);
             textPanel.add(title);
-            textPanel.add(Box.createVerticalStrut(3));
-            textPanel.add(subtitle);
+            if (result.getSubtitle() != null && !result.getSubtitle().isEmpty()) {
+                textPanel.add(Box.createVerticalStrut(1));
+                JLabel subtitle = new JLabel(result.getSubtitle());
+                subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                subtitle.setForeground(MUTED);
+                textPanel.add(subtitle);
+            }
             add(textPanel, BorderLayout.CENTER);
+
+            // Arrow hint on the right
+            JLabel arrow = new JLabel("↵", SwingConstants.CENTER);
+            arrow.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            arrow.setForeground(new Color(0xC0C4CC));
+            arrow.setPreferredSize(new Dimension(20, 34));
+            add(arrow, BorderLayout.EAST);
+        }
+
+        private static Color getIconColor(SearchResultType type) {
+            switch (type) {
+                case COMMAND: return ACCENT;
+                case WEB: return WEB_ICON_COLOR;
+                case EMPTY: return HIST_ICON_COLOR;
+                default: return ACCENT;
+            }
         }
 
         void setSelected(boolean selected) {
@@ -276,7 +343,7 @@ public class SearchDropdownPanel {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             if (selected) {
                 g2.setColor(SELECTED_BG);
-                g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 14, 14);
+                g2.fillRoundRect(2, 1, getWidth() - 4, getHeight() - 2, 10, 10);
             }
             g2.dispose();
             super.paintComponent(g);
@@ -288,13 +355,16 @@ public class SearchDropdownPanel {
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(new Color(0, 0, 0, 28));
-            g2.fillRoundRect(4, 5, getWidth() - 8, getHeight() - 8, 22, 22);
+            // Shadow
+            g2.setColor(SHADOW);
+            g2.fillRoundRect(2, 3, getWidth() - 4, getHeight() - 4, ARC, ARC);
+            // Background
             g2.setColor(BG);
-            g2.fillRoundRect(0, 0, getWidth() - 6, getHeight() - 8, 20, 20);
+            g2.fillRoundRect(0, 0, getWidth() - 4, getHeight() - 4, ARC, ARC);
+            // Border
             g2.setColor(BORDER);
             g2.setStroke(new BasicStroke(1f));
-            g2.drawRoundRect(0, 0, getWidth() - 7, getHeight() - 9, 20, 20);
+            g2.drawRoundRect(0, 0, getWidth() - 5, getHeight() - 5, ARC, ARC);
             g2.dispose();
             super.paintComponent(g);
         }

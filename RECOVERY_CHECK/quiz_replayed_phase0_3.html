@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+  if(gameBestStreak>=10) badges.push({icon:'ðŸ”¥',text:'Chuá»—i Ä‘Ãºng 10+',earned:true});
+  else if(gameBestStreak>=5) badges.push({icon:'ðŸ”¥',text:'Chuá»—i Ä‘Ãºng 5+',earned:true});
+  if(usedPowerCount >= 3) badges.push({icon:'âš¡',text:'Dung het power-up',earned:true});
+  badges.push({icon:'ðŸŽ“',text:'Vá» Ä‘Ã­ch',earned:true});
 <html lang="vi">
 
 <head>
@@ -1512,89 +1515,6 @@ mark {
   font-size: 13px; line-height: 1.55;
 }
 
-.game-mastery-hint {
-  color: var(--ink-muted); font-size: 12px; line-height: 1.45; margin-top: 8px;
-}
-
-.game-mastery-goal { justify-content: flex-start; }
-
-.game-mastery-goal button { min-width: 58px; }
-
-.game-mastery-report {
-  margin: 0 0 18px; padding: 14px; border: 1px solid var(--game-border);
-  border-radius: 14px; background: var(--game-soft); color: var(--game-ink);
-  text-align: left; font-size: 13px; line-height: 1.55;
-}
-
-.game-mastery-report-title {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  font-size: 14px; font-weight: 800; margin-bottom: 10px;
-}
-
-.game-mastery-report-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); gap: 8px;
-}
-
-.game-mastery-report-metric {
-  background: rgba(255,255,255,.72); border: 1px solid rgba(255,255,255,.7);
-  border-radius: 12px; padding: 10px;
-}
-
-.game-mastery-report-metric b {
-  display: block; color: var(--game-accent); font-size: 18px; line-height: 1.1;
-}
-
-.game-mastery-report-metric span {
-  display: block; color: var(--ink-light); font-size: 11px; margin-top: 4px;
-  font-weight: 700;
-}
-
-.game-break-card {
-  background: var(--surface-1); border: 1px solid var(--game-border);
-  border-radius: var(--radius-xl); padding: 36px; text-align: center;
-  box-shadow: var(--shadow-lg);
-}
-
-.game-break-icon {
-  width: 70px; height: 70px; margin: 0 auto 18px; display: flex;
-  align-items: center; justify-content: center; border-radius: 22px;
-  background: var(--game-soft); color: var(--game-accent); font-size: 32px;
-  border: 1px solid var(--game-border);
-}
-
-.game-break-title { font-size: 26px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
-.game-break-copy { color: var(--ink-light); font-size: 14px; line-height: 1.55; margin: 0 auto 20px; max-width: 520px; }
-
-.game-break-stats {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
-  margin: 16px 0 20px;
-}
-
-.game-break-stat {
-  background: #f8f8f5; border: 1px solid var(--border); border-radius: 12px; padding: 10px;
-}
-
-.game-break-stat b { display: block; color: var(--game-accent); font-size: 20px; }
-.game-break-stat span { color: var(--ink-muted); font-size: 11px; font-weight: 700; }
-
-.game-break-choices {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
-}
-
-.game-break-choice {
-  border: 1px solid var(--game-border); border-radius: 14px; background: #fff;
-  color: var(--game-ink); padding: 12px; cursor: pointer; text-align: left;
-  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
-}
-
-.game-break-choice:hover {
-  transform: translateY(-2px); border-color: var(--game-accent);
-  box-shadow: 0 10px 24px rgba(31,41,55,.10);
-}
-
-.game-break-choice b { display: block; font-size: 14px; margin-bottom: 4px; }
-.game-break-choice span { display: block; color: var(--ink-light); font-size: 12px; line-height: 1.4; }
-
 .game-start-btn {
 
   width: 100%; padding: 14px; font-size: 16px; border-radius: 100px;
@@ -2105,10 +2025,6 @@ text-shadow: 0 2px 8px rgba(0,0,0,.12);
   .game-setup-grid { grid-template-columns: 1fr; }
 
   .game-powerups { grid-template-columns: 1fr; }
-
-  .game-break-card { padding: 28px 20px; }
-
-  .game-break-stats { grid-template-columns: 1fr; }
 
   .game-hud { padding: 10px 16px; }
 
@@ -3461,7 +3377,7 @@ textarea {
       <div class="game-intro-title">Sẵn sàng chơi?</div>
       <div class="game-intro-sub" id="game-intro-sub"></div>
       <div class="game-time-pick">
-        <div class="game-time-label">Thời gian mỗi câu</div>
+        <div class="game-time-label">ThÃ¡Â»Âi gian mÃ¡Â»â€”i cÃƒÂ¢u</div>
         <div class="seg" id="seg-game-time">
           <button data-v="10" onclick="gameSetTime(10)">10s</button>
           <button data-v="15" onclick="gameSetTime(15)">15s</button>
@@ -3470,47 +3386,34 @@ textarea {
         </div>
         <div class="game-setup-grid">
           <div class="game-setup-field wide">
-            <span class="game-setup-label">Số câu hỏi</span>
+            <span class="game-setup-label">So cau hoi</span>
             <div class="seg" id="seg-game-limit">
-              <button class="on" data-v="0" onclick="gameSetQuestionLimit(0)">Tất cả</button>
+              <button class="on" data-v="0" onclick="gameSetQuestionLimit(0)">Tat ca</button>
               <button data-v="10" onclick="gameSetQuestionLimit(10)">10</button>
               <button data-v="20" onclick="gameSetQuestionLimit(20)">20</button>
               <button data-v="30" onclick="gameSetQuestionLimit(30)">30</button>
             </div>
           </div>
           <div class="game-setup-field">
-            <span class="game-setup-label">Chủ đề</span>
+            <span class="game-setup-label">Chu de</span>
             <select class="game-select" id="game-topic-filter"></select>
           </div>
           <div class="game-setup-field">
-            <span class="game-setup-label">Độ khó</span>
+            <span class="game-setup-label">Do kho</span>
             <select class="game-select" id="game-difficulty-filter"></select>
           </div>
           <label class="game-setup-field game-toggle-row">
-            <span>Âm thanh</span>
+            <span>Am thanh</span>
             <input type="checkbox" id="sw-game-sound" checked>
           </label>
           <label class="game-setup-field game-toggle-row">
-            <span>Chuyển động</span>
+            <span>Chuyen dong</span>
             <input type="checkbox" id="sw-game-motion" checked>
           </label>
           <label class="game-setup-field game-toggle-row">
             <span>Power-up</span>
             <input type="checkbox" id="sw-game-powerups" checked>
           </label>
-          <label class="game-setup-field game-toggle-row">
-            <span>Mastery Climb</span>
-            <input type="checkbox" id="sw-game-mastery" onchange="gameSetMasteryEnabled(this.checked)">
-          </label>
-          <div class="game-setup-field wide" id="game-mastery-setup">
-            <span class="game-setup-label">Mục tiêu mastery</span>
-            <div class="seg game-mastery-goal" id="seg-game-mastery-goal">
-              <button data-v="80" onclick="gameSetMasteryGoal(80)">80%</button>
-              <button class="on" data-v="90" onclick="gameSetMasteryGoal(90)">90%</button>
-              <button data-v="100" onclick="gameSetMasteryGoal(100)">100%</button>
-            </div>
-            <div class="game-mastery-hint">Câu sai sẽ quay lại theo vòng cho tới khi đạt mục tiêu hoặc hết số vòng leo bậc.</div>
-          </div>
           <div class="game-setup-field">
             <label class="game-setup-label" for="game-theme-select">Giao diện</label>
             <select class="game-select" id="game-theme-select" onchange="gameSetTheme(this.value)">
@@ -3575,38 +3478,14 @@ textarea {
     <div class="game-feedback hidden" id="game-feedback"></div>
   </div>
 
-  <div id="game-break" class="game-screen hidden">
-    <div class="game-break-card">
-      <div class="game-break-icon">⛰️</div>
-      <div class="game-break-title" id="game-break-title">Nghỉ giữa vòng</div>
-      <div class="game-break-copy" id="game-break-copy"></div>
-      <div class="game-break-stats" id="game-break-stats"></div>
-      <div class="game-break-choices">
-        <button type="button" class="game-break-choice" onclick="gameChooseBreakReward('2x')">
-          <b>2X câu kế tiếp</b>
-          <span>Nhân đôi điểm game khi trả lời đúng.</span>
-        </button>
-        <button type="button" class="game-break-choice" onclick="gameChooseBreakReward('freeze')">
-          <b>Freeze</b>
-          <span>Cộng thêm thời gian cho một câu khó.</span>
-        </button>
-        <button type="button" class="game-break-choice" onclick="gameChooseBreakReward('streak_saver')">
-          <b>Streak Saver</b>
-          <span>Giữ chuỗi khi lỡ sai một câu.</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
   <div id="game-result" class="game-screen hidden">
     <div class="game-result-card">
-      <div class="game-result-icon" id="game-result-emoji">🎉</div>
+      <div class="game-result-icon" id="game-result-emoji">Ã°Å¸Å½â€°</div>
       <div class="game-result-score" id="game-result-score">0</div>
-      <div class="game-result-sub" id="game-result-sub">điểm game</div>
+      <div class="game-result-sub" id="game-result-sub">diem game</div>
       <div class="game-result-accuracy" id="game-result-accuracy"></div>
       <div class="game-result-stats" id="game-result-stats"></div>
       <div class="game-report-summary hidden" id="game-report-summary"></div>
-      <div class="game-mastery-report hidden" id="game-mastery-report"></div>
       <div class="game-achievements" id="game-achievements"></div>
       <div class="game-reward-summary" id="game-reward-summary"></div>
       <div class="game-badges" id="game-badges"></div>
@@ -4529,17 +4408,15 @@ let gamePowerupsEnabled = false;
 let gamePowerups = [], gamePowerUpEvents = [], gameHiddenOptions = new Set();
 let gameActiveDoubleScore = false, gameActiveImmunity = false, gameActiveStreakSaver = false, gameSupersonicUntil = 0;
 let gameTheme = 'classic', gameAudioProfile = 'classic', gameAvatarId = 'scholar';
-let gameMasteryEnabled = false, gameMasteryGoalPct = 90, gameMasteryRound = 1, gameMasteryMaxRounds = 4;
-let gameMasteryStats = {}, gameMasteryPendingQueue = [], gameMasteryRepeatedKeys = new Set();
 
 const GAME_POWERUP_DEFS = Object.freeze({
-  '2x': {icon:'2X', name:'2X', desc:'Nhân đôi điểm câu đúng'},
-  'fifty': {icon:'50', name:'50-50', desc:'Ẩn nửa đáp án sai'},
-  'eraser': {icon:'-', name:'Eraser', desc:'Ẩn 1 đáp án sai'},
-  'freeze': {icon:'⏱', name:'Freeze', desc:'Cộng thêm thời gian'},
-  'immunity': {icon:'↺', name:'Immunity', desc:'Sai 1 lần được thử lại'},
-  'streak_saver': {icon:'🔥', name:'Saver', desc:'Giữ chuỗi khi sai'},
-  'supersonic': {icon:'⚡', name:'Sonic', desc:'1.5X trong 20s'}
+  '2x': {icon:'2X', name:'2X', desc:'Nhan doi diem cau dung'},
+  'fifty': {icon:'50', name:'50-50', desc:'An nua dap an sai'},
+  'eraser': {icon:'-', name:'Eraser', desc:'An 1 dap an sai'},
+  'freeze': {icon:'â±', name:'Freeze', desc:'Cong them thoi gian'},
+  'immunity': {icon:'â†º', name:'Immunity', desc:'Sai 1 lan duoc thu lai'},
+  'streak_saver': {icon:'ðŸ”¥', name:'Saver', desc:'Giu chuoi khi sai'},
+  'supersonic': {icon:'âš¡', name:'Sonic', desc:'1.5X trong 20s'}
 });
 const GAME_POWERUP_TYPES = Object.keys(GAME_POWERUP_DEFS);
 
@@ -4572,8 +4449,7 @@ const GAME_ACHIEVEMENTS = Object.freeze([
   {id:'perfect', icon:'🏅', title:'Không sai câu nào', test:function(ctx){return ctx.total > 0 && ctx.correct === ctx.total;}},
   {id:'sharp', icon:'🎯', title:'Chính xác 90%+', test:function(ctx){return ctx.pct >= .9;}},
   {id:'streak5', icon:'🔥', title:'Chuỗi 5+', test:function(ctx){return ctx.bestStreak >= 5;}},
-  {id:'fast', icon:'⚡', title:'Tốc độ tốt', test:function(ctx){return ctx.avgSec < 10 && ctx.pct >= .7;}},
-  {id:'mastery_climb', icon:'⛰️', title:'Mastery Climb', test:function(ctx){return !!ctx.masteryReached;}}
+  {id:'fast', icon:'⚡', title:'Tốc độ tốt', test:function(ctx){return ctx.avgSec < 10 && ctx.pct >= .7;}}
 ]);
 
 function gameSafeGet(key, fallback){
@@ -4718,7 +4594,7 @@ function gameRenderPowerups(){
     return '<button class="game-power-btn" type="button"'+disabled+' onclick="gameUsePowerUp(\''+power.id+'\')" title="'+escapeHtml(def.desc || '')+'">'+
       '<span class="game-power-icon">'+escapeHtml(def.icon || '?')+'</span>'+
       '<span class="game-power-copy"><span class="game-power-name">'+escapeHtml(def.name || power.type)+'</span>'+
-      '<span class="game-power-desc">'+(power.used ? 'Đã dùng' : escapeHtml(def.desc || ''))+'</span></span>'+
+      '<span class="game-power-desc">'+(power.used ? 'Da dung' : escapeHtml(def.desc || ''))+'</span></span>'+
       '</button>';
   }).join('');
 }
@@ -4737,7 +4613,7 @@ function gameRenderPowerStatus(){
     return;
   }
   status.classList.remove('hidden');
-  status.textContent = parts.join(' · ');
+  status.textContent = parts.join(' Â· ');
 }
 
 function gameConsumePower(power, successful, details, scoreMultiplier){
@@ -4873,18 +4749,9 @@ function gameCanAnimate(){
   return !!gameMotionEnabled && typeof anime !== 'undefined' && !gameReduceMotion();
 }
 
-function gameStableQuestionKey(item, fallbackIdx){
-  var raw = item ? JSON.stringify([item[0], item[1], item[2]]) : String(fallbackIdx || 0);
-  var hash = 0;
-  for(var i=0; i<raw.length; i++){
-    hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash).toString(36);
-}
-
 function gameQuestionId(item, fallbackIdx){
   var meta = item && item[5] ? item[5] : {};
-  return meta.id || meta.questionId || (String(deckNum) + '#game-' + gameStableQuestionKey(item, fallbackIdx));
+  return meta.id || meta.questionId || (String(deckNum) + '#game-' + (fallbackIdx + 1));
 }
 
 function gameQuestionMeta(item){
@@ -4920,8 +4787,8 @@ function gameFillSelect(id, values, allLabel){
 }
 
 function gameRenderSetupOptions(){
-  gameFillSelect('game-topic-filter', gameUniqueMetaValues('topic'), 'Tất cả chủ đề');
-  gameFillSelect('game-difficulty-filter', gameUniqueMetaValues('difficulty'), 'Tất cả độ khó');
+  gameFillSelect('game-topic-filter', gameUniqueMetaValues('topic'), 'Tat ca chu de');
+  gameFillSelect('game-difficulty-filter', gameUniqueMetaValues('difficulty'), 'Tat ca do kho');
 }
 
 function gameSetQuestionLimit(limit){
@@ -4931,195 +4798,12 @@ function gameSetQuestionLimit(limit){
   });
 }
 
-function gameSetMasteryEnabled(enabled){
-  gameMasteryEnabled = !!enabled;
-  gameSyncMasteryControls();
-}
-
-function gameSetMasteryGoal(goal){
-  gameMasteryGoalPct = Math.max(50, Math.min(100, +goal || 90));
-  gameSyncMasteryControls();
-}
-
-function gameSyncMasteryControls(){
-  var sw = document.getElementById('sw-game-mastery');
-  if(sw) sw.checked = gameMasteryEnabled;
-  document.querySelectorAll('#seg-game-mastery-goal button').forEach(function(b){
-    b.classList.toggle('on', +b.dataset.v === gameMasteryGoalPct);
-  });
-  var setup = document.getElementById('game-mastery-setup');
-  if(setup) setup.style.opacity = gameMasteryEnabled ? '1' : '.72';
-}
-
-function gameResetMasteryState(){
-  gameMasteryRound = 1;
-  gameMasteryStats = {};
-  gameMasteryPendingQueue = [];
-  gameMasteryRepeatedKeys = new Set();
-}
-
-function gameRecordMasteryAnswer(ok, timedOut, responseMs){
-  if(!gameMasteryEnabled || !gameQuestions.length) return;
-  var item = gameQuestions[gameIdx];
-  var key = gameQuestionId(item, gameIdx);
-  if(!gameMasteryStats[key]){
-    gameMasteryStats[key] = {
-      questionId: key,
-      attempts: 0,
-      correctAttempts: 0,
-      wrongAttempts: 0,
-      firstCorrect: null,
-      lastCorrect: false,
-      lastTimedOut: false,
-      totalResponseMs: 0
-    };
-  }
-  var stat = gameMasteryStats[key];
-  if(stat.attempts > 0) gameMasteryRepeatedKeys.add(key);
-  stat.attempts++;
-  stat.lastCorrect = !!ok;
-  stat.lastTimedOut = !!timedOut;
-  stat.totalResponseMs += responseMs || 0;
-  if(stat.firstCorrect === null) stat.firstCorrect = !!ok;
-  if(ok) stat.correctAttempts++; else stat.wrongAttempts++;
-}
-
-function gameMasterySummary(){
-  if(!gameMasteryEnabled) return null;
-  var keys = Object.keys(gameMasteryStats);
-  var total = keys.length;
-  var latestCorrect = 0;
-  var repeated = 0;
-  var improved = 0;
-  var totalAttempts = 0;
-  keys.forEach(function(key){
-    var stat = gameMasteryStats[key];
-    if(stat.lastCorrect) latestCorrect++;
-    if(stat.attempts > 1) repeated++;
-    if(stat.firstCorrect === false && stat.lastCorrect === true) improved++;
-    totalAttempts += stat.attempts || 0;
-  });
-  var pct = total ? latestCorrect / total : 0;
-  return {
-    total: total,
-    latestCorrect: latestCorrect,
-    pct: pct,
-    pctText: Math.round(pct * 100),
-    goalPct: gameMasteryGoalPct,
-    reached: total > 0 && pct * 100 >= gameMasteryGoalPct,
-    round: gameMasteryRound,
-    maxRounds: gameMasteryMaxRounds,
-    repeated: repeated,
-    improved: improved,
-    averageAttempts: total ? totalAttempts / total : 0
-  };
-}
-
-function gameCurrentRoundWrongQueue(){
-  var seen = {};
-  return gameWrongIndexes.map(function(i){ return gameQuestions[i]; }).filter(function(item, idx){
-    if(!item) return false;
-    var key = gameQuestionId(item, idx);
-    if(seen[key]) return false;
-    seen[key] = true;
-    return true;
-  });
-}
-
-function gameMaybeShowMasteryBreak(){
-  if(!gameMasteryEnabled) return false;
-  var summary = gameMasterySummary();
-  var wrongQueue = gameCurrentRoundWrongQueue();
-  if(!summary || summary.reached || !wrongQueue.length || gameMasteryRound >= gameMasteryMaxRounds) return false;
-  gameShowMasteryBreak(summary, wrongQueue);
-  return true;
-}
-
-function gameShowMasteryBreak(summary, wrongQueue){
-  gameMasteryPendingQueue = wrongQueue.slice();
-  var title = document.getElementById('game-break-title');
-  var copy = document.getElementById('game-break-copy');
-  var stats = document.getElementById('game-break-stats');
-  if(title) title.textContent = 'Vòng ' + gameMasteryRound + ' hoàn tất';
-  if(copy) {
-    copy.textContent = 'Bạn đang đạt ' + summary.pctText + '% mastery. ' +
-      wrongQueue.length + ' câu chưa chắc sẽ quay lại ở vòng tiếp theo. Chọn một phần thưởng nhỏ trước khi leo tiếp.';
-  }
-  if(stats){
-    stats.innerHTML =
-      '<div class="game-break-stat"><b>'+summary.pctText+'%</b><span>Mastery hiện tại</span></div>'+
-      '<div class="game-break-stat"><b>'+summary.goalPct+'%</b><span>Mục tiêu</span></div>'+
-      '<div class="game-break-stat"><b>'+wrongQueue.length+'</b><span>Câu cần ôn lại</span></div>';
-  }
-  gameShowScreen('game-break');
-  window.scrollTo(0,0);
-}
-
-function gameGrantMasteryReward(type){
-  if(!GAME_POWERUP_DEFS[type]) return;
-  gamePowerupsEnabled = true;
-  var sw = document.getElementById('sw-game-powerups');
-  if(sw) sw.checked = true;
-  gamePowerups = gamePowerups.filter(function(p){ return !p.used; });
-  gamePowerups.push({id:'mp-'+Date.now()+'-'+type, type:type, used:false, consumedAt:null});
-  gamePowerUpEvents.push({
-    type: type,
-    action: 'grant',
-    questionId: '',
-    questionIndex: 0,
-    occurredAt: new Date().toISOString(),
-    successful: true,
-    scoreMultiplier: type === '2x' ? 2 : 1,
-    details: 'mastery_break_round_'+gameMasteryRound
-  });
-  gameRenderPowerups();
-}
-
-function gameChooseBreakReward(type){
-  if(!gameMasteryPendingQueue.length){
-    gameShowResults();
-    return;
-  }
-  if(type) gameGrantMasteryReward(type);
-  gameMasteryRound++;
-  gameQuestions = shuffle(gameMasteryPendingQueue.slice());
-  gameMasteryPendingQueue = [];
-  gameIdx = 0;
-  gameWrongIndexes = [];
-  gameAnswered = false;
-  gameHiddenOptions = new Set();
-  gameSelected = new Set();
-  gameShowScreen('game-play');
-  gameShowQuestion();
-}
-
-function gameRenderMasteryReport(summary){
-  var box = document.getElementById('game-mastery-report');
-  if(!box) return;
-  if(!summary){
-    box.classList.add('hidden');
-    box.innerHTML = '';
-    return;
-  }
-  box.classList.remove('hidden');
-  box.innerHTML =
-    '<div class="game-mastery-report-title"><span>Mastery Climb</span><span>'+summary.pctText+'% / '+summary.goalPct+'%</span></div>'+
-    '<div class="game-mastery-report-grid">'+
-      '<div class="game-mastery-report-metric"><b>'+summary.latestCorrect+'/'+summary.total+'</b><span>Câu đã nắm chắc</span></div>'+
-      '<div class="game-mastery-report-metric"><b>'+summary.round+'/'+summary.maxRounds+'</b><span>Vòng leo bậc</span></div>'+
-      '<div class="game-mastery-report-metric"><b>'+summary.repeated+'</b><span>Câu đã lặp lại</span></div>'+
-      '<div class="game-mastery-report-metric"><b>'+summary.improved+'</b><span>Câu cải thiện</span></div>'+
-      '<div class="game-mastery-report-metric"><b>'+summary.averageAttempts.toFixed(1)+'</b><span>Lượt thử TB/câu</span></div>'+
-    '</div>';
-}
-
 function gameApplySetup(){
   var topicEl = document.getElementById('game-topic-filter');
   var diffEl = document.getElementById('game-difficulty-filter');
   var soundEl = document.getElementById('sw-game-sound');
   var motionEl = document.getElementById('sw-game-motion');
   var powerEl = document.getElementById('sw-game-powerups');
-  var masteryEl = document.getElementById('sw-game-mastery');
   var themeEl = document.getElementById('game-theme-select');
   var audioEl = document.getElementById('game-audio-select');
   gameTopicFilter = topicEl ? topicEl.value : '';
@@ -5127,8 +4811,6 @@ function gameApplySetup(){
   gameMuted = soundEl ? !soundEl.checked : gameMuted;
   gameMotionEnabled = motionEl ? motionEl.checked : true;
   gamePowerupsEnabled = powerEl ? powerEl.checked : false;
-  gameMasteryEnabled = masteryEl ? masteryEl.checked : false;
-  gameSyncMasteryControls();
   if(themeEl) gameSetTheme(themeEl.value);
   if(audioEl) gameSetAudioProfile(audioEl.value);
   gameSyncMuteButton();
@@ -5157,7 +4839,6 @@ function gameStoreAnswerRecord(ok, timedOut, scoreDetail, responseMs, streakBefo
   var selected = Array.from(gameSelected).sort(function(a,b){return a-b;});
   gameAnswerRecords.push({
     questionId: gameQuestionId(gameQuestions[gameIdx], gameIdx),
-    masteryRound: gameMasteryEnabled ? gameMasteryRound : 0,
     selected: selected,
     correct: !!ok,
     timeMs: responseMs,
@@ -5180,10 +4861,7 @@ function gameStoreAnswerRecord(ok, timedOut, scoreDetail, responseMs, streakBefo
 function gameSaveAttempt(totalCount, totalTimeSec){
   if(!window.cefQuery || !totalCount) return;
   var averageResponseMs = gameAverageResponseMs();
-  var masterySummary = gameMasterySummary();
-  var academicCorrect = masterySummary ? masterySummary.latestCorrect : gameCorrectCount;
-  var academicTotal = masterySummary ? masterySummary.total : totalCount;
-  var score10 = academicTotal ? +(academicCorrect * 10 / academicTotal).toFixed(2) : 0;
+  var score10 = +(gameCorrectCount * 10 / totalCount).toFixed(2);
   var payload = {
     deckId: String(deckNum),
     mode: 'game',
@@ -5191,14 +4869,12 @@ function gameSaveAttempt(totalCount, totalTimeSec){
     finishedAt: new Date().toISOString(),
     answers: gameAnswerRecords.slice(),
     powerUpEvents: gamePowerUpEvents.slice(),
-    correctCount: academicCorrect,
-    totalCount: academicTotal,
-    gameAnswerCount: gameAnswerRecords.length,
-    gameCorrectAnswerCount: gameCorrectCount,
+    correctCount: gameCorrectCount,
+    totalCount: totalCount,
     score: score10,
     durationSeconds: totalTimeSec,
-    accuracyPoints: academicCorrect,
-    maxAccuracyPoints: academicTotal,
+    accuracyPoints: gameCorrectCount,
+    maxAccuracyPoints: totalCount,
     sessionScore: gameScore,
     bestStreak: gameBestStreak,
     averageResponseMs: averageResponseMs,
@@ -5208,11 +4884,7 @@ function gameSaveAttempt(totalCount, totalTimeSec){
     difficultyFilter: gameDifficultyFilter,
     soundEnabled: !gameMuted,
     motionEnabled: gameMotionEnabled,
-    powerupsEnabled: gamePowerupsEnabled,
-    masteryEnabled: gameMasteryEnabled,
-    masteryGoalPercent: gameMasteryGoalPct,
-    masterySummary: masterySummary,
-    masteryQuestionStats: gameMasteryStats
+    powerupsEnabled: gamePowerupsEnabled
   };
   window.cefQuery({
     request: 'SAVE_ATTEMPT:' + String(deckNum) + '|' + JSON.stringify(payload),
@@ -5233,9 +4905,9 @@ function gameLoadReportSummary(){
         var data = parsed.data;
         box.classList.remove('hidden');
         box.innerHTML =
-          'Báo cáo cục bộ: '+
-          '<b>'+Math.round(data.attemptCount || 0)+'</b> lượt · '+
-          'best game <b>'+Math.round(data.bestSessionScore || 0)+'</b> · '+
+          'Bao cao cuc bo: '+
+          '<b>'+Math.round(data.attemptCount || 0)+'</b> luot Â· '+
+          'best game <b>'+Math.round(data.bestSessionScore || 0)+'</b> Â· '+
           'best accuracy <b>'+Number(data.bestAccuracyPercent || 0).toFixed(1)+'%</b>';
       }catch(e){
         console.warn('GET_ATTEMPT_REPORT parse failed', e);
@@ -5279,7 +4951,7 @@ var gameSnd = {
 function gameSyncMuteButton(){
   var btn = document.getElementById('game-mute-btn');
   var soundEl = document.getElementById('sw-game-sound');
-  if(btn) btn.title = gameMuted ? 'Bật âm thanh' : 'Tắt âm thanh';
+  if(btn) btn.title = gameMuted ? 'Bat am thanh' : 'Tat am thanh';
   if(soundEl) soundEl.checked = !gameMuted;
 }
 function gameToggleMute(){
@@ -5336,11 +5008,10 @@ function startGameMapped(){
   document.getElementById('quiz').classList.add('hidden');
   document.getElementById('flash').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
-  document.getElementById('game-title').textContent = '🎮 ' + (TITLES[deckNum]||'Trò chơi');
+  document.getElementById('game-title').textContent = 'Ã°Å¸Å½Â® ' + (TITLES[deckNum]||'TrÃƒÂ² chÃ†Â¡i');
   gameRenderSetupOptions();
   gameLoadPhase4Prefs();
-  gameSyncMasteryControls();
-  document.getElementById('game-intro-sub').textContent = baseQuiz.length + ' câu hỏi · độ chính xác tách riêng với điểm game';
+  document.getElementById('game-intro-sub').textContent = baseQuiz.length + ' cau hoi Â· accuracy tach rieng voi diem game';
   gameShowScreen('game-intro');
   window.scrollTo(0,0);
 }
@@ -5349,7 +5020,7 @@ function gameSetTime(s){
   document.querySelectorAll('#seg-game-time button').forEach(function(b){b.classList.toggle('on', +b.dataset.v===s);});
 }
 function gameShowScreen(id){
-  ['game-intro','game-countdown','game-play','game-break','game-result'].forEach(function(s){
+  ['game-intro','game-countdown','game-play','game-result'].forEach(function(s){
     document.getElementById(s).classList.toggle('hidden', s!==id);
   });
 }
@@ -5365,7 +5036,6 @@ function gameBeginRound(){
   }
   gameIdx=0; gameScore=0; gameStreak=0; gameBestStreak=0; gameCorrectCount=0;
   gameWrongIndexes = []; gameAnswerRecords = [];
-  gameResetMasteryState();
   gameResetPowerups();
   gameStartedAt = Date.now();
   gameShowScreen('game-countdown');
@@ -5479,7 +5149,6 @@ function gameTimeUp(){
   gameWrongIndexes.push(gameIdx);
   var scoreDetail = gameCalculateScore(false, true, 0, gameTimeLimitMs, streakAfter, powerResult.multiplier);
   gameStoreAnswerRecord(false, true, scoreDetail, responseMs, streakBefore, streakAfter, powerResult.used);
-  gameRecordMasteryAnswer(false, true, responseMs);
   gameRenderPowerups();
   gameRenderPowerStatus();
   gameRevealAndShowFeedback(false, 0, 0, true);
@@ -5548,7 +5217,6 @@ function gameGradeAnswer(){
     gameWrongIndexes.push(gameIdx);
   }
   gameStoreAnswerRecord(ok, false, scoreDetail, responseMs, streakBefore, streakAfter, powerResult.used);
-  gameRecordMasteryAnswer(ok, false, responseMs);
   gameRenderPowerups();
   gameRenderPowerStatus();
   gameRevealAndShowFeedback(ok, pts, streakBonus, false);
@@ -5618,39 +5286,31 @@ function gameRevealAndShowFeedback(ok, pts, streakBonus, isTimeout){
 
 function gameNext(){
   gameIdx++;
-  if(gameIdx>=gameQuestions.length){
-    if(gameMaybeShowMasteryBreak()) return;
-    gameShowResults();
-    return;
-  }
+  if(gameIdx>=gameQuestions.length){ gameShowResults(); return; }
   gameShowQuestion();
 }
 
 function gameShowResults(){
   gameSnd.finish();
   var n=gameQuestions.length;
-  var masterySummary = gameMasterySummary();
-  var academicTotal = masterySummary ? masterySummary.total : n;
-  var academicCorrect = masterySummary ? masterySummary.latestCorrect : gameCorrectCount;
-  var answerCount = gameAnswerRecords.length || n;
-  var pct=academicTotal ? academicCorrect/academicTotal : 0;
+  var pct=gameCorrectCount/n;
   var pctStr=Math.round(pct*100);
   var totalTimeSec=Math.round((Date.now()-gameStartedAt)/1000);
-  var avgTimeSec=answerCount>0?(totalTimeSec/answerCount).toFixed(1):'0';
+  var avgTimeSec=n>0?(totalTimeSec/n).toFixed(1):'0';
   var avgResponseSec=(gameAverageResponseMs()/1000).toFixed(1);
-  var score10=academicTotal?(academicCorrect*10/academicTotal).toFixed(2):'0.00';
+  var score10=(gameCorrectCount*10/n).toFixed(2);
   var usedPowerCount=gamePowerUpEvents.filter(function(e){return e.action === 'use';}).length;
 
   document.getElementById('game-result-score').textContent=gameScore;
-  document.getElementById('game-result-emoji').textContent = pct>=.9?'🏆':pct>=.7?'🎉':pct>=.5?'👍':'💪';
-  document.getElementById('game-result-sub').textContent = 'điểm game';
-  document.getElementById('game-result-accuracy').innerHTML = 'Độ chính xác học thuật: <b>'+pctStr+'%</b> · điểm /10: <b>'+score10+'</b>';
+  document.getElementById('game-result-emoji').textContent = pct>=.9?'ðŸ†':pct>=.7?'ðŸŽ‰':pct>=.5?'ðŸ‘':'ðŸ’ª';
+  document.getElementById('game-result-sub').textContent = 'diem game';
+  document.getElementById('game-result-accuracy').innerHTML = 'Do chinh xac hoc thuat: <b>'+pctStr+'%</b> Â· diem /10: <b>'+score10+'</b>';
   document.getElementById('game-result-stats').innerHTML =
-    '<div><div class="v">'+academicCorrect+'/'+academicTotal+'</div><div class="l">Câu đúng</div></div>'+
-    '<div><div class="v">'+gameBestStreak+'🔥</div><div class="l">Chuỗi cao nhất</div></div>'+
-    '<div><div class="v">'+totalTimeSec+'s</div><div class="l">Thời gian</div></div>'+
-    '<div><div class="v">'+avgTimeSec+'s</div><div class="l">TB/lượt</div></div>'+
-    '<div><div class="v">'+avgResponseSec+'s</div><div class="l">Phản hồi TB</div></div>'+
+    '<div><div class="v">'+gameCorrectCount+'/'+n+'</div><div class="l">CÃ¢u Ä‘Ãºng</div></div>'+
+    '<div><div class="v">'+gameBestStreak+'ðŸ”¥</div><div class="l">Chuá»—i cao nháº¥t</div></div>'+
+    '<div><div class="v">'+totalTimeSec+'s</div><div class="l">Thá»i gian</div></div>'+
+    '<div><div class="v">'+avgTimeSec+'s</div><div class="l">TB/cÃ¢u</div></div>'+
+    '<div><div class="v">'+avgResponseSec+'s</div><div class="l">Phan hoi TB</div></div>'+
     '<div><div class="v">'+usedPowerCount+'</div><div class="l">Power-up</div></div>';
 
   var verdict;
@@ -5660,20 +5320,18 @@ function gameShowResults(){
   else verdict='Cày lại đi bro.';
   document.getElementById('game-result-verdict').textContent=verdict;
   gameRenderRewardSummary({
-    total: academicTotal,
-    correct: academicCorrect,
+    total: n,
+    correct: gameCorrectCount,
     pct: pct,
     bestStreak: gameBestStreak,
     totalSec: totalTimeSec,
     avgSec: parseFloat(avgResponseSec) || 0,
-    usedPowerCount: usedPowerCount,
-    masteryReached: masterySummary ? masterySummary.reached : false
+    usedPowerCount: usedPowerCount
   });
-  gameRenderMasteryReport(masterySummary);
 
   // Retry wrong button
   var retryBtn=document.getElementById('game-retry-wrong-btn');
-  if(gameWrongIndexes.length>0){
+  if(gameWrongIndexes.length>0 && gameWrongIndexes.length<n){
     retryBtn.classList.remove('hidden');
     retryBtn.textContent='🔄 Làm lại '+gameWrongIndexes.length+' câu sai';
   } else {
@@ -5692,10 +5350,10 @@ function gameShowResults(){
   var badgesEl=document.getElementById('game-badges');
   badgesEl.innerHTML=badges.map(function(b){return '<div class="game-badge'+(b.earned?' earned':'')+'"><span class="badge-icon">'+b.icon+'</span>'+b.text+'</div>';}).join('');
 
-  saveBest(deckNum, academicCorrect, academicTotal, score10);
+  saveBest(deckNum, gameCorrectCount, n, score10);
   var reportBox = document.getElementById('game-report-summary');
   if(reportBox) reportBox.classList.add('hidden');
-  gameSaveAttempt(academicTotal, totalTimeSec);
+  gameSaveAttempt(n, totalTimeSec);
 
   gameShowScreen('game-result');
   window.scrollTo(0,0);
@@ -5718,7 +5376,6 @@ function gameRetryWrong(){
   gameQuestions = shuffle(wrongQs);
   gameIdx=0; gameScore=0; gameStreak=0; gameBestStreak=0; gameCorrectCount=0;
   gameWrongIndexes = []; gameAnswerRecords = [];
-  gameResetMasteryState();
   gameResetPowerups();
   gameStartedAt = Date.now();
   gameShowScreen('game-countdown');
