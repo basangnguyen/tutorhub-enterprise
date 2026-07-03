@@ -281,7 +281,7 @@ public class HeaderPanel extends JPanel {
         searchController.registerProvider(new WebSearchProvider());
 
         globalSearchBar.setGlobalDropdownEnabledSupplier(() -> dashboard != null && !dashboard.isCurrentCard("Chat"));
-        globalSearchBar.setDropdownResultsProvider(searchController::executeSearch);
+        globalSearchBar.setDropdownResultsProvider(searchController::executeSearchAsync);
 
         globalSearchBar.addSubmitListener(SearchHistoryStore::addSearch);
     }

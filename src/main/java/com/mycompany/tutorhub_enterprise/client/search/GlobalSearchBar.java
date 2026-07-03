@@ -43,8 +43,8 @@ public class GlobalSearchBar extends JPanel {
     private final List<Consumer<String>>  submitListeners       = new ArrayList<>();
     private final List<Consumer<Boolean>> focusChangeListeners  = new ArrayList<>();
 
-    private Function<SearchQuery, List<SearchResult>> dropdownResultsProvider =
-            query -> Collections.emptyList();
+    private Function<SearchQuery, java.util.concurrent.CompletableFuture<List<SearchResult>>> dropdownResultsProvider =
+            query -> java.util.concurrent.CompletableFuture.completedFuture(Collections.emptyList());
     private BooleanSupplier globalDropdownEnabledSupplier = () -> false;
 
     // State
@@ -131,9 +131,9 @@ public class GlobalSearchBar extends JPanel {
     public JTextField getField()       { return searchField; }
     public JTextField getSearchField() { return searchField; }
 
-    public void setDropdownResultsProvider(Function<SearchQuery, List<SearchResult>> provider) {
+    public void setDropdownResultsProvider(Function<SearchQuery, java.util.concurrent.CompletableFuture<List<SearchResult>>> provider) {
         this.dropdownResultsProvider = provider == null
-                ? query -> Collections.emptyList() : provider;
+                ? query -> java.util.concurrent.CompletableFuture.completedFuture(Collections.emptyList()) : provider;
     }
 
     public void setGlobalDropdownEnabled(boolean enabled) {
@@ -237,6 +237,8 @@ public class GlobalSearchBar extends JPanel {
         debounceTimer.start();
     }
 
+    private java.util.concurrent.CompletableFuture<List<SearchResult>> currentSearchFuture = null;
+
     private void performSearch() {
         if (!isGlobalDropdownEnabled() || !searchField.hasFocus() || !isShowing()) {
             hideDropdown();
@@ -244,7 +246,11 @@ public class GlobalSearchBar extends JPanel {
         }
 
         SearchQuery query = SearchQuery.of(searchField.getText());
-        List<SearchResult> results = dropdownResultsProvider.apply(query);
+        
+        // Hủy request cũ nếu có
+        if (currentSearchFuture != null && !currentSearchFuture.isDone()) {
+            currentSearchFuture.cancel(true);
+        }
 
         // Get screen position right below the pill
         Point screenPt = getLocationOnScreen();
@@ -253,7 +259,25 @@ public class GlobalSearchBar extends JPanel {
 
         SearchDropdownWindow win = getOrCreateDropdown();
         win.setDropdownWidth(PILL_W_EXPANDED);
-        win.updateAndShow(sx, sy, results, query);
+        
+        // Hiển thị trạng thái loading trước
+        win.showLoadingState(sx, sy, query);
+
+        // Gọi provider
+        currentSearchFuture = dropdownResultsProvider.apply(query);
+        currentSearchFuture.thenAccept(results -> {
+            SwingUtilities.invokeLater(() -> {
+                // Kiểm tra xem dropdown có còn đang mở không
+                if (win.isVisible() && searchField.hasFocus()) {
+                    win.updateAndShow(sx, sy, results, query);
+                }
+            });
+        }).exceptionally(ex -> {
+            if (!(ex.getCause() instanceof java.util.concurrent.CancellationException)) {
+                ex.printStackTrace();
+            }
+            return null;
+        });
     }
 
     private void wireMouseListeners(JLabel searchIcon) {

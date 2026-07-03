@@ -26,23 +26,25 @@ public class WebSearchProvider implements SearchProvider {
     }
 
     @Override
-    public List<SearchResult> search(SearchQuery query) {
-        List<SearchResult> results = new ArrayList<>();
-        if (query == null || query.isBlank()) {
+    public java.util.concurrent.CompletableFuture<List<SearchResult>> searchAsync(SearchQuery query) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            List<SearchResult> results = new ArrayList<>();
+            if (query == null || query.isBlank()) {
+                return results;
+            }
+
+            String rawText = query.getRawText();
+            results.add(SearchResult.builder()
+                    .title("Tìm trên Google: " + rawText)
+                    .subtitle("Mở trình duyệt web để tìm kiếm")
+                    .type(SearchResultType.WEB)
+                    .score(-20.0) // Điểm âm để luôn xếp dưới cùng
+                    .iconText("WEB")
+                    .action(() -> openGoogleSearch(rawText))
+                    .build());
+
             return results;
-        }
-
-        String rawText = query.getRawText();
-        results.add(SearchResult.builder()
-                .title("Tìm trên Google: " + rawText)
-                .subtitle("Mở trình duyệt web để tìm kiếm")
-                .type(SearchResultType.WEB)
-                .score(-20.0) // Điểm âm để luôn xếp dưới cùng
-                .iconText("WEB")
-                .action(() -> openGoogleSearch(rawText))
-                .build());
-
-        return results;
+        });
     }
 
     private void openGoogleSearch(String queryText) {

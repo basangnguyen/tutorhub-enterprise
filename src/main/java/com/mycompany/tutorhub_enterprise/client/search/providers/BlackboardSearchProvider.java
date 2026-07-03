@@ -45,46 +45,48 @@ public class BlackboardSearchProvider implements SearchProvider {
     }
 
     @Override
-    public List<SearchResult> search(SearchQuery query) {
-        if (query == null || query.isBlank()) return Collections.emptyList();
+    public java.util.concurrent.CompletableFuture<List<SearchResult>> searchAsync(SearchQuery query) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            if (query == null || query.isBlank()) return Collections.emptyList();
 
-        List<BoardEntry> entries = dataSupplier.get();
-        if (entries == null || entries.isEmpty()) return Collections.emptyList();
+            List<BoardEntry> entries = dataSupplier.get();
+            if (entries == null || entries.isEmpty()) return Collections.emptyList();
 
-        List<SearchResult> results = new ArrayList<>();
-        String normalized = query.getNormalizedText();
+            List<SearchResult> results = new ArrayList<>();
+            String normalized = query.getNormalizedText();
 
-        for (BoardEntry entry : entries) {
-            String haystack = SearchQuery.of(
-                    entry.boardTitle + " " + (entry.ownerName != null ? entry.ownerName : "")
-            ).getNormalizedText();
+            for (BoardEntry entry : entries) {
+                String haystack = SearchQuery.of(
+                        entry.boardTitle + " " + (entry.ownerName != null ? entry.ownerName : "")
+                ).getNormalizedText();
 
-            double score = 0;
-            String titleNorm = SearchQuery.of(entry.boardTitle).getNormalizedText();
+                double score = 0;
+                String titleNorm = SearchQuery.of(entry.boardTitle).getNormalizedText();
 
-            if (titleNorm.equals(normalized)) {
-                score = 90;
-            } else if (titleNorm.startsWith(normalized)) {
-                score = 70;
-            } else if (haystack.contains(normalized)) {
-                score = 50;
+                if (titleNorm.equals(normalized)) {
+                    score = 90;
+                } else if (titleNorm.startsWith(normalized)) {
+                    score = 70;
+                } else if (haystack.contains(normalized)) {
+                    score = 50;
+                }
+
+                if (score > 0) {
+                    String subtitle = entry.ownerName != null && !entry.ownerName.isBlank()
+                            ? entry.ownerName : "Bảng vẽ";
+
+                    results.add(SearchResult.builder()
+                            .title(entry.boardTitle)
+                            .subtitle(subtitle)
+                            .type(SearchResultType.BLACKBOARD)
+                            .score(score)
+                            .iconText("BOARD")
+                            .action(entry.onSelect != null ? entry.onSelect::run : SearchAction.noop())
+                            .build());
+                }
             }
 
-            if (score > 0) {
-                String subtitle = entry.ownerName != null && !entry.ownerName.isBlank()
-                        ? entry.ownerName : "Bảng vẽ";
-
-                results.add(SearchResult.builder()
-                        .title(entry.boardTitle)
-                        .subtitle(subtitle)
-                        .type(SearchResultType.BLACKBOARD)
-                        .score(score)
-                        .iconText("BOARD")
-                        .action(entry.onSelect != null ? entry.onSelect::run : SearchAction.noop())
-                        .build());
-            }
-        }
-
-        return results;
+            return results;
+        });
     }
 }

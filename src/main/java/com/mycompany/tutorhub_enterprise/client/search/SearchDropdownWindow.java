@@ -126,9 +126,40 @@ public class SearchDropdownWindow {
         window.dispose();
     }
 
+    public boolean isVisible() {
+        return window.isVisible();
+    }
+
     // =====================================================================
     // Internal – build content
     // =====================================================================
+
+    public void showLoadingState(int x, int y, SearchQuery query) {
+        contentPanel.removeAll();
+        resultList.clear();
+        rowPanels.clear();
+        selectedIndex = -1;
+        currentQueryRaw = (query != null) ? query.getRawText() : "";
+
+        JPanel skeletonPanel = new JPanel();
+        skeletonPanel.setLayout(new BoxLayout(skeletonPanel, BoxLayout.Y_AXIS));
+        skeletonPanel.setOpaque(false);
+        skeletonPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        JLabel loadingLbl = new JLabel("Đang tìm kiếm...");
+        loadingLbl.setFont(new Font("Segoe UI", Font.ITALIC, 13));
+        loadingLbl.setForeground(new Color(150, 150, 150));
+        
+        skeletonPanel.add(loadingLbl);
+        contentPanel.add(skeletonPanel);
+
+        applySize(70);
+
+        window.setLocation(x, y);
+        if (!window.isVisible()) {
+            window.setVisible(true);
+        }
+    }
 
     private void buildContent(List<SearchResult> results, SearchQuery query) {
         contentPanel.removeAll();

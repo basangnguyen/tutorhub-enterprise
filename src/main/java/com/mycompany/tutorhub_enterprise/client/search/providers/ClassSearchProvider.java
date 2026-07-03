@@ -47,51 +47,52 @@ public class ClassSearchProvider implements SearchProvider {
     }
 
     @Override
-    public List<SearchResult> search(SearchQuery query) {
-        if (query == null || query.isBlank()) return Collections.emptyList();
+    public java.util.concurrent.CompletableFuture<List<SearchResult>> searchAsync(SearchQuery query) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            if (query == null || query.isBlank()) return Collections.emptyList();
 
-        List<ClassEntry> entries = dataSupplier.get();
-        if (entries == null || entries.isEmpty()) return Collections.emptyList();
+            List<ClassEntry> entries = dataSupplier.get();
+            if (entries == null || entries.isEmpty()) return Collections.emptyList();
 
-        List<SearchResult> results = new ArrayList<>();
-        String normalized = query.getNormalizedText();
+            List<SearchResult> results = new ArrayList<>();
+            String normalized = query.getNormalizedText();
 
-        for (ClassEntry entry : entries) {
-            String haystack = SearchQuery.of(
-                    entry.className + " " + (entry.subject != null ? entry.subject : "")
-                    + " " + (entry.teacherName != null ? entry.teacherName : "")
-            ).getNormalizedText();
+            for (ClassEntry entry : entries) {
+                String haystack = SearchQuery.of(
+                        entry.className + " " +
+                        (entry.subject != null ? entry.subject : "") + " " +
+                        (entry.teacherName != null ? entry.teacherName : "")
+                ).getNormalizedText();
 
-            double score = 0;
-            String nameNorm = SearchQuery.of(entry.className).getNormalizedText();
+                double score = 0;
+                String classNameNorm = SearchQuery.of(entry.className).getNormalizedText();
 
-            if (nameNorm.equals(normalized)) {
-                score = 90;
-            } else if (nameNorm.startsWith(normalized)) {
-                score = 70;
-            } else if (haystack.contains(normalized)) {
-                score = 50;
-            }
-
-            if (score > 0) {
-                String subtitle = "";
-                if (entry.subject != null && !entry.subject.isBlank()) subtitle = entry.subject;
-                if (entry.teacherName != null && !entry.teacherName.isBlank()) {
-                    subtitle += (subtitle.isEmpty() ? "" : " • ") + entry.teacherName;
+                if (classNameNorm.equals(normalized)) {
+                    score = 90;
+                } else if (classNameNorm.startsWith(normalized)) {
+                    score = 70;
+                } else if (haystack.contains(normalized)) {
+                    score = 50;
                 }
-                if (subtitle.isEmpty()) subtitle = "Lớp học";
 
-                results.add(SearchResult.builder()
-                        .title(entry.className)
-                        .subtitle(subtitle)
-                        .type(SearchResultType.CLASS)
-                        .score(score)
-                        .iconText("CLS")
-                        .action(entry.onSelect != null ? entry.onSelect::run : SearchAction.noop())
-                        .build());
+                if (score > 0) {
+                    String subtitle = entry.subject;
+                    if (entry.teacherName != null && !entry.teacherName.isBlank()) {
+                        subtitle += " • " + entry.teacherName;
+                    }
+
+                    results.add(SearchResult.builder()
+                            .title(entry.className)
+                            .subtitle(subtitle)
+                            .type(SearchResultType.CLASS)
+                            .score(score)
+                            .iconText("CLS")
+                            .action(entry.onSelect != null ? entry.onSelect::run : SearchAction.noop())
+                            .build());
+                }
             }
-        }
 
-        return results;
+            return results;
+        });
     }
 }

@@ -52,45 +52,49 @@ public class ChatSearchProvider implements SearchProvider {
     }
 
     @Override
-    public List<SearchResult> search(SearchQuery query) {
-        if (query == null || query.isBlank()) return Collections.emptyList();
+    public java.util.concurrent.CompletableFuture<List<SearchResult>> searchAsync(SearchQuery query) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            if (query == null || query.isBlank()) return Collections.emptyList();
 
-        List<ChatEntry> entries = dataSupplier.get();
-        if (entries == null || entries.isEmpty()) return Collections.emptyList();
+            List<ChatEntry> entries = dataSupplier.get();
+            if (entries == null || entries.isEmpty()) return Collections.emptyList();
 
-        List<SearchResult> results = new ArrayList<>();
-        String normalized = query.getNormalizedText();
+            List<SearchResult> results = new ArrayList<>();
+            String normalized = query.getNormalizedText();
 
-        for (ChatEntry entry : entries) {
-            String nameNorm = SearchQuery.of(entry.displayName).getNormalizedText();
-            String msgNorm = entry.lastMessage != null
-                    ? SearchQuery.of(entry.lastMessage).getNormalizedText() : "";
+            for (ChatEntry entry : entries) {
+                // Haystack cho phép tìm kiếm mờ trên cả tên hiển thị và tin nhắn cuối (nếu có)
+                String haystack = SearchQuery.of(
+                        entry.displayName + " " + (entry.lastMessage != null ? entry.lastMessage : "")
+                ).getNormalizedText();
 
-            double score = 0;
-            if (nameNorm.equals(normalized)) {
-                score = 95;  // exact match
-            } else if (nameNorm.startsWith(normalized)) {
-                score = 75;  // prefix match
-            } else if (nameNorm.contains(normalized)) {
-                score = 55;  // contains match
-            } else if (msgNorm.contains(normalized)) {
-                score = 35;  // message contains
+                double score = 0;
+                String nameNorm = SearchQuery.of(entry.displayName).getNormalizedText();
+
+                if (nameNorm.equals(normalized)) {
+                    score = 90; // Trùng khớp hoàn toàn tên
+                } else if (nameNorm.startsWith(normalized)) {
+                    score = 75; // Tiền tố tên
+                } else if (haystack.contains(normalized)) {
+                    score = 50; // Chứa ở đâu đó trong tên hoặc nội dung
+                }
+
+                if (score > 0) {
+                    String subtitle = entry.lastMessage != null && !entry.lastMessage.isBlank()
+                            ? entry.lastMessage : "Tin nhắn";
+
+                    results.add(SearchResult.builder()
+                            .title(entry.displayName)
+                            .subtitle(subtitle)
+                            .type(SearchResultType.CHAT)
+                            .score(score)
+                            .iconText("MSG")
+                            .action(entry.onSelect != null ? entry.onSelect::run : SearchAction.noop())
+                            .build());
+                }
             }
 
-            if (score > 0) {
-                String subtitle = entry.lastMessage != null && !entry.lastMessage.isBlank()
-                        ? entry.lastMessage : "Mở hội thoại";
-                results.add(SearchResult.builder()
-                        .title(entry.displayName)
-                        .subtitle(subtitle)
-                        .type(SearchResultType.CHAT)
-                        .score(score)
-                        .iconText("MSG")
-                        .action(entry.onSelect != null ? entry.onSelect::run : SearchAction.noop())
-                        .build());
-            }
-        }
-
-        return results;
+            return results;
+        });
     }
 }
