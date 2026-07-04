@@ -157,6 +157,16 @@ public class SidebarView extends VBox {
         Label lblStorageTitle = new Label("Dung lượng");
         lblStorageTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
         lblStorageTitle.setTextFill(Color.web(TEXT_MAIN));
+        try {
+            javafx.scene.image.Image cloudImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/cloud.svg", 16);
+            if (cloudImg != null) {
+                javafx.scene.image.ImageView cloudIcon = new javafx.scene.image.ImageView(cloudImg);
+                cloudIcon.setFitWidth(16);
+                cloudIcon.setFitHeight(16);
+                lblStorageTitle.setGraphic(cloudIcon);
+                lblStorageTitle.setGraphicTextGap(6);
+            }
+        } catch (Exception e) {}
 
         pbStorage = new ProgressBar(0);
         pbStorage.setMaxWidth(Double.MAX_VALUE);
