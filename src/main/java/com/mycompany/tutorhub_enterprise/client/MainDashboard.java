@@ -718,24 +718,7 @@ public class MainDashboard extends JFrame {
         JPanel mainArea = new JPanel(new BorderLayout());
         
         headerPanel = new HeaderPanel(this, this.userName);
-        if (!currentStaticUserAvatarBase64.isEmpty() && !currentStaticUserAvatarBase64.equals("NO_AVATAR") && !currentStaticUserAvatarBase64.equals("DEFAULT")) {
-            new Thread(() -> {
-                try {
-                    if (currentStaticUserAvatarBase64.startsWith("http")) {
-                        Image avatarImg = javax.imageio.ImageIO.read(new java.net.URL(currentStaticUserAvatarBase64));
-                        if (avatarImg != null) {
-                            SwingUtilities.invokeLater(() -> headerPanel.updateAvatar(avatarImg));
-                        }
-                    } else {
-                        byte[] decodedBytes = java.util.Base64.getDecoder().decode(currentStaticUserAvatarBase64);
-                        Image avatarImg = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(decodedBytes));
-                        if (avatarImg != null) {
-                            SwingUtilities.invokeLater(() -> headerPanel.updateAvatar(avatarImg));
-                        }
-                    }
-                } catch (Exception ex) { }
-            }).start();
-        }
+
         mainArea.add(headerPanel, BorderLayout.NORTH);
 
         if (headerPanel.getGlobalSearchBar() != null) {
@@ -755,18 +738,7 @@ public class MainDashboard extends JFrame {
         
         homeTab = new HomeTab(); 
         profileTab = new ProfileTab();
-        profileTab.setAvatarUpdateListener(newAvatar -> {
-            if (headerPanel != null) headerPanel.updateAvatar(newAvatar);
-        });
-
-        byte[] cachedAvatar = AvatarCache.loadAvatar(String.valueOf(this.currentUserId));
-        if (cachedAvatar != null) {
-            try {
-                java.awt.Image rawImg = new javax.swing.ImageIcon(cachedAvatar).getImage();
-                if (headerPanel != null) headerPanel.updateAvatar(rawImg);
-                profileTab.updateAvatarFromBase64(java.util.Base64.getEncoder().encodeToString(cachedAvatar));
-            } catch (Exception ex) {}
-        }
+        com.mycompany.tutorhub_enterprise.client.managers.AvatarManager.getInstance().getAvatar(this.currentUserId);
         
         todoTab = new TodoListTab();
         todoTab.setOnBackListener(() -> { if (!menuItems.isEmpty()) { switchTab(menuItems.get(0), "Home"); } });
@@ -1078,13 +1050,8 @@ public class MainDashboard extends JFrame {
                 } else if ("SYNC_TASKS".equals(packet.action)) {
                     if (todoTab != null) todoTab.updateTasksFromServer(packet.payload);
                     if (homeTab != null) homeTab.updateTodoWidget(packet.payload);
-                } else if ("LOAD_AVATAR".equals(packet.action) || "UPDATE_AVATAR_SUCCESS".equals(packet.action)) {
-                    try {
-                        byte[] imageBytes = java.util.Base64.getDecoder().decode(packet.payload);
-                        Image rawImg = new ImageIcon(imageBytes).getImage();
-                        if (headerPanel != null) headerPanel.updateAvatar(rawImg);
-                        if (profileTab != null) profileTab.updateAvatarFromBase64(packet.payload);
-                    } catch (Exception e) {}
+                } else if ("LOAD_AVATAR".equals(packet.action) || "UPDATE_AVATAR_SUCCESS".equals(packet.action) || "LOAD_AVATAR_URL".equals(packet.action) || "UPDATE_AVATAR_URL_SUCCESS".equals(packet.action)) {
+                    com.mycompany.tutorhub_enterprise.client.managers.AvatarManager.getInstance().handlePacket(packet);
                 } 
                 else if ("SEARCH_USER_RESULT".equals(packet.action)) {
                     if (packet.data != null && chatTab != null) {

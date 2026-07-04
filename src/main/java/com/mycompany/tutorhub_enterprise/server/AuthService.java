@@ -43,7 +43,7 @@ public final class AuthService {
         // Generate Server Session (Phase S2)
         com.mycompany.tutorhub_enterprise.models.auth.SessionInfo sessionInfo = SessionService.createSession(userId, "Unknown Device", "Unknown", "1.0");
         if (sessionInfo != null) {
-            session = LoginSession.successWithSession(userId, normalizedEmail, session.getRole(), session.getAvatarBase64(), sessionInfo);
+            session = LoginSession.successWithSession(userId, session.getIdentity(), session.getRole(), session.getAvatarBase64(), sessionInfo);
         }
         
         return session;

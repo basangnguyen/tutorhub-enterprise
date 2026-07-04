@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LavieAiService implements AiAgentService {
 
-    private static final String DEFAULT_STREAM_URL =
+    public static final String DEFAULT_STREAM_URL =
             "https://hocba299-3-tutorhub-ai.hf.space/api/chat/stream";
     private static final Gson GSON = new Gson();
 
@@ -66,10 +66,19 @@ public class LavieAiService implements AiAgentService {
             conn.setDoOutput(true);
 
             JsonObject payload = new JsonObject();
-            payload.addProperty("message", request.getMessage());
+            payload.addProperty("message", AiPromptComposer.compose(request));
+            payload.addProperty("raw_message", request.getMessage());
             payload.addProperty("user_id", request.getUserId());
             payload.addProperty("voice", false);
             payload.addProperty("conversation_id", request.getConversationId());
+            String context = request.getMetadata().get(AiPromptComposer.METADATA_CONTEXT);
+            if (context != null && !context.trim().isEmpty()) {
+                payload.addProperty("context", context);
+            }
+            String longTermMemory = request.getMetadata().get(AiPromptComposer.METADATA_LONG_TERM_MEMORY);
+            if (longTermMemory != null && !longTermMemory.trim().isEmpty()) {
+                payload.addProperty("long_term_memory", longTermMemory);
+            }
 
             byte[] body = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
             try (OutputStream os = conn.getOutputStream()) {

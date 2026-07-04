@@ -91,14 +91,13 @@ public class ProfileTab extends JPanel {
     private JPanel pdfContainer;
     private JScrollPane pdfScrollPane;
 
-    public interface AvatarUpdateListener { void onAvatarUpdated(Image newAvatar); }
-    private AvatarUpdateListener avatarListener;
-    public void setAvatarUpdateListener(AvatarUpdateListener listener) { this.avatarListener = listener; }
+
 
    public ProfileTab() {
         setLayout(new BorderLayout()); 
         setBackground(BG_MAIN);
         
+
         JPanel topArea = new JPanel(new BorderLayout()); 
         topArea.setOpaque(false);
         topArea.add(createHeader(), BorderLayout.NORTH); 
@@ -121,6 +120,13 @@ public class ProfileTab extends JPanel {
         
         switchTab(0);
         setEditMode(false);
+        
+        com.mycompany.tutorhub_enterprise.client.managers.AvatarManager.getInstance().addListener((uid, img) -> {
+            Integer myId = com.mycompany.tutorhub_enterprise.client.auth.ClientSessionManager.getCurrentUserId();
+            if (myId != null && myId.equals(uid)) {
+                updateAvatarFromImage(img);
+            }
+        });
     }
 
     private JPanel createHeader() {
@@ -404,32 +410,14 @@ public class ProfileTab extends JPanel {
         p.setPreferredSize(new Dimension(268, 0)); 
         p.setBorder(new EmptyBorder(25, 20, 20, 20)); 
 
-        // ---- Avatar với ring (JPanel, không dùng JLabel làm container) ----
+        // ---- Avatar với vòng sáng ----
         JPanel avaOuter = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         avaOuter.setOpaque(false);
 
-        JPanel avatarRingPanel = new JPanel(new BorderLayout()) {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(BG_PRIMARY_LIGHT);
-                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
-                g2.setColor(PRIMARY);
-                g2.setStroke(new BasicStroke(2.5f));
-                g2.drawOval(2, 2, getWidth() - 5, getHeight() - 5);
-                g2.dispose();
-            }
-        };
-        avatarRingPanel.setOpaque(false);
-        avatarRingPanel.setPreferredSize(new Dimension(110, 110));
-        avatarRingPanel.setMaximumSize(new Dimension(110, 110));
-
-        bigAvatarLabel = new JLabel();
-        bigAvatarLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        setAvatarNetworkIcon(bigAvatarLabel,
-                "https://img.icons8.com/color/150/circled-user-male-skin-type-4--v1.png", 100);
-        avatarRingPanel.add(bigAvatarLabel, BorderLayout.CENTER);
-        avaOuter.add(avatarRingPanel);
+        bigAvatarLabel = new HiDPIAvatarLabel(110, true);
+        setAvatarNetworkIcon((HiDPIAvatarLabel)bigAvatarLabel,
+                "https://img.icons8.com/color/150/circled-user-male-skin-type-4--v1.png");
+        avaOuter.add(bigAvatarLabel);
 
         p.add(avaOuter);
         p.add(Box.createVerticalStrut(12));
@@ -914,24 +902,8 @@ public class ProfileTab extends JPanel {
                                    + txtPhone.getText() + ";;" + txtAddress.getText() + ";;" + cbLocation.getSelectedItem() + ";;" 
                                    + txtSubject.getText() + ";;" + bioSafe;
                     NetworkManager.getInstance().sendPacket(new Packet("UPDATE_PROFILE", payload));
+
                     NetworkManager.getInstance().sendPacket(new Packet("GET_FULL_PROFILE", ""));
-                    if (pendingAvatarBytes != null) {
-                        String base64Image = java.util.Base64.getEncoder().encodeToString(pendingAvatarBytes);
-                        String avatarUrl = com.mycompany.tutorhub_enterprise.utils.B2Helper.uploadBase64Image(base64Image, ".jpg");
-                        if (avatarUrl != null) {
-                            NetworkManager.getInstance().sendPacket(new Packet("UPDATE_AVATAR_URL", avatarUrl));
-                        } else {
-                            NetworkManager.getInstance().sendPacket(new Packet("UPDATE_AVATAR", base64Image));
-                        }
-                        AvatarCache.saveAvatar(txtEmail.getText(), pendingAvatarBytes);
-                        if (avatarListener != null) {
-                            try {
-                                java.awt.Image newAvatar = new ImageIcon(pendingAvatarBytes).getImage();
-                                avatarListener.onAvatarUpdated(newAvatar);
-                            } catch (Exception ex) {}
-                        }
-                        pendingAvatarBytes = null;
-                    }
                     SwingUtilities.invokeLater(() -> {
                         btnSaveProfile.setText("Lưu thay đổi");
                         lblLeftName.setText(txtName.getText()); lblLeftRole.setText("Gia sư " + txtSubject.getText()); lblLeftLocation.setText(cbLocation.getSelectedItem().toString());
@@ -1114,8 +1086,8 @@ public class ProfileTab extends JPanel {
         // Avatar preview centered with ring
         JPanel avaCenter = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         avaCenter.setOpaque(false);
-        miniAvatarLabel = new JLabel(); 
-        setAvatarNetworkIcon(miniAvatarLabel, "https://img.icons8.com/color/80/circled-user-male-skin-type-4--v1.png", 72); 
+        miniAvatarLabel = new HiDPIAvatarLabel(72, false); 
+        setAvatarNetworkIcon((HiDPIAvatarLabel)miniAvatarLabel, "https://img.icons8.com/color/80/circled-user-male-skin-type-4--v1.png"); 
         avaCenter.add(miniAvatarLabel);
         box1.add(avaCenter);
         box1.add(Box.createVerticalStrut(10));
@@ -1165,11 +1137,8 @@ public class ProfileTab extends JPanel {
             fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Hình ảnh", "jpg", "png", "jpeg")); 
             if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) { 
                 try { 
-                    pendingAvatarBytes = java.nio.file.Files.readAllBytes(fileChooser.getSelectedFile().toPath()); 
-                    pendingRawImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(pendingAvatarBytes)); 
-                    hasCustomAvatar = true; 
-                    bigAvatarLabel.setIcon(getShadowedCircularImageIcon(pendingRawImage, 115)); 
-                    miniAvatarLabel.setIcon(getShadowedCircularImageIcon(pendingRawImage, 64)); 
+                    byte[] bytes = java.nio.file.Files.readAllBytes(fileChooser.getSelectedFile().toPath()); 
+                    com.mycompany.tutorhub_enterprise.client.managers.AvatarManager.getInstance().uploadAvatar(bytes, txtEmail.getText());
                 } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Lỗi đọc file ảnh!"); } 
             } 
         });
@@ -1280,53 +1249,12 @@ public class ProfileTab extends JPanel {
             } catch (Exception ignored) {} 
         }).start(); 
     }
-    
-    private ImageIcon getShadowedCircularImageIcon(Image rawImage, int size) {
-        int padding = 4;
-        int shadowOffset = 2;
-        int totalSize = size + padding * 2 + shadowOffset * 2;
-        BufferedImage buffer = new BufferedImage(totalSize, totalSize, BufferedImage.TYPE_INT_ARGB); 
-        Graphics2D g2 = buffer.createGraphics(); 
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); 
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        
-        int centerX = totalSize / 2;
-        int centerY = totalSize / 2;
-        
-        for (int i = 0; i < padding; i++) {
-            g2.setColor(new Color(0, 0, 0, 8)); 
-            int shadowSize = size + i * 2;
-            g2.fillOval(centerX - shadowSize / 2, centerY - shadowSize / 2 + shadowOffset, shadowSize, shadowSize);
-        }
-        
-        BufferedImage circleImg = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D cg2 = circleImg.createGraphics();
-        cg2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        cg2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        cg2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        cg2.fillOval(0, 0, size, size);
-        cg2.setComposite(AlphaComposite.SrcIn);
-        int imgW = rawImage.getWidth(null); int imgH = rawImage.getHeight(null); 
-        if (imgW > 0 && imgH > 0) { 
-            double scale = Math.max((double) size / imgW, (double) size / imgH); 
-            int drawW = (int) (imgW * scale); int drawH = (int) (imgH * scale); 
-            Image scaledImage = rawImage.getScaledInstance(drawW, drawH, Image.SCALE_SMOOTH);
-            cg2.drawImage(scaledImage, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH, null); 
-        }
-        cg2.dispose();
-        
-        g2.drawImage(circleImg, centerX - size / 2, centerY - size / 2, null);
-        g2.dispose(); 
-        return new ImageIcon(buffer);
-    }
-    
-    private void setAvatarNetworkIcon(JLabel label, String urlStr, int size) { 
+    private void setAvatarNetworkIcon(HiDPIAvatarLabel label, String urlStr) { 
         new Thread(() -> { 
             try { 
                 ImageIcon raw = new ImageIcon(new URL(urlStr)); 
                 SwingUtilities.invokeLater(() -> { 
-                    if (!hasCustomAvatar) label.setIcon(getShadowedCircularImageIcon(raw.getImage(), size)); 
+                    if (!hasCustomAvatar) label.setRawImage(raw.getImage()); 
                 }); 
             } catch (Exception ignored) {} 
         }).start(); 
@@ -1337,8 +1265,17 @@ public class ProfileTab extends JPanel {
             try { 
                 byte[] imageBytes = Base64.getDecoder().decode(base64Image); 
                 Image rawImg = new ImageIcon(imageBytes).getImage(); 
-                if (bigAvatarLabel != null) bigAvatarLabel.setIcon(getShadowedCircularImageIcon(rawImg, 115)); 
-                if (miniAvatarLabel != null) miniAvatarLabel.setIcon(getShadowedCircularImageIcon(rawImg, 64)); 
+                if (bigAvatarLabel != null) ((HiDPIAvatarLabel)bigAvatarLabel).setRawImage(rawImg); 
+                if (miniAvatarLabel != null) ((HiDPIAvatarLabel)miniAvatarLabel).setRawImage(rawImg); 
+            } catch (Exception e) {} 
+        });
+    }
+
+    public void updateAvatarFromImage(Image rawImg) {
+        this.hasCustomAvatar = true; SwingUtilities.invokeLater(() -> { 
+            try { 
+                if (bigAvatarLabel != null) ((HiDPIAvatarLabel)bigAvatarLabel).setRawImage(rawImg); 
+                if (miniAvatarLabel != null) ((HiDPIAvatarLabel)miniAvatarLabel).setRawImage(rawImg); 
             } catch (Exception e) {} 
         });
     }
@@ -1511,27 +1448,7 @@ public class ProfileTab extends JPanel {
                     } catch (Exception ex) { System.err.println("Lỗi render eKYC Back"); }
                 }
 
-                if (data.length > 14 && data[14] != null && !data[14].trim().isEmpty() && !data[14].equals("null")) {
-                    final String avatarUrl = data[14];
-                    new Thread(() -> {
-                        try {
-                            java.net.URL url = new java.net.URL(avatarUrl);
-                            java.awt.Image image = javax.imageio.ImageIO.read(url);
-                            if (image != null) {
-                                SwingUtilities.invokeLater(() -> {
-                                    if (avatarListener != null) {
-                                        avatarListener.onAvatarUpdated(image);
-                                    }
-                                    if (bigAvatarLabel != null) bigAvatarLabel.setIcon(getShadowedCircularImageIcon(image, 115));
-                                    if (miniAvatarLabel != null) miniAvatarLabel.setIcon(getShadowedCircularImageIcon(image, 64));
-                                    hasCustomAvatar = true;
-                                });
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }).start();
-                }
+
                 
                 setEditMode(false);
             } catch (Exception e) { 
@@ -3265,5 +3182,77 @@ public class ProfileTab extends JPanel {
                 JOptionPane.showMessageDialog(this, "Không thể mở chế độ toàn màn hình!");
             }
         });
+    }
+
+    class HiDPIAvatarLabel extends JLabel {
+        private Image rawImage;
+        private int targetSize;
+        private boolean drawRing;
+        
+        public HiDPIAvatarLabel(int size, boolean drawRing) {
+            this.targetSize = size;
+            this.drawRing = drawRing;
+            setPreferredSize(new Dimension(size + 20, size + 20)); // padding for shadow and ring
+            setHorizontalAlignment(SwingConstants.CENTER);
+        }
+        
+        public void setRawImage(Image img) {
+            this.rawImage = img;
+            repaint();
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+            int w = getWidth();
+            int h = getHeight();
+            int x = (w - targetSize) / 2;
+            int y = (h - targetSize) / 2;
+
+            if (drawRing) {
+                // Draw background circle for ring
+                g2.setColor(BG_PRIMARY_LIGHT);
+                g2.fillOval(x - 6, y - 6, targetSize + 12, targetSize + 12);
+                // Draw ring stroke
+                g2.setColor(PRIMARY);
+                g2.setStroke(new BasicStroke(2.5f));
+                g2.drawOval(x - 4, y - 4, targetSize + 8, targetSize + 8);
+            }
+
+            // Draw shadow
+            for (int i = 0; i < 4; i++) {
+                g2.setColor(new Color(0, 0, 0, 8));
+                int shadowSize = targetSize + i * 2;
+                g2.fillOval(x - i, y - i + 2, shadowSize, shadowSize);
+            }
+
+            // Clip & draw image
+            Shape clip = new java.awt.geom.Ellipse2D.Float(x, y, targetSize, targetSize);
+            g2.setClip(clip);
+            
+            if (rawImage != null) {
+                int imgW = rawImage.getWidth(null);
+                int imgH = rawImage.getHeight(null);
+                if (imgW > 0 && imgH > 0) {
+                    double scale = Math.max((double) targetSize / imgW, (double) targetSize / imgH);
+                    int drawW = (int) (imgW * scale);
+                    int drawH = (int) (imgH * scale);
+                    int drawX = x + (targetSize - drawW) / 2;
+                    int drawY = y + (targetSize - drawH) / 2;
+                    g2.drawImage(rawImage, drawX, drawY, drawW, drawH, null);
+                } else {
+                    g2.setColor(Color.WHITE);
+                    g2.fillRect(x, y, targetSize, targetSize);
+                }
+            } else {
+                g2.setColor(Color.WHITE);
+                g2.fillRect(x, y, targetSize, targetSize);
+            }
+            g2.dispose();
+        }
     }
 }

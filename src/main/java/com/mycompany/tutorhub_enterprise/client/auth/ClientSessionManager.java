@@ -26,6 +26,14 @@ public class ClientSessionManager {
         return currentSession != null && currentSession.getAccessToken() != null && !currentSession.getAccessToken().isEmpty();
     }
 
+    public static Integer getCurrentUserId() {
+        return currentUserId;
+    }
+
+    public static String getCurrentRole() {
+        return currentRole;
+    }
+
     public static void clear() {
         currentSession = null;
         currentUserId = null;

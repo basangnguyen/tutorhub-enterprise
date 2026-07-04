@@ -1227,11 +1227,17 @@ public class ClientHandler {
                         if (rs.next()) {
                             String avatarUrl = rs.getString("avatar_url");
                             if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                                java.io.File aFile = new java.io.File(avatarUrl);
-                                if (aFile.exists()) {
-                                    byte[] fileBytes = java.nio.file.Files.readAllBytes(aFile.toPath());
-                                    String b64Image = java.util.Base64.getEncoder().encodeToString(fileBytes);
-                                    sendPacket(new Packet("LOAD_AVATAR", b64Image));
+                                if (avatarUrl.startsWith("http")) {
+                                    // Avatar lưu trên cloud (B2/S3) - gửi URL về client
+                                    sendPacket(new Packet("LOAD_AVATAR_URL", avatarUrl));
+                                } else {
+                                    // Avatar lưu cục bộ trên server
+                                    java.io.File aFile = new java.io.File(avatarUrl);
+                                    if (aFile.exists()) {
+                                        byte[] fileBytes = java.nio.file.Files.readAllBytes(aFile.toPath());
+                                        String b64Image = java.util.Base64.getEncoder().encodeToString(fileBytes);
+                                        sendPacket(new Packet("LOAD_AVATAR", b64Image));
+                                    }
                                 }
                             }
                         }

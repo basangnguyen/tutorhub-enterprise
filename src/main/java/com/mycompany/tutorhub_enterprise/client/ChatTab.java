@@ -930,10 +930,7 @@ public class ChatTab extends JPanel {
         // --- LÁ BÀI 2: KHUNG CHAT THỰC TẾ ---
         activeChatContainer = new JPanel(new BorderLayout());
         activeChatContainer.setBackground(BG_MAIN);
-        aiChatPanel = new AiChatPanel(
-                com.mycompany.tutorhub_enterprise.client.ai.AiAgentServiceFactory.createDefault(),
-                String.valueOf(CURRENT_USER_ID),
-                "lavie-chat");
+        aiChatPanel = new AiChatPanel(String.valueOf(CURRENT_USER_ID), "lavie-chat");
 
         // Nạp 2 lá bài vào hệ thống (gắn tên để dễ gọi)
         centerChatPanel.add(welcomeWrapper, "WELCOME_CARD");

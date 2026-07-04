@@ -129,7 +129,7 @@ public class GlobalSearchBar extends JPanel {
         searchField.putClientProperty("JComponent.focusWidth", 0);
         searchField.putClientProperty("JComponent.innerFocusWidth", 0);
         searchField.setBounds(PILL_X + 34, PILL_Y, 160, PILL_H);
-        searchField.setVisible(false);
+        searchField.setVisible(true);
         add(searchField);
 
         // ── 3. Action Buttons (Mic, Clear) ──────────────────
@@ -140,7 +140,7 @@ public class GlobalSearchBar extends JPanel {
         btnMic.setBounds(PILL_X + 250, btnBY, 28, 28);
         btnClear.setBounds(PILL_X + 282, btnBY, 28, 28);
 
-        btnMic.setVisible(false);
+        btnMic.setVisible(true);
         btnClear.setVisible(false);
 
         add(btnMic);
@@ -153,7 +153,7 @@ public class GlobalSearchBar extends JPanel {
         int thumbW = 120, thumbH = 32;
         thumbnailPane.setBounds(PILL_X + PILL_W_EXPANDED - thumbW - 4,
                                 PILL_Y + (PILL_H - thumbH) / 2, thumbW, thumbH);
-        thumbnailPane.setVisible(false);
+        thumbnailPane.setVisible(true);
         add(thumbnailPane);
 
         // ── 4. Animation engine ──────────────────────────────
@@ -172,6 +172,7 @@ public class GlobalSearchBar extends JPanel {
 
         // ── 8. Global outside-click detection ────────────────
         wireOutsideClickDetection();
+        updateButtonBounds((int)(PILL_W_COLLAPSED + (PILL_W_EXPANDED - PILL_W_COLLAPSED) * expandAlpha));
     }
 
     // =========================================================

@@ -2,9 +2,30 @@ package com.mycompany.tutorhub_enterprise.client.ai;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mycompany.tutorhub_enterprise.client.JcefManager;
+import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentConfig;
+import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentContext;
+import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentLoop;
+import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentTurn;
+import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentsMdLoader;
+import com.mycompany.tutorhub_enterprise.client.ai.command.PendingCommandStore;
+import com.mycompany.tutorhub_enterprise.client.ai.command.CommandSpec;
+import com.mycompany.tutorhub_enterprise.client.ai.patch.PendingPatchStore;
+import com.mycompany.tutorhub_enterprise.client.ai.patch.PatchProposal;
+import com.mycompany.tutorhub_enterprise.client.ai.permission.WorkspaceBoundary;
+import com.mycompany.tutorhub_enterprise.client.ai.permission.AuditLog;
+import com.mycompany.tutorhub_enterprise.client.ai.permission.PermissionPolicy;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.ToolRegistry;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.ToolCallRequest;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.ToolCallResult;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ApplyPatchTool;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.RunCommandTool;
+import com.mycompany.tutorhub_enterprise.client.ai.ui.CommandPreviewView;
+import com.mycompany.tutorhub_enterprise.client.ai.ui.PatchPreviewView;
+import com.mycompany.tutorhub_enterprise.client.ai.ui.ToolCallLogView;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
@@ -13,10 +34,16 @@ import org.cef.handler.CefMessageRouterHandlerAdapter;
 
 import javax.swing.*;
 import java.awt.*;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AiChatPanel extends JPanel {
@@ -29,21 +56,86 @@ public class AiChatPanel extends JPanel {
     private List<String> activeStreamChunks = new ArrayList<>();
     private int activeChunkIndex = 0;
     private AiAgentStreamHandle activeStreamHandle;
-    private final AiAgentService aiService;
+    private volatile AiAgentService aiService;
+    private volatile AiAgentProviderConfig providerConfig;
+    private final ExecutorService providerProbeExecutor;
+    private final ExecutorService agentExecutor;
+    private final AiConversationMemory conversationMemory = new AiConversationMemory();
+    private final AiLongTermMemoryStore longTermMemoryStore;
+    private final PendingPatchStore pendingPatchStore = new PendingPatchStore();
+    private final PendingCommandStore pendingCommandStore = new PendingCommandStore();
+    private final PermissionPolicy permissionPolicy = PermissionPolicy.phase9Defaults();
+    private final AuditLog auditLog = new AuditLog();
     private final String userId;
     private final String conversationId;
+    private volatile boolean agentModeEnabled = false;
+    private volatile String agentWorkspacePath;
+    private volatile Future<?> activeAgentFuture;
 
     public AiChatPanel() {
-        this(AiAgentServiceFactory.createDefault(), "tutorhub_desktop", "lavie");
+        this(AiAgentServiceFactory.loadDefaultConfig(), "tutorhub_desktop", "lavie");
+    }
+
+    public AiChatPanel(String userId, String conversationId) {
+        this(AiAgentServiceFactory.loadDefaultConfig(), userId, conversationId);
     }
 
     public AiChatPanel(AiAgentService aiService, String userId, String conversationId) {
-        this.aiService = aiService == null ? new LavieAiService() : aiService;
+        this.providerConfig = AiAgentServiceFactory.loadDefaultConfig();
+        this.aiService = aiService == null ? AiAgentServiceFactory.create(providerConfig) : aiService;
         this.userId = userId == null || userId.trim().isEmpty() ? "tutorhub_desktop" : userId.trim();
         this.conversationId = conversationId == null || conversationId.trim().isEmpty() ? "lavie" : conversationId.trim();
+        this.longTermMemoryStore = new AiLongTermMemoryStore(this.userId, this.conversationId);
+        this.providerProbeExecutor = createProviderProbeExecutor();
+        this.agentExecutor = createAgentExecutor();
+        this.agentWorkspacePath = defaultAgentWorkspacePath();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
         initBrowser();
+    }
+
+    public AiChatPanel(AiAgentProviderConfig providerConfig, String userId, String conversationId) {
+        this.providerConfig = providerConfig == null ? AiAgentServiceFactory.loadDefaultConfig() : providerConfig;
+        this.aiService = AiAgentServiceFactory.create(this.providerConfig);
+        this.userId = userId == null || userId.trim().isEmpty() ? "tutorhub_desktop" : userId.trim();
+        this.conversationId = conversationId == null || conversationId.trim().isEmpty() ? "lavie" : conversationId.trim();
+        this.longTermMemoryStore = new AiLongTermMemoryStore(this.userId, this.conversationId);
+        this.providerProbeExecutor = createProviderProbeExecutor();
+        this.agentExecutor = createAgentExecutor();
+        this.agentWorkspacePath = defaultAgentWorkspacePath();
+        setLayout(new BorderLayout());
+        setBackground(Color.WHITE);
+        initBrowser();
+    }
+
+    private ExecutorService createProviderProbeExecutor() {
+        return Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "ai-provider-probe");
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+    }
+
+    private ExecutorService createAgentExecutor() {
+        return Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "ai-readonly-agent-loop");
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+    }
+
+    @Override
+    public void removeNotify() {
+        stopStream();
+        providerProbeExecutor.shutdownNow();
+        agentExecutor.shutdownNow();
+        super.removeNotify();
     }
 
     public void focusComposer() {
@@ -98,15 +190,79 @@ public class AiChatPanel extends JPanel {
         switch (type) {
             case "READY":
                 callback.success("{\"ok\":true}");
+                executeAgentJs("applyProviderConfig", buildProviderConfigJson());
+                executeAgentJs("setMemoryState", buildMemoryStateJson());
+                executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+                executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+                executeAgentJs("setStatus", "Sẵn sàng - " + providerConfig.getDisplayName());
+                break;
+            case "GET_CONFIG":
+                callback.success(GSON.toJson(buildProviderConfigJson()));
+                break;
+            case "UPDATE_CONFIG":
+                updateProviderConfig(payload);
+                callback.success(GSON.toJson(buildProviderConfigJson()));
+                break;
+            case "RESET_CONFIG":
+                resetProviderConfig();
+                callback.success(GSON.toJson(buildProviderConfigJson()));
+                break;
+            case "CHECK_PROVIDER":
+                callback.success("{\"ok\":true,\"status\":\"checking\"}");
+                checkProviderConnectionAsync();
+                break;
+            case "CLEAR_MEMORY":
+                clearConversationMemory();
+                callback.success(GSON.toJson(buildMemoryStateJson()));
+                break;
+            case "GET_LONG_TERM_MEMORY":
+                callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
+                break;
+            case "ADD_LONG_TERM_MEMORY":
+                addLongTermMemory(payload);
+                callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
+                break;
+            case "CLEAR_LONG_TERM_MEMORY":
+                clearLongTermMemory();
+                callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
+                break;
+            case "GET_AGENT_MODE":
+                callback.success(GSON.toJson(buildAgentModeStateJson()));
+                break;
+            case "UPDATE_AGENT_MODE":
+                try {
+                    updateAgentMode(payload);
+                    callback.success(GSON.toJson(buildAgentModeStateJson()));
+                } catch (Exception ex) {
+                    callback.failure(-5, "Agent workspace khong hop le: " + ex.getMessage());
+                }
+                break;
+            case "APPLY_PATCH":
+                callback.success(GSON.toJson(applyApprovedPatch(payload)));
+                break;
+            case "REJECT_PATCH":
+                callback.success(GSON.toJson(rejectPatch(payload)));
+                break;
+            case "RUN_COMMAND":
+                String commandId = getString(payload, "commandId").trim();
+                callback.success(GSON.toJson(CommandPreviewView.running(commandId)));
+                runApprovedCommandAsync(commandId);
+                break;
+            case "REJECT_COMMAND":
+                callback.success(GSON.toJson(rejectCommand(payload)));
                 break;
             case "SEND_MESSAGE":
                 String text = getString(payload, "text").trim();
                 if (text.isEmpty()) {
-                    callback.failure(-3, "Tin nhan rong");
+                    callback.failure(-3, "Tin nhắn rỗng");
                     return;
                 }
                 callback.success("{\"ok\":true}");
-                startLavieStream(text);
+                if (getBoolean(payload, "agentMode", agentModeEnabled)) {
+                    startReadOnlyAgent(text);
+                } else {
+                    startAiStream(text);
+                }
                 break;
             case "STOP_STREAM":
                 stopStream();
@@ -127,6 +283,522 @@ public class AiChatPanel extends JPanel {
             return "";
         }
         return obj.get(key).getAsString();
+    }
+
+    private boolean getBoolean(JsonObject obj, String key, boolean defaultValue) {
+        if (obj == null || key == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        try {
+            return obj.get(key).getAsBoolean();
+        } catch (RuntimeException ex) {
+            String raw = getString(obj, key).trim();
+            if (raw.isEmpty()) {
+                return defaultValue;
+            }
+            return "true".equalsIgnoreCase(raw) || "1".equals(raw) || "yes".equalsIgnoreCase(raw);
+        }
+    }
+
+    private JsonObject buildProviderConfigJson() {
+        AiAgentProviderConfig config = providerConfig == null
+                ? AiAgentServiceFactory.loadDefaultConfig()
+                : providerConfig;
+        JsonObject json = new JsonObject();
+        json.addProperty("provider", config.getProvider());
+        json.addProperty("displayName", config.getDisplayName());
+        json.addProperty("providerName", aiService == null ? config.getDisplayName() : aiService.getProviderName());
+        json.addProperty("ollamaBaseUrl", config.getOllamaBaseUrl());
+        json.addProperty("ollamaModel", config.getOllamaModel());
+        json.addProperty("mode", config.isOllama() ? "langchain4j-ollama" : "lavie-hf");
+        return json;
+    }
+
+    private JsonObject buildMemoryStateJson() {
+        JsonObject json = new JsonObject();
+        json.addProperty("messageCount", conversationMemory.size());
+        json.addProperty("hasContext", conversationMemory.size() > 0);
+        return json;
+    }
+
+    private JsonObject buildLongTermMemoryStateJson() {
+        AiLongTermMemoryStore.MemorySnapshot snapshot = longTermMemoryStore.snapshot();
+        JsonObject json = new JsonObject();
+        json.addProperty("count", snapshot.getCount());
+        json.addProperty("hasMemory", snapshot.getCount() > 0);
+        JsonArray items = new JsonArray();
+        for (AiLongTermMemoryStore.MemoryItem item : snapshot.getDisplayItems()) {
+            JsonObject node = new JsonObject();
+            node.addProperty("id", item.getId());
+            node.addProperty("content", item.getContent());
+            node.addProperty("createdAt", item.getCreatedAt());
+            node.addProperty("autoGenerated", item.isAutoGenerated());
+            node.addProperty("source", item.getSource());
+            items.add(node);
+        }
+        json.add("items", items);
+        return json;
+    }
+
+    private JsonObject buildAgentModeStateJson() {
+        JsonObject json = new JsonObject();
+        json.addProperty("enabled", agentModeEnabled);
+        json.addProperty("workspacePath", agentWorkspacePath == null ? "" : agentWorkspacePath);
+        json.addProperty("phase", "9");
+        json.addProperty("mode", "approval-required");
+        json.addProperty("pendingPatchCount", pendingPatchStore.snapshot().size());
+        json.addProperty("pendingCommandCount", pendingCommandStore.snapshot().size());
+        json.addProperty("maxTurns", AgentConfig.defaults().getMaxTurns());
+
+        JsonArray tools = new JsonArray();
+        try {
+            WorkspaceBoundary boundary = WorkspaceBoundary.from(agentWorkspacePath);
+            ToolRegistry registry = ToolRegistry.phase9AgentDefaults(boundary, pendingPatchStore,
+                    pendingCommandStore, longTermMemoryStore);
+            registry.getTools().forEach(tool -> tools.add(tool.name()));
+            AgentsMdLoader.ProjectInstructionSnapshot projectInstructions = AgentsMdLoader.loadForWorkspace(boundary);
+            json.addProperty("validWorkspace", true);
+            json.addProperty("projectInstructionCount", projectInstructions.getCount());
+        } catch (Exception ex) {
+            json.addProperty("validWorkspace", false);
+            json.addProperty("workspaceError", ex.getMessage());
+            tools.add("list_files");
+            tools.add("read_file");
+            tools.add("search_text");
+            tools.add("get_project_info");
+            tools.add("propose_patch");
+            tools.add("git_status");
+            tools.add("propose_command");
+            tools.add("remember_note");
+        }
+        json.add("tools", tools);
+        return json;
+    }
+
+    private void addLongTermMemory(JsonObject payload) {
+        String note = getString(payload, "note");
+        longTermMemoryStore.add(note);
+        executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        executeAgentJs("setProviderCheckResult", "ok", "Đã lưu ghi chú vào bộ nhớ lâu dài.");
+    }
+
+    private void clearLongTermMemory() {
+        longTermMemoryStore.clear();
+        executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        executeAgentJs("setProviderCheckResult", "ok", "Đã xóa bộ nhớ lâu dài.");
+    }
+
+    private void clearConversationMemory() {
+        conversationMemory.clear();
+        executeAgentJs("setMemoryState", buildMemoryStateJson());
+        executeAgentJs("setProviderCheckResult", "ok", "Đã xóa bộ nhớ phiên hội thoại.");
+    }
+
+    private void updateAgentMode(JsonObject payload) throws Exception {
+        boolean enabled = getBoolean(payload, "enabled", agentModeEnabled);
+        String workspace = getString(payload, "workspacePath").trim();
+        if (workspace.isEmpty()) {
+            workspace = agentWorkspacePath;
+        }
+
+        if (enabled) {
+            WorkspaceBoundary.from(workspace);
+        }
+
+        agentModeEnabled = enabled;
+        agentWorkspacePath = normalizeWorkspacePath(workspace);
+        executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+        executeAgentJs("setProviderCheckResult", "ok", enabled
+                ? "Agent Mode đã bật. Agent có thể đề xuất patch/lệnh nhưng phải chờ bạn duyệt."
+                : "Agent Mode đã tắt. Chat quay lại chế độ trò chuyện thường.");
+    }
+
+    private JsonObject applyApprovedPatch(JsonObject payload) {
+        String patchId = getString(payload, "patchId").trim();
+        try {
+            WorkspaceBoundary boundary = WorkspaceBoundary.from(agentWorkspacePath);
+            ApplyPatchTool tool = new ApplyPatchTool(boundary, pendingPatchStore, permissionPolicy, auditLog);
+            ToolCallResult result = tool.execute(ToolCallRequest.of("apply_patch",
+                    java.util.Map.of("patchId", patchId, "approved", "true")));
+            JsonObject json = PatchPreviewView.applyResult(patchId, result);
+            executeAgentJs("updatePatchProposal", json);
+            executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+            return json;
+        } catch (Exception ex) {
+            ToolCallResult result = ToolCallResult.failure(ex.getMessage());
+            JsonObject json = PatchPreviewView.applyResult(patchId, result);
+            executeAgentJs("updatePatchProposal", json);
+            return json;
+        }
+    }
+
+    private JsonObject rejectPatch(JsonObject payload) {
+        String patchId = getString(payload, "patchId").trim();
+        PatchProposal proposal = pendingPatchStore.remove(patchId).orElse(null);
+        auditLog.record("reject_patch", patchId, proposal == null ? "" : proposal.getRelativePath(),
+                "rejected", "Rejected by user");
+        JsonObject json = PatchPreviewView.rejected(proposal);
+        executeAgentJs("updatePatchProposal", json);
+        executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+        return json;
+    }
+
+    private void runApprovedCommandAsync(String commandId) {
+        if (commandId == null || commandId.isBlank()) {
+            executeAgentJs("updateCommandProposal", CommandPreviewView.result("", ToolCallResult.failure("commandId is required")));
+            return;
+        }
+        executeAgentJs("updateCommandProposal", CommandPreviewView.running(commandId));
+        agentExecutor.submit(() -> {
+            JsonObject json;
+            try {
+                WorkspaceBoundary boundary = WorkspaceBoundary.from(agentWorkspacePath);
+                RunCommandTool tool = new RunCommandTool(boundary, pendingCommandStore, permissionPolicy, auditLog);
+                ToolCallResult result = tool.execute(ToolCallRequest.of("run_command",
+                        java.util.Map.of("commandId", commandId, "approved", "true")));
+                json = CommandPreviewView.result(commandId, result);
+            } catch (Exception ex) {
+                json = CommandPreviewView.result(commandId, ToolCallResult.failure(ex.getMessage()));
+            }
+            JsonObject finalJson = json;
+            SwingUtilities.invokeLater(() -> {
+                executeAgentJs("updateCommandProposal", finalJson);
+                executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+            });
+        });
+    }
+
+    private JsonObject rejectCommand(JsonObject payload) {
+        String commandId = getString(payload, "commandId").trim();
+        CommandSpec command = pendingCommandStore.remove(commandId).orElse(null);
+        auditLog.record("reject_command", commandId, command == null ? "" : command.getWorkingDirectory(),
+                "rejected", "Rejected by user");
+        JsonObject json = CommandPreviewView.rejected(command);
+        executeAgentJs("updateCommandProposal", json);
+        executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+        return json;
+    }
+
+    private void updateProviderConfig(JsonObject payload) {
+        AiAgentProviderConfig nextConfig = AiAgentProviderConfig.of(
+                getString(payload, "provider"),
+                getString(payload, "ollamaBaseUrl"),
+                getString(payload, "ollamaModel"));
+        stopStream();
+        providerConfig = nextConfig;
+        AiAgentSettingsStore.save(nextConfig);
+        aiService = AiAgentServiceFactory.create(nextConfig);
+        executeAgentJs("applyProviderConfig", buildProviderConfigJson());
+        executeAgentJs("setStatus", "Sẵn sàng - " + nextConfig.getDisplayName());
+        executeAgentJs("setProviderCheckResult", "ok", "Da luu cau hinh AI provider cho lan mo app sau.");
+        executeAgentJs("showError", "");
+    }
+
+    private void resetProviderConfig() {
+        stopStream();
+        AiAgentSettingsStore.reset();
+        AiAgentProviderConfig defaultConfig = AiAgentProviderConfig.defaults();
+        providerConfig = defaultConfig;
+        aiService = AiAgentServiceFactory.create(defaultConfig);
+        executeAgentJs("applyProviderConfig", buildProviderConfigJson());
+        executeAgentJs("setStatus", "San sang - " + defaultConfig.getDisplayName());
+        executeAgentJs("setProviderCheckResult", "ok", "Da khoi phuc cau hinh AI provider mac dinh.");
+        executeAgentJs("showError", "");
+    }
+
+    private void checkProviderConnectionAsync() {
+        AiAgentProviderConfig config = providerConfig;
+        executeAgentJs("setProviderCheckResult", "checking", "Đang kiểm tra " + config.getDisplayName() + "...");
+        providerProbeExecutor.submit(() -> {
+            ProviderProbeResult result = probeProvider(config);
+            SwingUtilities.invokeLater(() -> {
+                executeAgentJs("setProviderCheckResult", result.status, result.message);
+                executeAgentJs("setStatus", result.ok
+                        ? "Đã kết nối - " + config.getDisplayName()
+                        : "Chưa kết nối - " + config.getDisplayName());
+            });
+        });
+    }
+
+    private ProviderProbeResult probeProvider(AiAgentProviderConfig config) {
+        if (config == null || !config.isOllama()) {
+            return probeHttp(
+                    LavieAiService.DEFAULT_STREAM_URL,
+                    true,
+                    "Lavie server phản hồi. Có thể dùng chế độ Hugging Face.",
+                    "Không kết nối được Lavie server. App vẫn giữ fallback cục bộ.");
+        }
+        return probeHttp(
+                joinUrl(config.getOllamaBaseUrl(), "/api/tags"),
+                false,
+                "Ollama đang chạy. Model hiện chọn: " + config.getOllamaModel() + ".",
+                "Không kết nối được Ollama. Hãy kiểm tra ollama serve và model " + config.getOllamaModel() + ".");
+    }
+
+    private ProviderProbeResult probeHttp(String targetUrl, boolean allowClientError, String okMessage, String failMessage) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(targetUrl).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(4500);
+            conn.setReadTimeout(4500);
+            int status = conn.getResponseCode();
+            boolean ok = status >= 200 && (status < 300 || (allowClientError && status < 500));
+            if (ok) {
+                return ProviderProbeResult.ok(okMessage + " HTTP " + status + ".");
+            }
+            return ProviderProbeResult.fail(failMessage + " HTTP " + status + ".");
+        } catch (Exception ex) {
+            return ProviderProbeResult.fail(failMessage + " " + safeErrorMessage(ex));
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    private String joinUrl(String baseUrl, String path) {
+        String base = baseUrl == null || baseUrl.trim().isEmpty()
+                ? AiAgentProviderConfig.DEFAULT_OLLAMA_BASE_URL
+                : baseUrl.trim();
+        String suffix = path == null ? "" : path.trim();
+        if (base.endsWith("/") && suffix.startsWith("/")) {
+            return base + suffix.substring(1);
+        }
+        if (!base.endsWith("/") && !suffix.startsWith("/")) {
+            return base + "/" + suffix;
+        }
+        return base + suffix;
+    }
+
+    private String defaultAgentWorkspacePath() {
+        return normalizeWorkspacePath(System.getProperty("user.dir", "."));
+    }
+
+    private String normalizeWorkspacePath(String path) {
+        String safe = path == null || path.trim().isEmpty() ? "." : path.trim();
+        try {
+            return Paths.get(safe).toRealPath().toString();
+        } catch (Exception ex) {
+            return Paths.get(safe).toAbsolutePath().normalize().toString();
+        }
+    }
+
+    private String safeErrorMessage(Exception error) {
+        if (error == null || error.getMessage() == null || error.getMessage().trim().isEmpty()) {
+            return "";
+        }
+        return "(" + error.getMessage().trim() + ")";
+    }
+
+    private void rememberCompletedExchange(String userMessage, String assistantMessage) {
+        conversationMemory.rememberUser(userMessage);
+        conversationMemory.rememberAssistant(assistantMessage);
+    }
+
+    private void startReadOnlyAgent(String userMessage) {
+        SwingUtilities.invokeLater(() -> {
+            stopStream();
+            AiAgentService service = aiService;
+            AiAgentProviderConfig config = providerConfig;
+            String workspace = agentWorkspacePath;
+
+            JsonObject meta = new JsonObject();
+            meta.addProperty("startedAt", new Date().getTime());
+            meta.addProperty("mode", "agent-readonly");
+            meta.addProperty("provider", service == null ? "AI Agent" : service.getProviderName());
+            meta.addProperty("workspacePath", workspace);
+            executeAgentJs("startAssistantMessage", meta);
+            executeAgentJs("setStatus", "Agent đang đọc workspace");
+            executeAgentJs("showError", "");
+
+            activeAgentFuture = agentExecutor.submit(() -> runReadOnlyAgent(userMessage, service, config, workspace));
+        });
+    }
+
+    private void runReadOnlyAgent(String userMessage, AiAgentService service,
+                                  AiAgentProviderConfig config, String workspace) {
+        try {
+            WorkspaceBoundary boundary = WorkspaceBoundary.from(workspace);
+            ToolRegistry registry = ToolRegistry.phase9AgentDefaults(boundary, pendingPatchStore,
+                    pendingCommandStore, longTermMemoryStore);
+            AgentsMdLoader.ProjectInstructionSnapshot projectInstructions = AgentsMdLoader.loadForWorkspace(boundary);
+            AiLongTermMemoryStore.MemorySnapshot longTermSnapshot = longTermMemoryStore.snapshot();
+            AgentContext context = AgentContext.builder(registry)
+                    .userId(userId)
+                    .conversationId(conversationId + "-readonly-agent")
+                    .projectInstructions(projectInstructions.getContext())
+                    .conversationContext(conversationMemory.buildContext())
+                    .longTermMemoryContext(longTermSnapshot.getContext())
+                    .build();
+            AgentLoop loop = new AgentLoop(service, AgentConfig.defaults());
+            AgentTurn turn = loop.run(userMessage, context, invocation -> SwingUtilities.invokeLater(() ->
+                    handleAgentToolInvocation(invocation)));
+            String assistantMessage = buildAgentTurnMessage(turn, workspace);
+
+            SwingUtilities.invokeLater(() -> {
+                activeAgentFuture = null;
+                executeAgentJs("appendToolLogs", ToolCallLogView.toJsonArray(turn.getToolInvocations()));
+                executeAgentJs("appendAssistantDelta", assistantMessage);
+                executeAgentJs("finishAssistantMessage");
+                if (turn.isCompleted()) {
+                    rememberCompletedExchange(userMessage, assistantMessage);
+                    executeAgentJs("setMemoryState", buildMemoryStateJson());
+                    executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+                }
+                executeAgentJs("setStatus", "Sẵn sàng - Agent Mode");
+                executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+            });
+        } catch (Exception ex) {
+            SwingUtilities.invokeLater(() -> {
+                activeAgentFuture = null;
+                String message = "Agent Mode chưa thể chạy trên workspace này.\n\n"
+                        + "Lỗi kỹ thuật: " + safeErrorMessage(ex);
+                executeAgentJs("appendAssistantDelta", message);
+                executeAgentJs("finishAssistantMessage");
+                executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
+                executeAgentJs("showError", "Agent Mode lỗi: " + ex.getMessage());
+            });
+        }
+    }
+
+    private void handleAgentToolInvocation(com.mycompany.tutorhub_enterprise.client.ai.agent.AgentToolInvocation invocation) {
+        executeAgentJs("appendToolLog", ToolCallLogView.toJson(invocation));
+        String patchId = invocation.getResult() == null
+                ? ""
+                : invocation.getResult().getMetadata().getOrDefault("patchId", "");
+        if (!patchId.isBlank()) {
+            pendingPatchStore.find(patchId)
+                    .map(PatchPreviewView::proposal)
+                    .ifPresent(json -> executeAgentJs("appendPatchProposal", json));
+        }
+        String commandId = invocation.getResult() == null
+                ? ""
+                : invocation.getResult().getMetadata().getOrDefault("commandId", "");
+        if (!commandId.isBlank()) {
+            pendingCommandStore.find(commandId)
+                    .map(CommandPreviewView::proposal)
+                    .ifPresent(json -> executeAgentJs("appendCommandProposal", json));
+        }
+        if (invocation.getResult() != null
+                && invocation.getResult().getMetadata().containsKey("memoryCount")) {
+            executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        }
+    }
+
+    private String buildAgentTurnMessage(AgentTurn turn, String workspace) {
+        if (turn == null) {
+            return "Agent Mode không trả về kết quả.";
+        }
+        if (turn.isCompleted()) {
+            String answer = turn.getFinalAnswer() == null ? "" : turn.getFinalAnswer().trim();
+            if (!answer.isEmpty()) {
+                return answer;
+            }
+            return "Agent đã hoàn tất đọc workspace `" + workspace + "`, nhưng model không trả về nội dung cuối.";
+        }
+        if (turn.getStatus() == AgentTurn.Status.MAX_TURNS_REACHED) {
+            return "Agent đã dừng vì đạt giới hạn lượt đọc/tìm kiếm an toàn. "
+                    + "Bạn có thể hỏi cụ thể hơn hoặc thu hẹp phạm vi file cần kiểm tra.";
+        }
+        String error = turn.getError() == null || turn.getError().trim().isEmpty()
+                ? "Không có mô tả chi tiết."
+                : turn.getError().trim();
+        return "Agent Mode chưa hoàn tất yêu cầu.\n\nLý do: " + error;
+    }
+
+    private void startAiStream(String userMessage) {
+        SwingUtilities.invokeLater(() -> {
+            stopStream();
+            AiAgentService service = aiService;
+            AiAgentProviderConfig config = providerConfig;
+
+            JsonObject meta = new JsonObject();
+            meta.addProperty("startedAt", new Date().getTime());
+            meta.addProperty("mode", config == null ? "lavie-hf" : config.getProvider());
+            meta.addProperty("provider", service == null ? "AI Agent" : service.getProviderName());
+            executeAgentJs("startAssistantMessage", meta);
+            executeAgentJs("setStatus", "Đang kết nối " + (config == null ? "AI Agent" : config.getDisplayName()));
+
+            AtomicBoolean hasDelta = new AtomicBoolean(false);
+            String context = conversationMemory.buildContext();
+            AiLongTermMemoryStore.MemorySnapshot longTermSnapshot = longTermMemoryStore.snapshot();
+            StringBuilder assistantBuffer = new StringBuilder();
+            AiAgentRequest request = AiAgentRequest.builder()
+                    .message(userMessage)
+                    .userId(userId)
+                    .conversationId(conversationId)
+                    .metadata("provider", service == null ? "" : service.getProviderName())
+                    .metadata("providerKey", config == null ? "" : config.getProvider())
+                    .metadata(AiPromptComposer.METADATA_CONTEXT, context)
+                    .metadata(AiPromptComposer.METADATA_MEMORY_SIZE, String.valueOf(conversationMemory.size()))
+                    .metadata(AiPromptComposer.METADATA_LONG_TERM_MEMORY, longTermSnapshot.getContext())
+                    .metadata(AiPromptComposer.METADATA_LONG_TERM_MEMORY_SIZE, String.valueOf(longTermSnapshot.getCount()))
+                    .build();
+
+            activeStreamHandle = service.streamChat(request, new AiAgentStreamCallback() {
+                @Override
+                public void onDelta(String delta) {
+                    if (delta == null || delta.isEmpty()) {
+                        return;
+                    }
+                    hasDelta.set(true);
+                    assistantBuffer.append(delta);
+                    SwingUtilities.invokeLater(() -> {
+                        executeAgentJs("setStatus", "Đang trả lời");
+                        executeAgentJs("appendAssistantDelta", delta);
+                    });
+                }
+
+                @Override
+                public void onComplete() {
+                    SwingUtilities.invokeLater(() -> {
+                        activeStreamHandle = null;
+                        rememberCompletedExchange(userMessage, assistantBuffer.toString());
+                        executeAgentJs("finishAssistantMessage");
+                        executeAgentJs("setMemoryState", buildMemoryStateJson());
+                        executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
+                    });
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    SwingUtilities.invokeLater(() -> {
+                        activeStreamHandle = null;
+                        String message = hasDelta.get()
+                                ? "\n\n[Kết nối AI bị ngắt. Bạn có thể gửi lại tin nhắn.]"
+                                : buildProviderFallbackResponse(userMessage, config, error);
+                        if (hasDelta.get()) {
+                            rememberCompletedExchange(userMessage, assistantBuffer.toString());
+                            executeAgentJs("setMemoryState", buildMemoryStateJson());
+                        }
+                        executeAgentJs("appendAssistantDelta", message);
+                        executeAgentJs("finishAssistantMessage");
+                        executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
+                        executeAgentJs("showError", "Không kết nối được "
+                                + (config == null ? "AI Agent" : config.getDisplayName())
+                                + ". Đã dùng phản hồi fallback cục bộ.");
+                    });
+                }
+            });
+        });
+    }
+
+    private String buildProviderFallbackResponse(String userMessage, AiAgentProviderConfig config, Exception error) {
+        String clean = userMessage == null ? "" : userMessage.replaceAll("\\s+", " ").trim();
+        String detail = safeErrorMessage(error);
+        if (config != null && config.isOllama()) {
+            return "Mình chưa kết nối được LangChain4j Ollama cho tin nhắn: \"" + clean + "\".\n\n"
+                    + "Kiểm tra nhanh:\n"
+                    + "- Ollama đang chạy tại `" + config.getOllamaBaseUrl() + "`.\n"
+                    + "- Model `" + config.getOllamaModel() + "` đã được pull về máy.\n"
+                    + "- Có thể chạy `ollama serve` và `ollama pull " + config.getOllamaModel() + "` trước khi thử lại.\n\n"
+                    + "Lỗi kỹ thuật: " + (detail.isEmpty() ? "không có mô tả chi tiết." : detail);
+        }
+        return "Mình chưa kết nối được Lavie server cho tin nhắn: \"" + clean + "\".\n\n"
+                + "UI Agent vẫn hoạt động: WebView đã nhận tin nhắn, bridge JSON đã chạy, và fallback cục bộ đã được kích hoạt. "
+                + "Khi Hugging Face Space phản hồi ổn định, nội dung sẽ stream trực tiếp từ Lavie.\n\n"
+                + "Lỗi kỹ thuật: " + (detail.isEmpty() ? "không có mô tả chi tiết." : detail);
     }
 
     private void startMockStream(String userMessage) {
@@ -212,6 +884,10 @@ public class AiChatPanel extends JPanel {
             activeStreamHandle.cancel();
             activeStreamHandle = null;
         }
+        if (activeAgentFuture != null && !activeAgentFuture.isDone()) {
+            activeAgentFuture.cancel(true);
+            activeAgentFuture = null;
+        }
         if (activeMockTimer != null) {
             activeMockTimer.stop();
             activeMockTimer = null;
@@ -273,6 +949,26 @@ public class AiChatPanel extends JPanel {
         }
         js.append("); }");
         browser.executeJavaScript(js.toString(), browser.getURL(), 0);
+    }
+
+    private static final class ProviderProbeResult {
+        private final boolean ok;
+        private final String status;
+        private final String message;
+
+        private ProviderProbeResult(boolean ok, String status, String message) {
+            this.ok = ok;
+            this.status = status;
+            this.message = message;
+        }
+
+        private static ProviderProbeResult ok(String message) {
+            return new ProviderProbeResult(true, "ok", message);
+        }
+
+        private static ProviderProbeResult fail(String message) {
+            return new ProviderProbeResult(false, "error", message);
+        }
     }
 
     private class AiBridgeHandler extends CefMessageRouterHandlerAdapter {

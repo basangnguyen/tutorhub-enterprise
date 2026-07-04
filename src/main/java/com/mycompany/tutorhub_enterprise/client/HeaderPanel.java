@@ -146,6 +146,14 @@ public class HeaderPanel extends JPanel {
         profileWrapper.setBorder(new EmptyBorder(2, 6, 2, 10)); 
 
         avatarPanel = new AvatarPanel();
+        
+        com.mycompany.tutorhub_enterprise.client.managers.AvatarManager.getInstance().addListener((uid, img) -> {
+            Integer myId = com.mycompany.tutorhub_enterprise.client.auth.ClientSessionManager.getCurrentUserId();
+            if (myId != null && myId.equals(uid)) {
+                updateAvatar(img);
+            }
+        });
+
         new Thread(() -> { 
             try { 
                 Image rawImg = javax.imageio.ImageIO.read(new java.net.URL("https://img.icons8.com/color/96/circled-user-male-skin-type-4--v1.png"));
@@ -155,6 +163,14 @@ public class HeaderPanel extends JPanel {
 
         String displayName = userName != null ? userName : "Gia sư";
         if (displayName.contains("@")) displayName = displayName.split("@")[0]; 
+
+        String[] words = displayName.trim().split("\\s+");
+        if (words.length >= 2) {
+            displayName = words[words.length - 2] + " " + words[words.length - 1];
+        } else if (words.length == 1) {
+            displayName = words[0];
+        }
+
         if (displayName.length() > 16) displayName = displayName.substring(0, 14) + "..."; 
 
         JPanel profileInfo = new JPanel(); profileInfo.setLayout(new BoxLayout(profileInfo, BoxLayout.Y_AXIS)); profileInfo.setOpaque(false);
@@ -869,11 +885,9 @@ public class HeaderPanel extends JPanel {
                     int drawH = (int) (imgH * scale);
                     int x = (size - drawW) / 2; 
                     int y = (size - drawH) / 2;
-                    Image scaledImage = avatarImg.getScaledInstance(drawW, drawH, Image.SCALE_SMOOTH);
-                    g2d.drawImage(scaledImage, x, y, drawW, drawH, null);
+                    g2d.drawImage(avatarImg, x, y, drawW, drawH, null);
                 } else {
-                    Image scaledImage = avatarImg.getScaledInstance(size, size, Image.SCALE_SMOOTH);
-                    g2d.drawImage(scaledImage, 0, 0, size, size, null);
+                    g2d.drawImage(avatarImg, 0, 0, size, size, null);
                 }
                 g2d.dispose();
                 g2.drawImage(circleBuffer, 0, 0, null);

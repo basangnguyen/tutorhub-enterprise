@@ -36,7 +36,7 @@ public class LangChain4jAiAgentService implements AiAgentService {
     public AiAgentStreamHandle streamChat(AiAgentRequest request, AiAgentStreamCallback callback) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
         try {
-            model.chat(request.getMessage(), new StreamingChatResponseHandler() {
+            model.chat(AiPromptComposer.compose(request), new StreamingChatResponseHandler() {
                 @Override
                 public void onPartialResponse(String partialResponse) {
                     if (!cancelled.get()) {

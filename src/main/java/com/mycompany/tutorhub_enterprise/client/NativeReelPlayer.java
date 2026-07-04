@@ -585,16 +585,34 @@ public class NativeReelPlayer extends JDialog {
         listContainer.repaint();
     }
     
-    private void setBase64Avatar(JLabel label, String b64, int width, int height) {
-        if (b64 == null || b64.isEmpty() || b64.equals("DEFAULT")) {
+    private void setBase64Avatar(JLabel label, String avatarUrl, int width, int height) {
+        if (avatarUrl == null || avatarUrl.trim().isEmpty() || avatarUrl.equals("DEFAULT") || avatarUrl.equals("null")) {
             label.setIcon(new FlatSVGIcon("images/icon_svg/user.svg", width, height));
             return;
         }
         new Thread(() -> {
             try {
-                byte[] decoded = java.util.Base64.getDecoder().decode(b64);
-                Image img = new ImageIcon(decoded).getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
-                SwingUtilities.invokeLater(() -> label.setIcon(new ImageIcon(img)));
+                Image img = null;
+                if (!avatarUrl.startsWith("http")) {
+                    byte[] decoded = java.util.Base64.getDecoder().decode(avatarUrl);
+                    img = new ImageIcon(decoded).getImage();
+                } else {
+                    String safeUrl = com.mycompany.tutorhub_enterprise.utils.B2Helper.getPresignedUrl(avatarUrl);
+                    java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(safeUrl).openConnection();
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+                    try (java.io.InputStream in = conn.getInputStream()) {
+                        img = javax.imageio.ImageIO.read(in);
+                    }
+                }
+                
+                if (img != null && img.getWidth(null) > 0) {
+                    Image scaledImg = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
+                    SwingUtilities.invokeLater(() -> label.setIcon(new ImageIcon(scaledImg)));
+                } else {
+                    SwingUtilities.invokeLater(() -> label.setIcon(new FlatSVGIcon("images/icon_svg/user.svg", width, height)));
+                }
             } catch (Exception e) {
                 SwingUtilities.invokeLater(() -> label.setIcon(new FlatSVGIcon("images/icon_svg/user.svg", width, height)));
             }

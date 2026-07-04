@@ -73,6 +73,13 @@ public class HomeTab extends JPanel {
 
         initEmptyState();
         requestLocketPosts(); // Load global feed
+        
+        com.mycompany.tutorhub_enterprise.client.managers.AvatarManager.getInstance().addListener((uid, img) -> {
+            Integer myId = com.mycompany.tutorhub_enterprise.client.auth.ClientSessionManager.getCurrentUserId();
+            if (myId != null && myId.equals(uid)) {
+                requestLocketPosts();
+            }
+        });
 
         JPanel mainContent = new JPanel(new BorderLayout(0, 0)); 
         mainContent.setOpaque(false);
@@ -439,8 +446,11 @@ public class HomeTab extends JPanel {
     public void handleLocketPostListSuccess(java.util.List<HomeLocketItem> items) {
         if (items != null) {
             for (HomeLocketItem item : items) {
-                if (item.authorAvatar == null || item.authorAvatar.isEmpty() || "null".equals(item.authorAvatar)) {
+                if (item.authorAvatar == null || item.authorAvatar.isEmpty() || "null".equals(item.authorAvatar) || "DEFAULT".equals(item.authorAvatar)) {
                     item.authorInitials = getInitials(item.authorName);
+                    item.authorAvatar = "";
+                } else {
+                    item.authorAvatar = presignIfB2Url(item.authorAvatar);
                 }
                 item.imageUrl = presignIfB2Url(item.imageUrl);
                 item.thumbnailUrl = presignIfB2Url(item.thumbnailUrl);
@@ -555,6 +565,7 @@ public class HomeTab extends JPanel {
             
             // Presign if necessary
             imageUrl = presignIfB2Url(imageUrl);
+            authorAvatar = presignIfB2Url(authorAvatar);
             
             items.add(new HomeLocketItem(
                     id,
@@ -619,7 +630,7 @@ public class HomeTab extends JPanel {
 
     private String toDataImageUrl(String avatarBase64) {
         String value = safeTrim(avatarBase64);
-        if (value.isEmpty()) {
+        if (value.isEmpty() || "null".equals(value) || "DEFAULT".equals(value)) {
             return "";
         }
         if (value.startsWith("data:") || value.startsWith("http") || value.startsWith("/") || value.startsWith("../")) {
@@ -699,16 +710,17 @@ public class HomeTab extends JPanel {
     }
 
     private String getSubjectImagePath(String subj) {
-        if (subj == null || subj.trim().isEmpty()) return "/images/general/general1.png";
-        String s = subj.toLowerCase(); Random rand = new Random(); int index = rand.nextInt(6) + 1;
-        if (s.contains("ielts")) return "/images/IELTS/IELTS" + index + ".jpg";
-        if (s.contains("anh") || s.contains("toeic") || s.contains("toefl")) return "/images/english/english" + index + ".jpg";
-        if (s.contains("toán") || s.contains("đại số") || s.contains("hình học") || s.contains("giải tích")) return "/images/math/math" + index + ".jpg";
-        if (s.contains("lý") || s.contains("vật lý") || s.contains("cơ học")) return "/images/physics/physics" + index + ".jpg";
-        if (s.contains("hóa")) return "/images/chemistry/chemistry" + index + ".jpg";
-        if (s.contains("văn") || s.contains("ngữ văn") || s.contains("tiếng việt")) return "/images/literature/literature" + index + ".jpg";
-        if (s.contains("tin") || s.contains("lập trình") || s.contains("java") || s.contains("python") || s.contains("it")) return "/images/it/it" + index + ".jpg";
-        return "/images/general/general1.png";
+        if (subj == null || subj.trim().isEmpty()) return "/images/general/bg_1.jpg";
+        String s = subj.toLowerCase(); 
+        Random rand = new Random(); 
+        if (s.contains("ielts")) return "/images/IELTS/bg_" + (rand.nextInt(14) + 1) + ".jpg";
+        if (s.contains("anh") || s.contains("toeic") || s.contains("toefl")) return "/images/english/bg_" + (rand.nextInt(11) + 1) + ".jpg";
+        if (s.contains("toán") || s.contains("đại số") || s.contains("hình học") || s.contains("giải tích")) return "/images/math/bg_" + (rand.nextInt(11) + 1) + ".jpg";
+        if (s.contains("lý") || s.contains("vật lý") || s.contains("cơ học")) return "/images/physics/bg_" + (rand.nextInt(11) + 1) + ".jpg";
+        if (s.contains("hóa")) return "/images/chemistry/bg_" + (rand.nextInt(8) + 1) + ".jpg";
+        if (s.contains("văn") || s.contains("ngữ văn") || s.contains("tiếng việt")) return "/images/literature/bg_" + (rand.nextInt(8) + 1) + ".jpg";
+        if (s.contains("tin") || s.contains("lập trình") || s.contains("java") || s.contains("python") || s.contains("it")) return "/images/it/bg_" + (rand.nextInt(14) + 1) + ".jpg";
+        return "/images/general/bg_" + (rand.nextInt(3) + 1) + ".jpg";
     }
 
     private JPanel createCompactGridCard(ClassModel m) {
