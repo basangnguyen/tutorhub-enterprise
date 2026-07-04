@@ -95,6 +95,7 @@ public class MainContentView extends StackPane {
             "  -fx-border-radius: 12;" +
             "  -fx-border-color: #94A3B8;" +
             "  -fx-border-width: 1.5;" +
+            "  -fx-fixed-cell-size: 48px;" +
             "}" +
             ".table-view .column-header-background {" +
             "  -fx-background-color: #E2E8F0;" +
@@ -118,7 +119,7 @@ public class MainContentView extends StackPane {
             ".table-row-cell {" +
             "  -fx-background-color: #FFFFFF;" +
             "  -fx-border-color: #94A3B8;" +
-            "  -fx-border-width: 0 0 1.5 0;" +
+            "  -fx-border-width: 0 0 1 0;" +
             "  -fx-padding: 0;" +
             "}" +
             ".table-row-cell:hover {" +
@@ -127,7 +128,7 @@ public class MainContentView extends StackPane {
             ".table-row-cell:selected {" +
             "  -fx-background-color: #DBEAFE;" +
             "  -fx-border-color: #94A3B8;" +
-            "  -fx-border-width: 0 0 1.5 0;" +
+            "  -fx-border-width: 0 0 1 0;" +
             "}" +
             ".table-cell {" +
             "  -fx-padding: 12 14;" +
