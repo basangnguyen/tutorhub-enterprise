@@ -90,7 +90,56 @@ public class HeaderToolbarView extends VBox {
             new MenuItem("Tạo bài giảng")
         );
 
-        MenuButton btnUpload = createSecondaryMenuButton("Tải lên");
+        MenuButton btnUpload = new MenuButton("Tải lên");
+        String styleNormal = 
+            "-fx-background-color: #FFFFFF;" +
+            "-fx-border-color: #FCA5A5;" +
+            "-fx-border-radius: 14;" +
+            "-fx-background-radius: 14;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-text-fill: #DC2626;" +
+            "-fx-mark-color: #DC2626;" +
+            "-fx-font-weight: bold;" +
+            "-fx-font-size: 13;" +
+            "-fx-padding: 8 16;" +
+            "-fx-cursor: hand;";
+        String styleHover = 
+            "-fx-background-color: #FEF2F2;" +
+            "-fx-border-color: #F87171;" +
+            "-fx-border-radius: 14;" +
+            "-fx-background-radius: 14;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-text-fill: #DC2626;" +
+            "-fx-mark-color: #DC2626;" +
+            "-fx-font-weight: bold;" +
+            "-fx-font-size: 13;" +
+            "-fx-padding: 8 16;" +
+            "-fx-cursor: hand;";
+        String stylePressed = 
+            "-fx-background-color: #FEE2E2;" +
+            "-fx-border-color: #EF4444;" +
+            "-fx-border-radius: 14;" +
+            "-fx-background-radius: 14;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-text-fill: #DC2626;" +
+            "-fx-mark-color: #DC2626;" +
+            "-fx-font-weight: bold;" +
+            "-fx-font-size: 13;" +
+            "-fx-padding: 8 16;" +
+            "-fx-cursor: hand;";
+
+        btnUpload.setStyle(styleNormal);
+        btnUpload.setOnMouseEntered(e -> btnUpload.setStyle(styleHover));
+        btnUpload.setOnMouseExited(e -> btnUpload.setStyle(styleNormal));
+        btnUpload.setOnMousePressed(e -> btnUpload.setStyle(stylePressed));
+        btnUpload.setOnMouseReleased(e -> {
+            if (btnUpload.isHover()) {
+                btnUpload.setStyle(styleHover);
+            } else {
+                btnUpload.setStyle(styleNormal);
+            }
+        });
+
         javafx.scene.image.Image upImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/arrow-cloud-upload-svgrepo-com.svg", 22);
         if (upImg != null) {
             javafx.scene.image.ImageView uploadIcon = new javafx.scene.image.ImageView(upImg);
