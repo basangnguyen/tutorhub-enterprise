@@ -4,8 +4,19 @@ import com.mycompany.tutorhub_enterprise.models.DriveFileModel;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -16,9 +27,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 /**
- * Màn hình Container tổng cho Drive Tab.
- * Nó kết nối Sidebar, Header, Center Grid và Right Panel lại với nhau.
- * Quản lý kéo thả File và bảng Trạng thái Tải lên (Upload Manager).
+ * Container tổng cho tab Tài liệu.
+ * Kết nối sidebar, toolbar, danh sách tài liệu, preview panel và upload manager.
  */
 public class DriveMainPane extends BorderPane {
     private final DriveViewModel viewModel;
@@ -28,12 +38,12 @@ public class DriveMainPane extends BorderPane {
     private MainContentView mainContentView;
     private RightPreviewPanel rightPreviewPanel;
 
-    // Quản lý upload progress tạm thời
     private VBox uploadManagerPanel;
     private VBox uploadTaskList;
 
     private static final String PRIMARY_BLUE = "#2563EB";
-    private static final String BORDER_COLOR = "#E5E7EB";
+    private static final String BORDER_COLOR = "#DFE6F1";
+    private static final String TEXT_MUTED = "#64748B";
 
     public DriveMainPane(DriveViewModel viewModel) {
         this.viewModel = viewModel;
@@ -41,41 +51,43 @@ public class DriveMainPane extends BorderPane {
     }
 
     private void setupUI() {
-        this.setStyle("-fx-background-color: #F9FAFB;");
+        this.setStyle("-fx-background-color: linear-gradient(to bottom right, #F7F9FE, #EEF3FB);");
 
-        // 1. Sidebar (Left)
         sidebarView = new SidebarView(viewModel);
+        BorderPane.setMargin(sidebarView, new Insets(18, 0, 18, 18));
         this.setLeft(sidebarView);
 
-        // 2. Right Preview Panel
         rightPreviewPanel = new RightPreviewPanel(viewModel, this::previewFile, this::downloadFile);
         rightPreviewPanel.setVisible(false);
         rightPreviewPanel.setManaged(false);
+        BorderPane.setMargin(rightPreviewPanel, new Insets(18, 18, 18, 0));
         this.setRight(rightPreviewPanel);
 
-        // Lắng nghe Selection để ẩn/hiện Right Panel tự động
         viewModel.getSelectedFiles().addListener((javafx.collections.ListChangeListener<DriveFileModel>) c -> {
             Platform.runLater(() -> {
-                if (viewModel.getSelectedFiles().isEmpty()) {
-                    rightPreviewPanel.setVisible(false);
-                    rightPreviewPanel.setManaged(false);
-                } else {
-                    rightPreviewPanel.setVisible(true);
-                    rightPreviewPanel.setManaged(true);
-                }
+                boolean hasSelection = !viewModel.getSelectedFiles().isEmpty();
+                rightPreviewPanel.setVisible(hasSelection);
+                rightPreviewPanel.setManaged(hasSelection);
             });
         });
 
-        // 3. Center Area (Header + Main Content)
         StackPane centerContainer = new StackPane();
         VBox centerContent = new VBox();
-        
-        headerView = new HeaderToolbarView(viewModel, 
-            this::uploadFiles, 
+        centerContent.setStyle(
+            "-fx-background-color: #FFFFFF;" +
+            "-fx-background-radius: 24;" +
+            "-fx-border-color: #E5EBF5;" +
+            "-fx-border-radius: 24;" +
+            "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.07), 22, 0, 0, 8);"
+        );
+
+        headerView = new HeaderToolbarView(
+            viewModel,
+            this::uploadFiles,
             () -> {
-                boolean isVis = rightPreviewPanel.isVisible();
-                rightPreviewPanel.setVisible(!isVis);
-                rightPreviewPanel.setManaged(!isVis);
+                boolean visible = rightPreviewPanel.isVisible();
+                rightPreviewPanel.setVisible(!visible);
+                rightPreviewPanel.setManaged(!visible);
             },
             isGrid -> {
                 if (mainContentView != null) {
@@ -86,38 +98,51 @@ public class DriveMainPane extends BorderPane {
 
         mainContentView = new MainContentView(viewModel, this::previewFile, this::downloadFile);
         VBox.setVgrow(mainContentView, Priority.ALWAYS);
-
         centerContent.getChildren().addAll(headerView, mainContentView);
-        
-        // Popup Quản lý Tải lên (Nằm đè ở góc phải dưới của Center Area)
+
         createUploadProgressPanel();
         StackPane.setAlignment(uploadManagerPanel, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(uploadManagerPanel, new Insets(0, 20, 20, 0));
+        StackPane.setMargin(uploadManagerPanel, new Insets(0, 24, 24, 0));
 
         centerContainer.getChildren().addAll(centerContent, uploadManagerPanel);
-
+        BorderPane.setMargin(centerContainer, new Insets(18, 14, 18, 14));
         this.setCenter(centerContainer);
 
-        // Kéo thả (Drag & Drop)
         setupDragAndDrop(this, centerContainer);
     }
 
     private void setupDragAndDrop(BorderPane pane, StackPane parentStack) {
-        VBox dragOverlay = new VBox(12);
+        VBox dragOverlay = new VBox(14);
         dragOverlay.setAlignment(Pos.CENTER);
-        dragOverlay.setStyle("-fx-background-color: rgba(37,99,235,0.06); -fx-border-color: #2563EB; -fx-border-width: 2; -fx-border-style: dashed; -fx-border-radius: 16; -fx-background-radius: 16;");
+        dragOverlay.setStyle(
+            "-fx-background-color: rgba(248,250,252,0.94);" +
+            "-fx-border-color: #7C3AED;" +
+            "-fx-border-width: 2;" +
+            "-fx-border-style: segments(12, 10);" +
+            "-fx-border-radius: 24;" +
+            "-fx-background-radius: 24;" +
+            "-fx-effect: dropshadow(gaussian, rgba(124,58,237,0.16), 26, 0, 0, 10);"
+        );
         dragOverlay.setVisible(false);
         dragOverlay.setMouseTransparent(true);
-        Label dragIcon = new Label("☁");
-        dragIcon.setFont(Font.font(42));
-        Label dragText = new Label("Thả file vào đây để tải lên");
-        dragText.setFont(Font.font("System", FontWeight.BOLD, 16));
-        dragText.setTextFill(Color.web(PRIMARY_BLUE));
-        Label dragHint = new Label("Hỗ trợ tất cả các định dạng tệp tin");
-        dragHint.setTextFill(Color.web("#6B7280"));
+
+        Label dragIcon = new Label("UPLOAD");
+        dragIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        dragIcon.setTextFill(Color.web(PRIMARY_BLUE));
+        dragIcon.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 999; -fx-padding: 7 14;");
+
+        Label dragText = new Label("Thả tài liệu vào đây để tải lên");
+        dragText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        dragText.setTextFill(Color.web("#111827"));
+
+        Label dragHint = new Label("TutorHub sẽ tự động lưu vào thư mục hiện tại");
+        dragHint.setTextFill(Color.web(TEXT_MUTED));
+        dragHint.setFont(Font.font("Segoe UI", 13));
         dragOverlay.getChildren().addAll(dragIcon, dragText, dragHint);
-        
-        if (parentStack != null) parentStack.getChildren().add(dragOverlay);
+
+        if (parentStack != null) {
+            parentStack.getChildren().add(dragOverlay);
+        }
 
         pane.setOnDragOver(e -> {
             if (e.getDragboard().hasFiles()) {
@@ -127,16 +152,13 @@ public class DriveMainPane extends BorderPane {
             e.consume();
         });
 
-        pane.setOnDragExited(e -> {
-            dragOverlay.setVisible(false);
-        });
+        pane.setOnDragExited(e -> dragOverlay.setVisible(false));
 
         pane.setOnDragDropped(e -> {
             dragOverlay.setVisible(false);
             javafx.scene.input.Dragboard db = e.getDragboard();
             if (db.hasFiles()) {
-                List<File> files = db.getFiles();
-                uploadFiles(files);
+                uploadFiles(db.getFiles());
                 e.setDropCompleted(true);
             } else {
                 e.setDropCompleted(false);
@@ -146,28 +168,36 @@ public class DriveMainPane extends BorderPane {
     }
 
     private void createUploadProgressPanel() {
-        uploadManagerPanel = new VBox(10);
-        uploadManagerPanel.setPadding(new Insets(10));
-        uploadManagerPanel.setStyle("-fx-background-color: white; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 10, 0, 0, 5);");
-        uploadManagerPanel.setMaxSize(350, 400);
+        uploadManagerPanel = new VBox(12);
+        uploadManagerPanel.setPadding(new Insets(14));
+        uploadManagerPanel.setStyle(
+            "-fx-background-color: #FFFFFF;" +
+            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-radius: 18;" +
+            "-fx-background-radius: 18;" +
+            "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.18), 28, 0, 0, 12);"
+        );
+        uploadManagerPanel.setMaxSize(380, 420);
         uploadManagerPanel.setVisible(false);
-        
-        HBox header = new HBox();
+
+        HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
-        Label lblTitle = new Label("Quản lý tải lên");
-        lblTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
-        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-        Button btnClose = new Button("✖");
-        btnClose.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+        Label lblTitle = new Label("Tiến trình tải lên");
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        lblTitle.setTextFill(Color.web("#111827"));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Button btnClose = new Button("×");
+        btnClose.setStyle("-fx-background-color: #F3F4F6; -fx-background-radius: 999; -fx-text-fill: #64748B; -fx-cursor: hand; -fx-padding: 2 8;");
         btnClose.setOnAction(e -> uploadManagerPanel.setVisible(false));
         header.getChildren().addAll(lblTitle, spacer, btnClose);
-        
-        uploadTaskList = new VBox(5);
+
+        uploadTaskList = new VBox(8);
         ScrollPane scroll = new ScrollPane(uploadTaskList);
         scroll.setFitToWidth(true);
-        scroll.setPrefHeight(250);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background: white; -fx-border-color: transparent;");
-        
+        scroll.setPrefHeight(280);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
+
         uploadManagerPanel.getChildren().addAll(header, new Separator(), scroll);
     }
 
@@ -191,17 +221,17 @@ public class DriveMainPane extends BorderPane {
                     if (is != null) {
                         Files.copy(is, destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                         is.close();
-                        new Alert(Alert.AlertType.INFORMATION, "Tải xuống thành công!").showAndWait();
+                        new Alert(Alert.AlertType.INFORMATION, "Tải xuống thành công.").showAndWait();
                     } else {
                         throw new Exception("Cloud download trả về null");
                     }
                 } else {
                     File sourceFile = new File(file.getFileUrl());
                     Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    new Alert(Alert.AlertType.INFORMATION, "Tải xuống thành công!").showAndWait();
+                    new Alert(Alert.AlertType.INFORMATION, "Tải xuống thành công.").showAndWait();
                 }
-            } catch (Exception ex) { 
-                new Alert(Alert.AlertType.ERROR, "Lỗi khi tải xuống: " + ex.getMessage()).showAndWait(); 
+            } catch (Exception ex) {
+                new Alert(Alert.AlertType.ERROR, "Lỗi khi tải xuống: " + ex.getMessage()).showAndWait();
             }
         }
     }
@@ -212,26 +242,30 @@ public class DriveMainPane extends BorderPane {
         for (File file : files) {
             HBox taskRow = new HBox(10);
             taskRow.setAlignment(Pos.CENTER_LEFT);
-            taskRow.setPadding(new Insets(5, 0, 5, 0));
-            
-            VBox infoBox = new VBox(3);
+            taskRow.setPadding(new Insets(8, 4, 8, 4));
+            taskRow.setStyle("-fx-background-color: #F8FAFC; -fx-background-radius: 12;");
+
+            VBox infoBox = new VBox(5);
             Label lblName = new Label(file.getName());
-            lblName.setFont(Font.font(12));
-            lblName.setMaxWidth(200);
+            lblName.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
+            lblName.setMaxWidth(250);
             lblName.setTextOverrun(OverrunStyle.ELLIPSIS);
-            
+
             ProgressBar pb = new ProgressBar(0.0);
-            pb.setPrefWidth(200);
+            pb.setPrefWidth(250);
             pb.setStyle("-fx-accent: " + PRIMARY_BLUE + ";");
-            
-            Label lblStatus = new Label("Đang phân mảnh & tải lên...");
-            lblStatus.setFont(Font.font(10));
-            lblStatus.setTextFill(Color.GRAY);
-            
+
+            Label lblStatus = new Label("Đang chuẩn bị tải lên...");
+            lblStatus.setFont(Font.font("Segoe UI", 10));
+            lblStatus.setTextFill(Color.web(TEXT_MUTED));
+
             infoBox.getChildren().addAll(lblName, pb, lblStatus);
-            Label lblIcon = new Label("⏳");
+            Label lblIcon = new Label("UP");
+            lblIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
+            lblIcon.setTextFill(Color.web(PRIMARY_BLUE));
+            lblIcon.setStyle("-fx-background-color: #DBEAFE; -fx-background-radius: 999; -fx-padding: 5 7;");
             taskRow.getChildren().addAll(lblIcon, infoBox);
-            
+
             uploadTaskList.getChildren().add(0, taskRow);
 
             javafx.beans.property.DoubleProperty progressProp = new javafx.beans.property.SimpleDoubleProperty(0);
@@ -243,11 +277,12 @@ public class DriveMainPane extends BorderPane {
             DriveUploadManager uploadManager = DriveUploadManager.getInstance();
             uploadManager.uploadFileAsync(file, progressProp).thenAccept(fileUrl -> {
                 if (fileUrl != null) {
-                    // DUAL STORAGE: Sao chép dự phòng sang Local (bất đồng bộ)
                     java.util.concurrent.CompletableFuture.runAsync(() -> {
                         try {
                             File uploadDir = new File("drive_uploads");
-                            if (!uploadDir.exists()) uploadDir.mkdirs();
+                            if (!uploadDir.exists()) {
+                                uploadDir.mkdirs();
+                            }
                             File destFile = new File(uploadDir, System.currentTimeMillis() + "_" + file.getName());
                             java.nio.file.Files.copy(file.toPath(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                         } catch (Exception e) {
@@ -258,7 +293,9 @@ public class DriveMainPane extends BorderPane {
                     String fileName = file.getName();
                     String ext = "";
                     int dotIdx = fileName.lastIndexOf('.');
-                    if (dotIdx > 0) ext = fileName.substring(dotIdx + 1);
+                    if (dotIdx > 0) {
+                        ext = fileName.substring(dotIdx + 1);
+                    }
 
                     DriveFileModel newFile = new DriveFileModel();
                     newFile.setName(fileName);
@@ -269,15 +306,14 @@ public class DriveMainPane extends BorderPane {
                     newFile.setSourceLocation("B2_AND_LOCAL");
                     newFile.setParentId(viewModel.currentFolderIdProperty().get());
                     newFile.setStatus("active");
-                    
+
                     viewModel.getDriveService().insertFile(newFile).thenAccept(success -> {
                         Platform.runLater(() -> {
-                            lblStatus.setText("Đã hoàn tất (B2 + Local)");
+                            lblStatus.setText("Đã hoàn tất");
                             pb.setProgress(1.0);
-                            lblIcon.setText("✅");
+                            lblIcon.setText("OK");
                             viewModel.loadFiles();
-                            
-                            // [PHASE 4: REAL-TIME SYNC] Phát sóng cho các máy khác cập nhật
+
                             try {
                                 com.mycompany.tutorhub_enterprise.client.NetworkManager.getInstance().sendPacket(
                                     new com.mycompany.tutorhub_enterprise.models.Packet("BROADCAST", "SYNC_DRIVE_UPDATE")
@@ -289,10 +325,10 @@ public class DriveMainPane extends BorderPane {
                     });
                 } else {
                     Platform.runLater(() -> {
-                        lblStatus.setText("Lỗi mạng, vui lòng thử lại!");
+                        lblStatus.setText("Lỗi mạng, vui lòng thử lại.");
                         lblStatus.setTextFill(Color.RED);
-                        pb.setStyle("-fx-accent: red;");
-                        lblIcon.setText("❌");
+                        pb.setStyle("-fx-accent: #EF4444;");
+                        lblIcon.setText("ERR");
                     });
                 }
             });

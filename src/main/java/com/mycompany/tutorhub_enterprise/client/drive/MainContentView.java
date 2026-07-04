@@ -1,27 +1,43 @@
 package com.mycompany.tutorhub_enterprise.client.drive;
 
 import com.mycompany.tutorhub_enterprise.client.DriveSvgIcons;
-
 import com.mycompany.tutorhub_enterprise.models.DriveFileModel;
 import com.mycompany.tutorhub_enterprise.utils.DriveFormatUtils;
 import com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.shape.SVGPath;
-import javafx.collections.ListChangeListener;
-import javafx.scene.control.cell.PropertyValueFactory;
+
 import java.util.function.Consumer;
 
 /**
- * Thành phần giao diện vùng chính hiển thị các file/thư mục.
- * Hỗ trợ chuyển đổi giữa chế độ Grid (Lưới) và Table (Danh sách).
- * Xử lý Drag & Drop, Select, Multi-select và Menu Chuột Phải.
+ * Vùng nội dung chính hiển thị tài liệu theo dạng lưới hoặc danh sách.
  */
 public class MainContentView extends StackPane {
     private final DriveViewModel viewModel;
@@ -36,14 +52,14 @@ public class MainContentView extends StackPane {
     private ProgressIndicator loadingSpinner;
     private VBox loadingBox;
 
-    private static final String TEXT_MUTED = "#6B7280";
-    private static final String TEXT_MAIN = "#1F2937";
+    private static final String TEXT_MUTED = "#64748B";
+    private static final String TEXT_MAIN = "#111827";
     private static final String PRIMARY_BLUE = "#2563EB";
-    private static final String BORDER_COLOR = "#E5E7EB";
-    private static final String PRIMARY_BG = "#EFF6FF";
+    private static final String BORDER_COLOR = "#E5EBF5";
+    private static final String PRIMARY_BG = "#EEF2FF";
     private static final String BG_WHITE = "#FFFFFF";
 
-    public MainContentView(DriveViewModel viewModel, 
+    public MainContentView(DriveViewModel viewModel,
                            Consumer<DriveFileModel> previewFileAction,
                            Consumer<DriveFileModel> contextMenuDownloadAction) {
         this.viewModel = viewModel;
@@ -55,24 +71,58 @@ public class MainContentView extends StackPane {
     }
 
     private void setupUI() {
-        // --- 1. Chế độ lưới (Grid) ---
+        this.setStyle("-fx-background-color: transparent;");
+
         mainGrid = new FlowPane();
-        mainGrid.setHgap(20);
-        mainGrid.setVgap(20);
-        mainGrid.setPadding(new Insets(20));
+        mainGrid.setHgap(18);
+        mainGrid.setVgap(18);
+        mainGrid.setPadding(new Insets(22, 26, 26, 26));
 
         gridScroll = new ScrollPane(mainGrid);
         gridScroll.setFitToWidth(true);
-        gridScroll.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+        gridScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        gridScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
 
-        // --- 2. Chế độ danh sách (Table) ---
         listTable = new TableView<>();
-        listTable.setStyle("-fx-background-color: white; -fx-border-color: transparent;");
+        listTable.setStyle("-fx-background-color: #FFFFFF; -fx-border-color: transparent;");
         listTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        listTable.getStyleClass().add("drive-table");
 
-        TableColumn<DriveFileModel, String> colName = new TableColumn<>("Tên");
+        TableColumn<DriveFileModel, String> colName = new TableColumn<>("Tên tài liệu");
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
-        
+        colName.setCellFactory(col -> new TableCell<DriveFileModel, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    DriveFileModel file = getTableRow().getItem();
+                    if (file != null) {
+                        HBox box = new HBox(12);
+                        box.setAlignment(Pos.CENTER_LEFT);
+                        javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView();
+                        try {
+                            java.net.URL url = getClass().getResource(getIconUrl(file.getFileType()));
+                            if (url != null) icon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+                        } catch (Exception e) {}
+                        icon.setFitWidth(24);
+                        icon.setFitHeight(24);
+                        Label lbl = new Label(item);
+                        lbl.setFont(Font.font("System", FontWeight.SEMI_BOLD, 13));
+                        lbl.setTextFill(Color.web(TEXT_MAIN));
+                        box.getChildren().addAll(icon, lbl);
+                        setGraphic(box);
+                        setText(null);
+                    } else {
+                        setText(item);
+                        setGraphic(null);
+                    }
+                }
+            }
+        });
+
         TableColumn<DriveFileModel, String> colType = new TableColumn<>("Loại");
         colType.setCellValueFactory(new PropertyValueFactory<>("fileType"));
 
@@ -82,74 +132,58 @@ public class MainContentView extends StackPane {
             @Override
             protected void updateItem(Long item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(item > 0 ? DriveFormatUtils.formatFileSize(item) : "-");
-                }
+                setText(empty || item == null ? null : (item > 0 ? DriveFormatUtils.formatFileSize(item) : "-"));
             }
         });
 
         listTable.getColumns().addAll(colName, colType, colSize);
         listTable.setVisible(false);
         listTable.setManaged(false);
-        
-        // Hỗ trợ chọn file trong TableView
+
         listTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
-                viewModel.selectFile(newVal, false); // Chọn đơn lẻ trên Table
+                viewModel.selectFile(newVal, false);
             }
         });
-        
+
         listTable.setRowFactory(tv -> {
             TableRow<DriveFileModel> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
                     DriveFileModel rowData = row.getItem();
-                    if (rowData.getFileType().equalsIgnoreCase("folder")) {
+                    if ("folder".equalsIgnoreCase(rowData.getFileType())) {
                         viewModel.openFolder(rowData);
-                    } else {
-                        if (previewFileAction != null) previewFileAction.accept(rowData);
+                    } else if (previewFileAction != null) {
+                        previewFileAction.accept(rowData);
                     }
                 }
             });
             return row;
         });
 
-        // --- 3. Vòng tròn tải (Loading Indicator) ---
         loadingSpinner = new ProgressIndicator();
-        loadingSpinner.setMaxSize(48, 48);
+        loadingSpinner.setMaxSize(44, 44);
         loadingSpinner.setStyle("-fx-accent: " + PRIMARY_BLUE + ";");
-        loadingBox = new VBox(12, loadingSpinner, new Label("Đang tải dữ liệu..."));
+        Label loadingLabel = new Label("Đang tải tài liệu...");
+        loadingLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        loadingLabel.setTextFill(Color.web(TEXT_MUTED));
+        loadingBox = new VBox(12, loadingSpinner, loadingLabel);
         loadingBox.setAlignment(Pos.CENTER);
         loadingBox.setPadding(new Insets(80));
-        ((Label) loadingBox.getChildren().get(1)).setTextFill(Color.web(TEXT_MUTED));
         loadingBox.setVisible(false);
 
-        // Chồng tất cả vào StackPane
         this.getChildren().addAll(gridScroll, listTable, loadingBox);
     }
 
-    /**
-     * Bật tắt giao diện theo ViewMode được truyền vào từ HeaderToolbar
-     */
     public void setGridView(boolean isGrid) {
         this.isGridView = isGrid;
-        if (isGrid) {
-            gridScroll.setVisible(true);
-            gridScroll.setManaged(true);
-            listTable.setVisible(false);
-            listTable.setManaged(false);
-        } else {
-            gridScroll.setVisible(false);
-            gridScroll.setManaged(false);
-            listTable.setVisible(true);
-            listTable.setManaged(true);
-        }
+        gridScroll.setVisible(isGrid);
+        gridScroll.setManaged(isGrid);
+        listTable.setVisible(!isGrid);
+        listTable.setManaged(!isGrid);
     }
 
     private void bindViewModel() {
-        // Lắng nghe trạng thái đang load của ViewModel để hiện vòng quay
         viewModel.isLoadingProperty().addListener((obs, oldVal, isLoading) -> {
             Platform.runLater(() -> {
                 if (isLoading) {
@@ -162,182 +196,219 @@ public class MainContentView extends StackPane {
             });
         });
 
-        // Khi ViewModel cập nhật dữ liệu, vẽ lại màn hình
-        viewModel.getFiles().addListener((ListChangeListener<DriveFileModel>) c -> {
-            Platform.runLater(this::renderFiles);
-        });
-
-        // Khi danh sách File đang chọn (Selected) thay đổi, cập nhật màu viền
-        viewModel.getSelectedFileIds().addListener((javafx.collections.SetChangeListener<Integer>) c -> {
-            Platform.runLater(this::updateCardStyles);
-        });
+        viewModel.getFiles().addListener((ListChangeListener<DriveFileModel>) c -> Platform.runLater(this::renderFiles));
+        viewModel.getSelectedFileIds().addListener((javafx.collections.SetChangeListener<Integer>) c -> Platform.runLater(this::updateCardStyles));
     }
 
-    /**
-     * Hàm render toàn bộ File từ ViewModel ra Grid và List Table
-     */
     private void renderFiles() {
         mainGrid.getChildren().clear();
         listTable.getItems().clear();
-        
+
         if (viewModel.getFiles().isEmpty()) {
-            VBox emptyState = new VBox(12);
-            emptyState.setAlignment(Pos.CENTER);
-            emptyState.setPadding(new Insets(60));
-            
-            String viewMode = viewModel.currentViewModeProperty().get();
-            javafx.scene.Node emptyIconNode;
-            if ("trash".equals(viewMode)) {
-                emptyIconNode = DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.TRASH, 56, "#94A3B8");
-            } else if ("starred".equals(viewMode)) {
-                emptyIconNode = DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.STARRED, 56, "#FFB300");
-            } else {
-                emptyIconNode = DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.FOLDER_OPEN, 64, TEXT_MUTED);
-            }
+            mainGrid.getChildren().add(createEmptyState());
+            return;
+        }
 
-            Label emptyText = new Label();
-            if ("trash".equals(viewMode)) emptyText.setText("Thùng rác trống");
-            else if ("starred".equals(viewMode)) emptyText.setText("Chưa có mục nào được gắn dấu sao");
-            else emptyText.setText("Thư mục trống");
-            emptyText.setFont(Font.font("System", FontWeight.SEMI_BOLD, 16));
-            emptyText.setTextFill(Color.web(TEXT_MUTED));
+        for (int i = 0; i < viewModel.getFiles().size(); i++) {
+            DriveFileModel file = viewModel.getFiles().get(i);
+            VBox card = createFileGridCard(file);
 
-            Label emptyHint = new Label();
-            if ("trash".equals(viewMode)) emptyHint.setText("Các file đã xóa sẽ xuất hiện tại đây");
-            else if ("starred".equals(viewMode)) emptyHint.setText("Thêm các file quan trọng vào đây để truy cập nhanh");
-            else emptyHint.setText("Kéo thả file vào đây hoặc bấm Tải lên");
-            emptyHint.setTextFill(Color.web(TEXT_MUTED));
-            
-            emptyState.getChildren().addAll(emptyIconNode, emptyText, emptyHint);
-            mainGrid.getChildren().add(emptyState);
-        } else {
-            for (int i = 0; i < viewModel.getFiles().size(); i++) {
-                DriveFileModel file = viewModel.getFiles().get(i);
-                VBox card = createFileGridCard(file);
+            card.setOpacity(0);
+            javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(220), card);
+            fadeIn.setFromValue(0);
+            fadeIn.setToValue(1);
+            fadeIn.setDelay(javafx.util.Duration.millis(i * 25L));
+            fadeIn.play();
 
-                // Hiệu ứng mờ dần từng Thẻ
-                card.setOpacity(0);
-                javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(250), card);
-                fadeIn.setFromValue(0);
-                fadeIn.setToValue(1);
-                fadeIn.setDelay(javafx.util.Duration.millis(i * 40));
-                fadeIn.play();
-
-                mainGrid.getChildren().add(card);
-                listTable.getItems().add(file);
-            }
+            mainGrid.getChildren().add(card);
+            listTable.getItems().add(file);
         }
     }
 
-    /**
-     * Tạo 1 thẻ bài dạng lưới cho một File
-     */
-    private VBox createFileGridCard(DriveFileModel file) {
-        VBox card = new VBox();
-        card.setPrefSize(220, 240);
-        card.setUserData(file.getFileId());
+    private VBox createEmptyState() {
+        VBox emptyState = new VBox(12);
+        emptyState.setAlignment(Pos.CENTER);
+        emptyState.setPadding(new Insets(48, 64, 48, 64));
+        emptyState.setPrefWidth(520);
+        emptyState.setStyle(
+            "-fx-background-color: #F8FAFC;" +
+            "-fx-background-radius: 22;" +
+            "-fx-border-color: #E5EBF5;" +
+            "-fx-border-radius: 22;"
+        );
 
-        boolean isSelected = viewModel.getSelectedFileIds().contains(file.getFileId());
-        String baseStyle = "-fx-background-color: white; -fx-border-radius: 12; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 4); ";
-        if (isSelected) {
-            card.setStyle(baseStyle + "-fx-border-color: " + PRIMARY_BLUE + "; -fx-border-width: 2;");
+        String viewMode = viewModel.currentViewModeProperty().get();
+        javafx.scene.Node emptyIconNode;
+        String title;
+        String hint;
+        if ("trash".equals(viewMode)) {
+            emptyIconNode = DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.TRASH, 46, "#94A3B8");
+            title = "Thùng rác trống";
+            hint = "Các file đã xóa sẽ xuất hiện tại đây.";
+        } else if ("starred".equals(viewMode)) {
+            emptyIconNode = DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.STARRED, 46, "#F59E0B");
+            title = "Chưa có mục gắn sao";
+            hint = "Gắn sao các tài liệu quan trọng để truy cập nhanh.";
         } else {
-            card.setStyle(baseStyle + "-fx-border-width: 0;");
+            emptyIconNode = DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.FOLDER_OPEN, 52, TEXT_MUTED);
+            title = "Thư mục đang trống";
+            hint = "Kéo thả file vào đây hoặc bấm Tải lên để bắt đầu.";
         }
 
-        StackPane thumb = new StackPane();
-        thumb.setPrefHeight(140);
-        String type = file.getFileType().toLowerCase();
-        
-        String bgThumb = "#F3F4F6";
-        if (type.equals("pdf") || file.getName().endsWith(".pdf")) bgThumb = "#FEE2E2";
-        else if (type.equals("video") || file.getName().endsWith(".mp4")) bgThumb = "#E0E7FF";
-        else if (type.equals("slide") || file.getName().endsWith(".ppt")) bgThumb = "#FFEDD5";
-        else if (type.equals("excel") || file.getName().endsWith(".xlsx")) bgThumb = "#DCFCE7";
-        
-        thumb.setStyle("-fx-background-color: " + bgThumb + "; -fx-background-radius: 11 11 0 0; -fx-border-color: transparent transparent " + BORDER_COLOR + " transparent;");
-        
-        String iconKey = DriveSvgIcons.FILE;
-        if (type.equals("folder")) iconKey = DriveSvgIcons.FOLDER;
-        if (type.equals("pdf")) iconKey = DriveSvgIcons.PDF;
-        if (type.equals("video")) iconKey = DriveSvgIcons.FILE_VIDEO;
-        
-        javafx.scene.Node centerIcon = DriveSvgIconFactory.createSvgIcon(iconKey, 48, TEXT_MUTED);
-        thumb.getChildren().add(centerIcon);
+        Label emptyText = new Label(title);
+        emptyText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        emptyText.setTextFill(Color.web(TEXT_MAIN));
+        Label emptyHint = new Label(hint);
+        emptyHint.setFont(Font.font("Segoe UI", 13));
+        emptyHint.setTextFill(Color.web(TEXT_MUTED));
+        emptyState.getChildren().addAll(emptyIconNode, emptyText, emptyHint);
+        return emptyState;
+    }
 
-        // Nút gắn sao trực tiếp trên Thumbnail
-        Button btnStar = new Button();
-        boolean isStarred = viewModel.getCurrentStarredIds().contains(file.getFileId());
-        btnStar.setText(isStarred ? "★" : "☆");
-        btnStar.setStyle("-fx-background-color: rgba(255, 255, 255, 0.7); -fx-background-radius: 50; -fx-text-fill: " + (isStarred ? "#F59E0B" : TEXT_MUTED) + "; -fx-font-size: 16; -fx-padding: 2 6; -fx-cursor: hand;");
-        btnStar.setOnAction(e -> {
-            viewModel.toggleStar(file);
-        });
+    private VBox createFileGridCard(DriveFileModel file) {
+        VBox card = new VBox(10);
+        card.setPrefSize(206, 218);
+        card.setMinSize(206, 218);
+        card.setMaxSize(206, 218);
+        card.setUserData(file);
+        applyCardStyle(card, file, false);
+
+        StackPane thumb = new StackPane();
+        thumb.setPrefHeight(112);
+        thumb.setMinHeight(112);
+        thumb.setMaxHeight(112);
+        VBox.setMargin(thumb, new Insets(8, 8, 0, 8));
+        thumb.setStyle(
+            "-fx-background-color: " + thumbnailBackground(file) + ";" +
+            "-fx-background-radius: 16;" +
+            "-fx-border-color: rgba(255,255,255,0.70);" +
+            "-fx-border-radius: 16;"
+        );
+
+        String iconUrl = getIconUrl(file.getFileType());
+        boolean isImage = safeType(file).equals("jpg") || safeType(file).equals("png") || safeType(file).equals("jpeg") || file.getName().toLowerCase().matches(".*\\.(jpg|jpeg|png|gif|bmp)$");
+        if (isImage && file.getFileUrl() != null) {
+            if ("MINIO".equalsIgnoreCase(file.getSourceLocation())) {
+                javafx.scene.image.ImageView thumbView = new javafx.scene.image.ImageView();
+                addIconToThumb(thumb, iconUrl);
+                thumbView.setFitWidth(206);
+                thumbView.setFitHeight(112);
+                thumbView.setPreserveRatio(false);
+                javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(206, 112);
+                clip.setArcWidth(22); clip.setArcHeight(22);
+                thumbView.setClip(clip);
+                thumb.getChildren().add(thumbView);
+                loadCloudThumbnailAsync(file, 206, 112, thumbView);
+            } else {
+                try {
+                    java.io.File imgFile = new java.io.File(file.getFileUrl());
+                    if (imgFile.exists()) {
+                        javafx.scene.image.Image thumbImg = getCachedThumbnail(file.getFileUrl(), 206, 112);
+                        if (thumbImg != null) {
+                            javafx.scene.image.ImageView thumbView = new javafx.scene.image.ImageView(thumbImg);
+                            thumbView.setFitWidth(206);
+                            thumbView.setFitHeight(112);
+                            thumbView.setPreserveRatio(false);
+                            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(206, 112);
+                            clip.setArcWidth(22); clip.setArcHeight(22);
+                            thumbView.setClip(clip);
+                            thumb.getChildren().add(thumbView);
+                        } else {
+                            addIconToThumb(thumb, iconUrl);
+                        }
+                    } else {
+                        addIconToThumb(thumb, iconUrl);
+                    }
+                } catch (Exception ex) {
+                    addIconToThumb(thumb, iconUrl);
+                }
+            }
+        } else {
+            addIconToThumb(thumb, iconUrl);
+        }
+
+        Label typeBadge = new Label(typeBadge(file));
+        typeBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
+        typeBadge.setTextFill(Color.web(badgeColor(file)));
+        typeBadge.setStyle("-fx-background-color: rgba(255,255,255,0.86); -fx-background-radius: 999; -fx-padding: 4 9;");
+        StackPane.setAlignment(typeBadge, Pos.TOP_LEFT);
+        StackPane.setMargin(typeBadge, new Insets(10));
+        thumb.getChildren().add(typeBadge);
+
+        Button btnStar = new Button(viewModel.getCurrentStarredIds().contains(file.getFileId()) ? "★" : "☆");
+        btnStar.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.90);" +
+            "-fx-background-radius: 999;" +
+            "-fx-text-fill: " + (viewModel.getCurrentStarredIds().contains(file.getFileId()) ? "#F59E0B" : "#94A3B8") + ";" +
+            "-fx-font-size: 14;" +
+            "-fx-padding: 2 7;" +
+            "-fx-cursor: hand;"
+        );
+        btnStar.setOnAction(e -> viewModel.toggleStar(file));
         StackPane.setAlignment(btnStar, Pos.TOP_RIGHT);
-        StackPane.setMargin(btnStar, new Insets(8));
+        StackPane.setMargin(btnStar, new Insets(9));
         thumb.getChildren().add(btnStar);
 
-        // Nửa dưới hiển thị thông tin chữ
-        VBox info = new VBox(8);
-        info.setPadding(new Insets(12));
+        VBox info = new VBox(7);
+        info.setPadding(new Insets(0, 12, 12, 12));
 
-        HBox titleRow = new HBox();
+        HBox titleRow = new HBox(8);
         titleRow.setAlignment(Pos.TOP_LEFT);
         Label lblName = new Label(file.getName());
-        lblName.setFont(Font.font("System", FontWeight.BOLD, 13));
+        lblName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         lblName.setTextFill(Color.web(TEXT_MAIN));
         lblName.setWrapText(true);
-        lblName.setPrefHeight(40);
-        lblName.setMaxWidth(160);
-        
-        Region s = new Region(); HBox.setHgrow(s, Priority.ALWAYS);
-        Button btnMenu = new Button("⋮");
-        btnMenu.setStyle("-fx-background-color: transparent; -fx-text-fill: " + TEXT_MUTED + "; -fx-font-weight: bold; -fx-cursor: hand;");
-        titleRow.getChildren().addAll(lblName, s, btnMenu);
+        lblName.setPrefHeight(38);
+        lblName.setMaxWidth(146);
+
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+        Button btnMenu = new Button("⋯");
+        btnMenu.setStyle("-fx-background-color: transparent; -fx-text-fill: " + TEXT_MUTED + "; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 0 2;");
+        titleRow.getChildren().addAll(lblName, titleSpacer, btnMenu);
 
         HBox subRow = new HBox(6);
         subRow.setAlignment(Pos.CENTER_LEFT);
-        javafx.scene.Node typeSmall = DriveSvgIconFactory.createSvgIcon(iconKey, 16, TEXT_MUTED);
         
-        String timeStr = DriveFormatUtils.formatRelativeTime(file.getUpdatedAt() != null ? file.getUpdatedAt() : file.getCreatedAt());
-        String subText;
-        if ("folder".equalsIgnoreCase(file.getFileType())) {
-            subText = file.getChildCount() + " mục • " + timeStr;
-        } else {
-            String sizeStr = file.getFileSize() > 0 ? DriveFormatUtils.formatFileSize(file.getFileSize()) : "";
-            subText = (sizeStr.isEmpty() ? "" : sizeStr + " • ") + timeStr;
-        }
-        Label lblSub = new Label(subText);
-        lblSub.setFont(Font.font(11)); lblSub.setTextFill(Color.web(TEXT_MUTED));
+        javafx.scene.image.ImageView typeSmall = new javafx.scene.image.ImageView();
+        try {
+            java.net.URL url = getClass().getResource(iconUrl);
+            if (url != null) typeSmall.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+        } catch (Exception e) {}
+        typeSmall.setFitWidth(14);
+        typeSmall.setFitHeight(14);
+
+        Label lblSub = new Label(subText(file));
+        lblSub.setFont(Font.font("Segoe UI", 11));
+        lblSub.setTextFill(Color.web(TEXT_MUTED));
+        lblSub.setTextOverrun(OverrunStyle.ELLIPSIS);
+        lblSub.setMaxWidth(160);
         subRow.getChildren().addAll(typeSmall, lblSub);
         info.getChildren().addAll(titleRow, subRow);
-        
+
         card.getChildren().addAll(thumb, info);
 
-        // Các sự kiện nhấp chuột (Click)
         card.setOnMouseEntered(e -> {
             if (!viewModel.getSelectedFileIds().contains(file.getFileId())) {
-                card.setStyle(baseStyle + "-fx-border-width: 0; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 16, 0, 0, 6); -fx-translate-y: -2;");
+                applyCardStyle(card, file, true);
+                card.setTranslateY(-2);
             }
         });
         card.setOnMouseExited(e -> {
-            if (!viewModel.getSelectedFileIds().contains(file.getFileId())) {
-                card.setStyle(baseStyle + "-fx-border-width: 0;");
-            }
+            applyCardStyle(card, file, false);
             card.setTranslateY(0);
         });
 
-        // Xử lý Double Click / Ctrl Click
         card.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
-                if (file.getFileType().equalsIgnoreCase("folder")) {
+                if ("folder".equalsIgnoreCase(file.getFileType())) {
                     viewModel.openFolder(file);
-                } else {
-                    if (previewFileAction != null) previewFileAction.accept(file);
+                } else if (previewFileAction != null) {
+                    previewFileAction.accept(file);
                 }
                 return;
             }
-            
+
             boolean multiSelect = e.isControlDown() || e.isMetaDown() || e.isShiftDown();
             viewModel.selectFile(file, multiSelect);
             e.consume();
@@ -362,33 +433,100 @@ public class MainContentView extends StackPane {
         return card;
     }
 
+    private void applyCardStyle(VBox card, DriveFileModel file, boolean hover) {
+        boolean selected = viewModel.getSelectedFileIds().contains(file.getFileId());
+        String border = selected ? PRIMARY_BLUE : (hover ? "#CBD5E1" : BORDER_COLOR);
+        String background = selected ? PRIMARY_BG : BG_WHITE;
+        String shadow = selected
+            ? "dropshadow(gaussian, rgba(37,99,235,0.18), 18, 0, 0, 6)"
+            : (hover ? "dropshadow(gaussian, rgba(15,23,42,0.12), 22, 0, 0, 8)" : "dropshadow(gaussian, rgba(15,23,42,0.05), 14, 0, 0, 4)");
+        card.setStyle(
+            "-fx-background-color: " + background + ";" +
+            "-fx-background-radius: 18;" +
+            "-fx-border-color: " + border + ";" +
+            "-fx-border-radius: 18;" +
+            "-fx-border-width: " + (selected ? "1.6" : "1") + ";" +
+            "-fx-effect: " + shadow + ";" +
+            "-fx-cursor: hand;"
+        );
+    }
+
+    private String thumbnailBackground(DriveFileModel file) {
+        String type = safeType(file);
+        if ("folder".equals(type)) return "linear-gradient(to bottom right, #E0F2FE, #EDE9FE)";
+        if ("pdf".equals(type)) return "linear-gradient(to bottom right, #FEE2E2, #FFF1F2)";
+        if ("video".equals(type) || "mp4".equals(type)) return "linear-gradient(to bottom right, #E0E7FF, #F5F3FF)";
+        if ("ppt".equals(type) || "pptx".equals(type) || "slide".equals(type)) return "linear-gradient(to bottom right, #FFEDD5, #FEF3C7)";
+        if ("xlsx".equals(type) || "excel".equals(type)) return "linear-gradient(to bottom right, #DCFCE7, #ECFDF5)";
+        return "linear-gradient(to bottom right, #F1F5F9, #F8FAFC)";
+    }
+
+    private String iconForFile(DriveFileModel file) {
+        String type = safeType(file);
+        String name = file.getName() == null ? "" : file.getName().toLowerCase();
+        if ("folder".equals(type)) return DriveSvgIcons.FOLDER;
+        if ("pdf".equals(type) || name.endsWith(".pdf")) return DriveSvgIcons.PDF;
+        if ("video".equals(type) || "mp4".equals(type) || name.endsWith(".mp4")) return DriveSvgIcons.FILE_VIDEO;
+        if ("doc".equals(type) || "docx".equals(type) || name.endsWith(".docx")) return DriveSvgIcons.WORD;
+        if ("excel".equals(type) || "xlsx".equals(type) || name.endsWith(".xlsx")) return DriveSvgIcons.EXCEL;
+        return DriveSvgIcons.FILE;
+    }
+
+    private String iconColor(DriveFileModel file) {
+        String type = safeType(file);
+        if ("folder".equals(type)) return "#2563EB";
+        if ("pdf".equals(type)) return "#EF4444";
+        if ("video".equals(type) || "mp4".equals(type)) return "#6366F1";
+        if ("xlsx".equals(type) || "excel".equals(type)) return "#10B981";
+        if ("ppt".equals(type) || "pptx".equals(type) || "slide".equals(type)) return "#F97316";
+        return "#64748B";
+    }
+
+    private String badgeColor(DriveFileModel file) {
+        return "folder".equals(safeType(file)) ? "#2563EB" : "#475569";
+    }
+
+    private String typeBadge(DriveFileModel file) {
+        String type = safeType(file);
+        if ("folder".equals(type)) return "THƯ MỤC";
+        if (type.isEmpty()) return "FILE";
+        return type.toUpperCase();
+    }
+
+    private String subText(DriveFileModel file) {
+        String timeStr = DriveFormatUtils.formatRelativeTime(file.getUpdatedAt() != null ? file.getUpdatedAt() : file.getCreatedAt());
+        if ("folder".equalsIgnoreCase(file.getFileType())) {
+            return file.getChildCount() + " mục · " + timeStr;
+        }
+        String sizeStr = file.getFileSize() > 0 ? DriveFormatUtils.formatFileSize(file.getFileSize()) : "";
+        return (sizeStr.isEmpty() ? "" : sizeStr + " · ") + timeStr;
+    }
+
+    private String safeType(DriveFileModel file) {
+        return file.getFileType() == null ? "" : file.getFileType().toLowerCase();
+    }
+
     private void updateCardStyles() {
-        String baseStyle = "-fx-background-radius: 12; -fx-padding: 12; ";
         for (javafx.scene.Node n : mainGrid.getChildren()) {
             if (n instanceof VBox) {
-                VBox c = (VBox) n;
-                Object idObj = c.getUserData();
-                if (idObj != null && viewModel.getSelectedFileIds().contains((Integer)idObj)) {
-                    c.setStyle("-fx-background-color: " + PRIMARY_BG + "; " + baseStyle + "-fx-border-color: #2563EB; -fx-border-width: 2;");
-                } else {
-                    c.setStyle("-fx-background-color: " + BG_WHITE + "; " + baseStyle + "-fx-border-color: " + BORDER_COLOR + "; -fx-border-width: 1;");
+                VBox card = (VBox) n;
+                Object fileObj = card.getUserData();
+                if (fileObj instanceof DriveFileModel) {
+                    applyCardStyle(card, (DriveFileModel) fileObj, false);
                 }
             }
         }
     }
 
-    /**
-     * Tạo Menu chuột phải tự động
-     */
     private ContextMenu createContextMenu(DriveFileModel file) {
         ContextMenu menu = new ContextMenu();
 
-        MenuItem openItem = new MenuItem(file.getFileType().equalsIgnoreCase("folder") ? "Mở thư mục" : "Xem trước");
+        MenuItem openItem = new MenuItem("folder".equalsIgnoreCase(file.getFileType()) ? "Mở thư mục" : "Xem trước");
         openItem.setOnAction(e -> {
-            if (file.getFileType().equalsIgnoreCase("folder")) {
+            if ("folder".equalsIgnoreCase(file.getFileType())) {
                 viewModel.openFolder(file);
-            } else {
-                if (previewFileAction != null) previewFileAction.accept(file);
+            } else if (previewFileAction != null) {
+                previewFileAction.accept(file);
             }
         });
 
@@ -411,9 +549,9 @@ public class MainContentView extends StackPane {
 
         MenuItem starItem = new MenuItem(viewModel.getCurrentStarredIds().contains(file.getFileId()) ? "Bỏ gắn sao" : "Gắn sao");
         starItem.setOnAction(e -> viewModel.toggleStar(file));
-        
+
         MenuItem trashItem = new MenuItem("Xóa vào thùng rác");
-        trashItem.setStyle("-fx-text-fill: red;");
+        trashItem.setStyle("-fx-text-fill: #EF4444;");
         trashItem.setOnAction(e -> {
             viewModel.getDriveService().moveToTrash(file.getFileId()).thenAccept(success -> {
                 if (success) {
@@ -425,21 +563,23 @@ public class MainContentView extends StackPane {
 
         MenuItem downloadItem = new MenuItem("Tải xuống");
         downloadItem.setOnAction(e -> {
-            if (contextMenuDownloadAction != null) contextMenuDownloadAction.accept(file);
+            if (contextMenuDownloadAction != null) {
+                contextMenuDownloadAction.accept(file);
+            }
         });
 
         if ("trash".equals(viewModel.currentViewModeProperty().get())) {
-            MenuItem restoreItem = new MenuItem("↩ Khôi phục");
+            MenuItem restoreItem = new MenuItem("Khôi phục");
             restoreItem.setOnAction(e -> {
                 viewModel.getDriveService().restoreFromTrash(file.getFileId()).thenAccept(s -> {
                     Platform.runLater(viewModel::loadFiles);
                     broadcastSync();
                 });
             });
-            MenuItem permDeleteItem = new MenuItem("✖ Xóa vĩnh viễn");
-            permDeleteItem.setStyle("-fx-text-fill: red;");
+            MenuItem permDeleteItem = new MenuItem("Xóa vĩnh viễn");
+            permDeleteItem.setStyle("-fx-text-fill: #EF4444;");
             permDeleteItem.setOnAction(e -> {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Xóa vĩnh viễn " + file.getName() + "? Hành động này không thể hoàn tác!", ButtonType.YES, ButtonType.NO);
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Xóa vĩnh viễn " + file.getName() + "? Hành động này không thể hoàn tác.", ButtonType.YES, ButtonType.NO);
                 alert.showAndWait().ifPresent(res -> {
                     if (res == ButtonType.YES) {
                         viewModel.getDriveService().permanentDelete(file.getFileId()).thenAccept(s -> {
@@ -464,5 +604,84 @@ public class MainContentView extends StackPane {
         } catch (Exception ex) {
             System.err.println("[SYNC ERROR] Lỗi phát sóng: " + ex.getMessage());
         }
+    }
+
+    private final java.util.Map<String, java.lang.ref.SoftReference<javafx.scene.image.Image>> thumbnailCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private String getIconUrl(String type) {
+        switch (type.toLowerCase()) {
+            case "pdf": return "/images/icon/file_pdf.png";
+            case "document": case "doc": case "docx": return "/images/icon/file_word.png";
+            case "video": return "/images/icon/file_video.png";
+            case "excel": case "xlsx": return "/images/icon/file_excel.png";
+            case "slide": case "ppt": case "pptx": return "/images/icon/file_powerpoint.png";
+            case "folder": return "/images/icon/file_folder.png";
+            default: return "/images/icon/file_document.png";
+        }
+    }
+
+    private void addIconToThumb(StackPane thumb, String iconUrl) {
+        javafx.scene.image.ImageView centerIcon = new javafx.scene.image.ImageView();
+        try {
+            java.net.URL url = getClass().getResource(iconUrl);
+            if (url != null) centerIcon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+        } catch (Exception e) {}
+        centerIcon.setFitWidth(64); centerIcon.setFitHeight(64);
+        thumb.getChildren().add(centerIcon);
+    }
+
+    private javafx.scene.image.Image getCachedThumbnail(String filePath, double width, double height) {
+        java.lang.ref.SoftReference<javafx.scene.image.Image> ref = thumbnailCache.get(filePath);
+        if (ref != null) {
+            javafx.scene.image.Image cached = ref.get();
+            if (cached != null) return cached;
+        }
+        try {
+            java.io.File imgFile = new java.io.File(filePath);
+            if (imgFile.exists()) {
+                javafx.scene.image.Image img = new javafx.scene.image.Image(imgFile.toURI().toString(), width, height, false, true, true);
+                thumbnailCache.put(filePath, new java.lang.ref.SoftReference<>(img));
+                return img;
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    private void loadCloudThumbnailAsync(DriveFileModel file, double width, double height, javafx.scene.image.ImageView targetView) {
+        String cacheKey = "cloud_" + file.getFileId();
+        java.lang.ref.SoftReference<javafx.scene.image.Image> ref = thumbnailCache.get(cacheKey);
+        if (ref != null) {
+            javafx.scene.image.Image cached = ref.get();
+            if (cached != null) {
+                targetView.setImage(cached);
+                return;
+            }
+        }
+        
+        javafx.concurrent.Task<javafx.scene.image.Image> loadTask = new javafx.concurrent.Task<>() {
+            @Override
+            protected javafx.scene.image.Image call() throws Exception {
+                com.mycompany.tutorhub_enterprise.server.CloudStorageService cs = com.mycompany.tutorhub_enterprise.server.CloudStorageService.getInstance();
+                java.io.InputStream is = cs.downloadFile(file.getFileUrl());
+                if (is != null) {
+                    javafx.scene.image.Image img = new javafx.scene.image.Image(is, width, height, false, true);
+                    is.close();
+                    return img;
+                }
+                return null;
+            }
+        };
+        loadTask.setOnSucceeded(e -> {
+            javafx.scene.image.Image img = loadTask.getValue();
+            if (img != null) {
+                thumbnailCache.put(cacheKey, new java.lang.ref.SoftReference<>(img));
+                targetView.setImage(img);
+            }
+        });
+        Thread t = new Thread(loadTask);
+        t.setDaemon(true);
+        t.start();
     }
 }

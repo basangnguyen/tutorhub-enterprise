@@ -1,29 +1,31 @@
 package com.mycompany.tutorhub_enterprise.client.drive;
 
 import com.mycompany.tutorhub_enterprise.client.DriveSvgIcons;
-
 import com.mycompany.tutorhub_enterprise.models.DriveFileModel;
-import com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory;
 import com.mycompany.tutorhub_enterprise.utils.DriveFormatUtils;
+import com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TreeCell;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.SVGPath;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.shape.SVGPath;
-import javafx.application.Platform;
-
-import java.util.List;
 
 /**
- * Thành phần giao diện thanh bên trái (Left Sidebar) của hệ thống Drive.
- * Xử lý điều hướng (Navigation), hiển thị cây thư mục (Tree) và dung lượng lưu trữ.
+ * Sidebar điều hướng cho tab Tài liệu.
  */
 public class SidebarView extends VBox {
     private final DriveViewModel viewModel;
@@ -32,11 +34,11 @@ public class SidebarView extends VBox {
     private TreeView<DriveFileModel> folderTreeView;
     private TreeItem<DriveFileModel> rootItem;
 
-    // Các hằng số màu sắc giao diện
-    private static final String TEXT_MUTED = "#6B7280";
-    private static final String TEXT_MAIN = "#1F2937";
+    private static final String TEXT_MUTED = "#64748B";
+    private static final String TEXT_MAIN = "#111827";
     private static final String PRIMARY_BLUE = "#2563EB";
-    private static final String BG_GRAY_LIGHT = "#F3F4F6";
+    private static final String BRAND_PURPLE = "#7C3AED";
+    private static final String BORDER_COLOR = "#E5EBF5";
 
     public SidebarView(DriveViewModel viewModel) {
         this.viewModel = viewModel;
@@ -45,52 +47,67 @@ public class SidebarView extends VBox {
     }
 
     private void setupUI() {
-        this.setPrefWidth(250);
-        this.setPadding(new Insets(24, 16, 24, 16));
-        this.setStyle("-fx-background-color: #F9FAFB; -fx-border-width: 0;");
-        this.setSpacing(20);
+        this.setPrefWidth(270);
+        this.setMinWidth(250);
+        this.setPadding(new Insets(20, 16, 18, 16));
+        this.setSpacing(18);
+        this.setStyle(
+            "-fx-background-color: #FFFFFF;" +
+            "-fx-background-radius: 24;" +
+            "-fx-border-color: " + BORDER_COLOR + ";" +
+            "-fx-border-radius: 24;" +
+            "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.07), 22, 0, 0, 8);"
+        );
 
-        // 1. Nhóm Điều hướng Drive (Navigation)
-        VBox driveGroup = new VBox(4);
-        Label lblDriveTitle = new Label("Drive của tôi");
-        lblDriveTitle.setFont(Font.font("System", FontWeight.BOLD, 11));
-        lblDriveTitle.setTextFill(Color.web(TEXT_MUTED));
-        lblDriveTitle.setPadding(new Insets(0, 0, 5, 12));
+        VBox brandBlock = new VBox(4);
+        brandBlock.setPadding(new Insets(0, 6, 4, 6));
+        Label title = new Label("TutorHub Drive");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        title.setTextFill(Color.web(TEXT_MAIN));
+        Label subtitle = new Label("Tài liệu học tập và chia sẻ");
+        subtitle.setFont(Font.font("Segoe UI", 12));
+        subtitle.setTextFill(Color.web(TEXT_MUTED));
+        brandBlock.getChildren().addAll(title, subtitle);
 
-        Button btnRecent = createNavItem("Gần đây", DriveSvgIcons.RECENT, "#3b82f6", "recent");
-        Button btnMyDrive = createNavItem("Drive của tôi", DriveSvgIcons.MY_DRIVE, "#10b981", "my_drive");
-        Button btnOrgDrive = createNavItem("Drive tổ chức", DriveSvgIcons.ORG_DRIVE, "#8b5cf6", "org_drive");
-        Button btnShared = createNavItem("Được chia sẻ với tôi", DriveSvgIcons.SHARED, "#06b6d4", "shared");
-        Button btnStarred = createNavItem("Có gắn dấu sao", DriveSvgIcons.STARRED, "#f59e0b", "starred");
-        Button btnTrash = createNavItem("Thùng rác", DriveSvgIcons.TRASH, "#ef4444", "trash");
+        VBox driveGroup = new VBox(6);
+        Label lblDriveTitle = sectionLabel("Không gian");
 
+        Button btnRecent = createNavItem("Gần đây", "/images/icon/drive_time.png", "recent");
+        Button btnMyDrive = createNavItem("Drive của tôi", "/images/icon/drive_home.png", "my_drive");
+        Button btnOrgDrive = createNavItem("Drive tổ chức", "/images/icon/drive_home.png", "org_drive");
+        Button btnShared = createNavItem("Được chia sẻ", "/images/icon/user.svg", "shared");
+        Button btnStarred = createNavItem("Đã gắn sao", "/images/icon/drive_star.png", "starred");
+        Button btnTrash = createNavItem("Thùng rác", "/images/icon/drive_trash.png", "trash");
         driveGroup.getChildren().addAll(lblDriveTitle, btnRecent, btnMyDrive, btnOrgDrive, btnShared, btnStarred, btnTrash);
 
-        // 2. Nhóm Cây Thư mục
-        VBox folderGroup = new VBox(4);
-        HBox folderHeader = new HBox();
+        VBox folderGroup = new VBox(8);
+        HBox folderHeader = new HBox(8);
         folderHeader.setAlignment(Pos.CENTER_LEFT);
-        Label lblFolderTitle = new Label("THƯ MỤC");
-        lblFolderTitle.setFont(Font.font("System", FontWeight.BOLD, 11));
-        lblFolderTitle.setTextFill(Color.web(TEXT_MUTED));
-        Region spacer = new Region(); 
+        Label lblFolderTitle = sectionLabel("Thư mục");
+        Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         Button btnAddFolder = new Button("+");
-        btnAddFolder.setStyle("-fx-background-color: transparent; -fx-text-fill: " + TEXT_MUTED + "; -fx-font-size: 16; -fx-cursor: hand; -fx-padding: 0;");
+        btnAddFolder.setStyle(
+            "-fx-background-color: #F3F6FF;" +
+            "-fx-background-radius: 999;" +
+            "-fx-text-fill: " + PRIMARY_BLUE + ";" +
+            "-fx-font-weight: bold;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 1 8;"
+        );
         folderHeader.getChildren().addAll(lblFolderTitle, spacer, btnAddFolder);
-        folderHeader.setPadding(new Insets(0, 10, 5, 12));
 
         folderTreeView = new TreeView<>();
         folderTreeView.setShowRoot(false);
+        folderTreeView.setPrefHeight(360);
         folderTreeView.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
-        folderTreeView.setPrefHeight(400);
 
         rootItem = new TreeItem<>(new DriveFileModel());
         rootItem.getValue().setName("Root");
         rootItem.setExpanded(true);
         folderTreeView.setRoot(rootItem);
 
-        folderTreeView.setCellFactory(tv -> new TreeCell<DriveFileModel>() {
+        folderTreeView.setCellFactory(tv -> new TreeCell<>() {
             @Override
             protected void updateItem(DriveFileModel item, boolean empty) {
                 super.updateItem(item, empty);
@@ -98,19 +115,28 @@ public class SidebarView extends VBox {
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
+                    setStyle("-fx-background-color: transparent;");
                 } else {
                     setText(item.getName());
+                    setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                    setTextFill(Color.web(TEXT_MAIN));
+                    setStyle("-fx-background-radius: 10; -fx-padding: 7 8;");
+                    javafx.scene.image.ImageView folderIcon = new javafx.scene.image.ImageView();
                     if (getTreeItem() != null) {
-                        javafx.beans.binding.ObjectBinding<javafx.scene.Node> graphicBinding = 
+                        javafx.beans.binding.ObjectBinding<javafx.scene.image.Image> imageBinding =
                             Bindings.createObjectBinding(() -> {
-                                boolean isExpanded = getTreeItem().isExpanded();
-                                boolean isSelected = isSelected();
-                                return DriveSvgIconFactory.createSvgIcon((isExpanded || isSelected) ? DriveSvgIcons.FOLDER_OPEN : DriveSvgIcons.FOLDER, 18, "#9CA3AF");
-                            }, getTreeItem().expandedProperty(), selectedProperty());
-                        graphicProperty().bind(graphicBinding);
+                                boolean expanded = getTreeItem().isExpanded();
+                                java.net.URL url = getClass().getResource(expanded ? "/images/icon/drive_folder_opened.png" : "/images/icon/drive_folder_closed.png");
+                                return url != null ? new javafx.scene.image.Image(url.toExternalForm()) : null;
+                            }, getTreeItem().expandedProperty());
+                        folderIcon.imageProperty().bind(imageBinding);
                     } else {
-                        setGraphic(DriveSvgIconFactory.createSvgIcon(DriveSvgIcons.FOLDER, 18, "#9CA3AF"));
+                        java.net.URL url = getClass().getResource("/images/icon/drive_folder_closed.png");
+                        if (url != null) folderIcon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
                     }
+                    folderIcon.setFitWidth(18);
+                    folderIcon.setFitHeight(18);
+                    setGraphic(folderIcon);
                 }
             }
         });
@@ -125,60 +151,67 @@ public class SidebarView extends VBox {
         folderGroup.getChildren().addAll(folderHeader, folderTreeView);
         VBox.setVgrow(folderGroup, Priority.ALWAYS);
 
-        // 3. Nhóm Quản lý Storage Quota
-        VBox storageGroup = new VBox(6);
-        storageGroup.setPadding(new Insets(20, 0, 0, 12));
-        Label lblStorageTitle = new Label("Dung lượng lưu trữ");
-        lblStorageTitle.setFont(Font.font("System", FontWeight.BOLD, 11));
-        lblStorageTitle.setTextFill(Color.web(TEXT_MUTED));
-        
+        VBox storageGroup = new VBox(9);
+        storageGroup.setPadding(new Insets(14));
+        storageGroup.setStyle("-fx-background-color: #F8FAFC; -fx-background-radius: 18; -fx-border-color: #EDF2F7; -fx-border-radius: 18;");
+        Label lblStorageTitle = new Label("Dung lượng");
+        lblStorageTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        lblStorageTitle.setTextFill(Color.web(TEXT_MAIN));
+
         pbStorage = new ProgressBar(0);
         pbStorage.setMaxWidth(Double.MAX_VALUE);
-        pbStorage.setStyle("-fx-accent: #7C3AED;");
-        
+        pbStorage.setStyle("-fx-accent: " + BRAND_PURPLE + ";");
+
         lblStorageText = new Label("Đang tính toán...");
-        lblStorageText.setFont(Font.font("System", 11));
+        lblStorageText.setFont(Font.font("Segoe UI", 11));
         lblStorageText.setTextFill(Color.web(TEXT_MUTED));
-        
         storageGroup.getChildren().addAll(lblStorageTitle, pbStorage, lblStorageText);
 
-        this.getChildren().addAll(driveGroup, folderGroup, storageGroup);
-        
-        // Bắt đầu khởi tạo dữ liệu cây thư mục đệ quy
+        this.getChildren().addAll(brandBlock, driveGroup, folderGroup, storageGroup);
         buildFolderTree(rootItem, null);
     }
 
-    private Button createNavItem(String text, String svgPathStr, String defaultColor, String mode) {
+    private Label sectionLabel(String text) {
+        Label label = new Label(text.toUpperCase());
+        label.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
+        label.setTextFill(Color.web("#94A3B8"));
+        label.setPadding(new Insets(4, 8, 3, 8));
+        return label;
+    }
+
+    private Button createNavItem(String text, String iconUrl, String mode) {
         Button btn = new Button(text);
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setAlignment(Pos.CENTER_LEFT);
         btn.setUserData(mode);
-        
-        SVGPath icon = DriveSvgIconFactory.createSvgIcon(svgPathStr, 18, defaultColor);
-        icon.setOpacity(0.6);
+        btn.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+
+        javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView();
+        try {
+            java.net.URL url = getClass().getResource(iconUrl);
+            if (url != null) icon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+        } catch (Exception e) {}
+        icon.setFitWidth(18);
+        icon.setFitHeight(18);
         btn.setGraphic(icon);
         btn.setGraphicTextGap(12);
 
-        String baseStyle = "-fx-padding: 10 12; -fx-background-radius: 8; -fx-cursor: hand; ";
-        btn.setStyle(baseStyle + "-fx-background-color: transparent; -fx-text-fill: " + TEXT_MAIN + ";");
+        applyNavStyle(btn, icon, mode.equals(viewModel.currentViewModeProperty().get()), false);
 
         btn.setOnMouseEntered(e -> {
             if (!mode.equals(viewModel.currentViewModeProperty().get())) {
-                btn.setStyle(baseStyle + "-fx-background-color: " + BG_GRAY_LIGHT + "; -fx-text-fill: " + TEXT_MAIN + ";");
-                icon.setOpacity(1.0);
+                applyNavStyle(btn, icon, false, true);
             }
         });
-
         btn.setOnMouseExited(e -> {
             if (!mode.equals(viewModel.currentViewModeProperty().get())) {
-                btn.setStyle(baseStyle + "-fx-background-color: transparent; -fx-text-fill: " + TEXT_MAIN + ";");
-                icon.setOpacity(0.6);
+                applyNavStyle(btn, icon, false, false);
             }
         });
 
         btn.setOnAction(e -> {
             if ("org_drive".equals(mode)) {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Tính năng Drive tổ chức đang được phát triển.");
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Drive tổ chức đang được phát triển.");
                 alert.showAndWait();
             } else {
                 viewModel.currentViewModeProperty().set(mode);
@@ -191,46 +224,47 @@ public class SidebarView extends VBox {
             }
         });
 
-        // Liên kết (Bind) trạng thái ViewMode từ ViewModel để tự động active button
         viewModel.currentViewModeProperty().addListener((obs, oldMode, newMode) -> {
-            if (mode.equals(newMode)) {
-                btn.setStyle(baseStyle + "-fx-background-color: #EFF6FF; -fx-text-fill: " + PRIMARY_BLUE + "; -fx-font-weight: bold;");
-                icon.setOpacity(1.0);
-            } else {
-                btn.setStyle(baseStyle + "-fx-background-color: transparent; -fx-text-fill: " + TEXT_MAIN + ";");
-                icon.setOpacity(0.6);
-            }
+            applyNavStyle(btn, icon, mode.equals(newMode), false);
         });
-
-        if (mode.equals(viewModel.currentViewModeProperty().get())) {
-            btn.setStyle(baseStyle + "-fx-background-color: #EFF6FF; -fx-text-fill: " + PRIMARY_BLUE + "; -fx-font-weight: bold;");
-            icon.setOpacity(1.0);
-        }
 
         return btn;
     }
 
+    private void applyNavStyle(Button btn, javafx.scene.image.ImageView icon, boolean active, boolean hover) {
+        if (active) {
+            btn.setStyle(
+                "-fx-padding: 11 12;" +
+                "-fx-background-radius: 14;" +
+                "-fx-background-color: linear-gradient(to right, rgba(124,58,237,0.14), rgba(37,99,235,0.10));" +
+                "-fx-text-fill: " + PRIMARY_BLUE + ";" +
+                "-fx-font-weight: bold;" +
+                "-fx-cursor: hand;"
+            );
+            icon.setOpacity(1.0);
+        } else {
+            btn.setStyle(
+                "-fx-padding: 11 12;" +
+                "-fx-background-radius: 14;" +
+                "-fx-background-color: " + (hover ? "#F6F8FC" : "transparent") + ";" +
+                "-fx-text-fill: " + TEXT_MAIN + ";" +
+                "-fx-cursor: hand;"
+            );
+            icon.setOpacity(hover ? 0.95 : 0.72);
+        }
+    }
+
     private void bindViewModel() {
-        // Cập nhật Storage Progress khi biến trong ViewModel thay đổi
         viewModel.usedStorageBytesProperty().addListener((obs, oldVal, newVal) -> {
             long usedBytes = newVal.longValue();
-            long MAX_BYTES = 15L * 1024 * 1024 * 1024; // 15 GB
-            double ratio = (double) usedBytes / MAX_BYTES;
+            long maxBytes = 15L * 1024 * 1024 * 1024;
+            double ratio = (double) usedBytes / maxBytes;
             pbStorage.setProgress(ratio);
-            String usedStr = DriveFormatUtils.formatFileSize(usedBytes);
-            lblStorageText.setText("Đã dùng " + usedStr + " / 15 GB");
-            if (ratio > 0.9) pbStorage.setStyle("-fx-accent: #EF4444;");
-            else pbStorage.setStyle("-fx-accent: #7C3AED;");
-        });
-        
-        viewModel.currentFolderIdProperty().addListener((obs, oldVal, newVal) -> {
-             // Logic để select tree node nếu cần thiết
+            lblStorageText.setText("Đã dùng " + DriveFormatUtils.formatFileSize(usedBytes) + " / 15 GB");
+            pbStorage.setStyle("-fx-accent: " + (ratio > 0.9 ? "#EF4444" : BRAND_PURPLE) + ";");
         });
     }
 
-    /**
-     * Tải Lazy-loading cây thư mục (chỉ load nhánh con khi được Expand)
-     */
     private void buildFolderTree(TreeItem<DriveFileModel> parentItem, Integer parentId) {
         viewModel.getDriveService().getFiles(viewModel.getCurrentUserId(), parentId).thenAccept(files -> {
             Platform.runLater(() -> {
@@ -239,7 +273,7 @@ public class SidebarView extends VBox {
                         TreeItem<DriveFileModel> child = new TreeItem<>(f);
                         parentItem.getChildren().add(child);
                         if (f.getChildCount() > 0) {
-                            child.getChildren().add(new TreeItem<>(new DriveFileModel())); // Fake node để có mũi tên Expand
+                            child.getChildren().add(new TreeItem<>(new DriveFileModel()));
                         }
                         child.expandedProperty().addListener((obs, wasExpanded, isNowExpanded) -> {
                             if (isNowExpanded && child.getChildren().size() == 1 && child.getChildren().get(0).getValue().getFileId() == 0) {
