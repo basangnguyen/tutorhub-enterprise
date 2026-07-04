@@ -131,14 +131,6 @@ public class HeaderToolbarView extends VBox {
         btnUpload.setStyle(styleNormal);
         btnUpload.setOnMouseEntered(e -> btnUpload.setStyle(styleHover));
         btnUpload.setOnMouseExited(e -> btnUpload.setStyle(styleNormal));
-        btnUpload.setOnMousePressed(e -> btnUpload.setStyle(stylePressed));
-        btnUpload.setOnMouseReleased(e -> {
-            if (btnUpload.isHover()) {
-                btnUpload.setStyle(styleHover);
-            } else {
-                btnUpload.setStyle(styleNormal);
-            }
-        });
 
         javafx.scene.image.Image upImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/arrow-cloud-upload-svgrepo-com.svg", 22);
         if (upImg != null) {
