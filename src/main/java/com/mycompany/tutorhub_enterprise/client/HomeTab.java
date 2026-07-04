@@ -849,7 +849,7 @@ public class HomeTab extends JPanel {
         JLabel titleLbl = new JLabel(m.subj); titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 15)); titleLbl.setForeground(TEXT);
         titleRow.add(titleLbl);
         titleRow.add(createTagBadge(m.tagText, m.tagColor, "#FFFFFF"));
-        titleRow.add(createTagBadge(m.isTaken ? "Đã chốt" : "Còn lớp", m.isTaken ? "#FEE2E2" : "#DC2626", m.isTaken ? "#DC2626" : "#059669"));
+        titleRow.add(createTagBadge(m.isTaken ? "Đã chốt" : "Còn lớp", m.isTaken ? "#FEE2E2" : "#DCFCE7", m.isTaken ? "#DC2626" : "#059669"));
         
         JPanel infoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 18, 0)); infoRow.setOpaque(false);
         infoRow.add(createIconTextRow("https://img.icons8.com/fluency/48/marker.png", truncate(m.addr, 20), "#475569", 12, false));
