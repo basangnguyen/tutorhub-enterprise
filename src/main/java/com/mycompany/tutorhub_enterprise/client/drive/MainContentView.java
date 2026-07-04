@@ -84,9 +84,56 @@ public class MainContentView extends StackPane {
         gridScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
 
         listTable = new TableView<>();
-        listTable.setStyle("-fx-background-color: #FFFFFF; -fx-border-color: transparent;");
-        listTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         listTable.getStyleClass().add("drive-table");
+        listTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        String tableCss = "data:text/css," +
+            ".table-view {" +
+            "  -fx-background-color: #FFFFFF;" +
+            "  -fx-background-radius: 12;" +
+            "  -fx-border-radius: 12;" +
+            "  -fx-border-color: #CBD5E1;" +
+            "  -fx-border-width: 1;" +
+            "}" +
+            ".table-view .column-header-background {" +
+            "  -fx-background-color: #F8FAFC;" +
+            "  -fx-background-radius: 12 12 0 0;" +
+            "}" +
+            ".table-view .column-header {" +
+            "  -fx-background-color: transparent;" +
+            "  -fx-border-color: #E2E8F0;" +
+            "  -fx-border-width: 0 1 1 0;" +
+            "  -fx-padding: 10 12;" +
+            "}" +
+            ".table-view .column-header:last-visible {" +
+            "  -fx-border-width: 0 0 1 0;" +
+            "}" +
+            ".table-view .column-header .label {" +
+            "  -fx-font-family: 'Segoe UI';" +
+            "  -fx-font-weight: bold;" +
+            "  -fx-font-size: 13px;" +
+            "  -fx-text-fill: #475569;" +
+            "}" +
+            ".table-row-cell {" +
+            "  -fx-background-color: #FFFFFF;" +
+            "  -fx-border-color: #E2E8F0;" +
+            "  -fx-border-width: 0 0 1 0;" +
+            "  -fx-padding: 0;" +
+            "}" +
+            ".table-row-cell:hover {" +
+            "  -fx-background-color: #F8FAFC;" +
+            "}" +
+            ".table-row-cell:selected {" +
+            "  -fx-background-color: #EEF2FF;" +
+            "  -fx-border-color: #C7D2FE;" +
+            "}" +
+            ".table-cell {" +
+            "  -fx-padding: 8 12;" +
+            "  -fx-font-family: 'Segoe UI';" +
+            "  -fx-font-size: 13px;" +
+            "  -fx-text-fill: #111827;" +
+            "}";
+        listTable.getStylesheets().add(tableCss);
 
         TableColumn<DriveFileModel, String> colName = new TableColumn<>("Tên tài liệu");
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -110,7 +157,7 @@ public class MainContentView extends StackPane {
                         icon.setFitWidth(optimalSize);
                         icon.setFitHeight(optimalSize);
                         Label lbl = new Label(item);
-                        lbl.setFont(Font.font("System", FontWeight.SEMI_BOLD, 13));
+                        lbl.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
                         lbl.setTextFill(Color.web(TEXT_MAIN));
                         box.getChildren().addAll(icon, lbl);
                         setGraphic(box);

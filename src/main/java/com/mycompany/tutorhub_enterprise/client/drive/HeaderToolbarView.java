@@ -281,16 +281,34 @@ public class HeaderToolbarView extends VBox {
 
     private MenuButton createPrimaryMenuButton(String text) {
         MenuButton btn = new MenuButton(text);
-        btn.setTextFill(Color.WHITE);
-        btn.setStyle(
-            "-fx-background-color: linear-gradient(to right, " + BRAND_PURPLE + ", " + PRIMARY_BLUE + ");" +
+        String styleNormal = 
+            "-fx-background-color: #7C3AED;" +
+            "-fx-border-color: #7C3AED;" +
+            "-fx-border-radius: 14;" +
+            "-fx-background-radius: 14;" +
+            "-fx-border-width: 1.5;" +
             "-fx-text-fill: #FFFFFF;" +
+            "-fx-mark-color: #FFFFFF;" +
             "-fx-font-weight: bold;" +
             "-fx-font-size: 13;" +
-            "-fx-padding: 9 16;" +
+            "-fx-padding: 8 16;" +
+            "-fx-cursor: hand;";
+        String styleHover = 
+            "-fx-background-color: #6D28D9;" +
+            "-fx-border-color: #6D28D9;" +
+            "-fx-border-radius: 14;" +
             "-fx-background-radius: 14;" +
-            "-fx-cursor: hand;"
-        );
+            "-fx-border-width: 1.5;" +
+            "-fx-text-fill: #FFFFFF;" +
+            "-fx-mark-color: #FFFFFF;" +
+            "-fx-font-weight: bold;" +
+            "-fx-font-size: 13;" +
+            "-fx-padding: 8 16;" +
+            "-fx-cursor: hand;";
+
+        btn.setStyle(styleNormal);
+        btn.setOnMouseEntered(e -> btn.setStyle(styleHover));
+        btn.setOnMouseExited(e -> btn.setStyle(styleNormal));
         return btn;
     }
 
