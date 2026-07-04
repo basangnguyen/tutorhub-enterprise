@@ -75,9 +75,9 @@ public class SidebarView extends VBox {
         Button btnRecent = createNavItem("Gần đây", "images/icon/recent_color.svg", "recent");
         Button btnMyDrive = createNavItem("Drive của tôi", "images/icon/google-drive-color-icon.svg", "my_drive");
         Button btnOrgDrive = createNavItem("Drive tổ chức", "images/icon/cloud-acceleration-svgrepo-com (1).svg", "org_drive");
-        Button btnShared = createNavItem("Được chia sẻ", "images/icon/shared_color.svg", "shared");
+        Button btnShared = createNavItem("Được chia sẻ", "images/icon/material-symbols--group.svg", "shared");
         Button btnStarred = createNavItem("Đã gắn sao", "images/icon/path-svgrepo-com.svg", "starred");
-        Button btnTrash = createNavItem("Thùng rác", "images/icon/trash_color.svg", "trash");
+        Button btnTrash = createNavItem("Thùng rác", "images/icon/material-symbols--delete.svg", "trash");
         driveGroup.getChildren().addAll(lblDriveTitle, btnRecent, btnMyDrive, btnOrgDrive, btnShared, btnStarred, btnTrash);
 
         VBox folderGroup = new VBox(8);
