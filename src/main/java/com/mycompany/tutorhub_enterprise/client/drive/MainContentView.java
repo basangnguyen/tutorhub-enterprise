@@ -103,10 +103,12 @@ public class MainContentView extends StackPane {
                         HBox box = new HBox(12);
                         box.setAlignment(Pos.CENTER_LEFT);
                         javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView();
-                        javafx.scene.image.Image img = loadIconImage(getIconUrl(file.getFileType()), 24);
+                        String iconPath = getIconUrl(file.getFileType());
+                        int optimalSize = getOptimalIconSize(iconPath, 24);
+                        javafx.scene.image.Image img = loadIconImage(iconPath, 24);
                         if (img != null) icon.setImage(img);
-                        icon.setFitWidth(24);
-                        icon.setFitHeight(24);
+                        icon.setFitWidth(optimalSize);
+                        icon.setFitHeight(optimalSize);
                         Label lbl = new Label(item);
                         lbl.setFont(Font.font("System", FontWeight.SEMI_BOLD, 13));
                         lbl.setTextFill(Color.web(TEXT_MAIN));
@@ -369,10 +371,11 @@ public class MainContentView extends StackPane {
         subRow.setAlignment(Pos.CENTER_LEFT);
         
         javafx.scene.image.ImageView typeSmall = new javafx.scene.image.ImageView();
+        int optimalSizeSmall = getOptimalIconSize(iconUrl, 14);
         javafx.scene.image.Image smallImg = loadIconImage(iconUrl, 14);
         if (smallImg != null) typeSmall.setImage(smallImg);
-        typeSmall.setFitWidth(14);
-        typeSmall.setFitHeight(14);
+        typeSmall.setFitWidth(optimalSizeSmall);
+        typeSmall.setFitHeight(optimalSizeSmall);
 
         Label lblSub = new Label(subText(file));
         lblSub.setFont(Font.font("Segoe UI", 11));
@@ -608,21 +611,46 @@ public class MainContentView extends StackPane {
         switch (type.toLowerCase()) {
             case "pdf": return "images/icon/pdf-2616.svg";
             case "document": case "doc": case "docx": return "images/icon/microsoft-word-icon.svg";
-            case "video": return "images/icon/file_video.png";
-            case "excel": case "xlsx": return "images/icon/file_excel.png";
-            case "slide": case "ppt": case "pptx": return "images/icon/file_powerpoint.png";
+            case "video": case "mp4": return "images/icon/MP4.svg";
+            case "excel": case "xlsx": return "images/icon/excel2-svgrepo-com.svg";
+            case "slide": case "ppt": case "pptx": return "images/icon/microsoft-powerpoint-icon.svg";
             case "folder": return "images/icon/folder-1484.svg";
             default: return "images/icon/file_document.png";
         }
     }
 
+    private int getOptimalIconSize(String iconPath, int baseSize) {
+        if (iconPath == null) return baseSize;
+        String pathLower = iconPath.toLowerCase();
+        if (pathLower.contains("folder")) {
+            return (int) (baseSize * 1.35); // Scale up folder by 35% to compensate for SVG padding
+        }
+        if (pathLower.contains("microsoft-word") || pathLower.contains("word")) {
+            return (int) (baseSize * 0.82); // Scale down Word to fit
+        }
+        if (pathLower.contains("pdf")) {
+            return (int) (baseSize * 0.85); // Scale down PDF to fit
+        }
+        if (pathLower.contains("excel") || pathLower.contains("xlsx")) {
+            return (int) (baseSize * 0.88); // Scale down Excel to fit
+        }
+        if (pathLower.contains("powerpoint") || pathLower.contains("microsoft-powerpoint-icon")) {
+            return (int) (baseSize * 0.88); // Scale down PPT to fit
+        }
+        if (pathLower.contains("mp4")) {
+            return (int) (baseSize * 0.9); // Scale down MP4 to fit
+        }
+        return baseSize;
+    }
+
     private javafx.scene.image.Image loadIconImage(String iconPath, int size) {
+        int optimalSize = getOptimalIconSize(iconPath, size);
         if (iconPath.endsWith(".svg")) {
-            return com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconPath, size);
+            return com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconPath, optimalSize);
         } else {
             try {
                 java.net.URL url = getClass().getResource("/" + iconPath);
-                if (url != null) return new javafx.scene.image.Image(url.toExternalForm(), size, size, true, true);
+                if (url != null) return new javafx.scene.image.Image(url.toExternalForm(), optimalSize, optimalSize, true, true);
             } catch (Exception e) {}
             return null;
         }
@@ -630,9 +658,10 @@ public class MainContentView extends StackPane {
 
     private void addIconToThumb(StackPane thumb, String iconUrl) {
         javafx.scene.image.ImageView centerIcon = new javafx.scene.image.ImageView();
+        int optimalSize = getOptimalIconSize(iconUrl, 64);
         javafx.scene.image.Image img = loadIconImage(iconUrl, 64);
         if (img != null) centerIcon.setImage(img);
-        centerIcon.setFitWidth(64); centerIcon.setFitHeight(64);
+        centerIcon.setFitWidth(optimalSize); centerIcon.setFitHeight(optimalSize);
         thumb.getChildren().add(centerIcon);
     }
 

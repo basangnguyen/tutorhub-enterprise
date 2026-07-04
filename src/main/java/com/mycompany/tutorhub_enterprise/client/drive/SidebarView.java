@@ -72,12 +72,12 @@ public class SidebarView extends VBox {
         VBox driveGroup = new VBox(6);
         Label lblDriveTitle = sectionLabel("Không gian");
 
-        Button btnRecent = createNavItem("Gần đây", "/images/icon/drive_time.png", "recent");
-        Button btnMyDrive = createNavItem("Drive của tôi", "/images/icon/drive_home.png", "my_drive");
-        Button btnOrgDrive = createNavItem("Drive tổ chức", "/images/icon/drive_home.png", "org_drive");
-        Button btnShared = createNavItem("Được chia sẻ", "/images/icon/user.svg", "shared");
-        Button btnStarred = createNavItem("Đã gắn sao", "/images/icon/drive_star.png", "starred");
-        Button btnTrash = createNavItem("Thùng rác", "/images/icon/drive_trash.png", "trash");
+        Button btnRecent = createNavItem("Gần đây", "images/icon/drive_time.png", "recent");
+        Button btnMyDrive = createNavItem("Drive của tôi", "images/icon/drive_home.png", "my_drive");
+        Button btnOrgDrive = createNavItem("Drive tổ chức", "images/icon/drive_home.png", "org_drive");
+        Button btnShared = createNavItem("Được chia sẻ", "images/icon/user.svg", "shared");
+        Button btnStarred = createNavItem("Đã gắn sao", "images/icon/bookmark.svg", "starred");
+        Button btnTrash = createNavItem("Thùng rác", "images/icon/drive_trash.png", "trash");
         driveGroup.getChildren().addAll(lblDriveTitle, btnRecent, btnMyDrive, btnOrgDrive, btnShared, btnStarred, btnTrash);
 
         VBox folderGroup = new VBox(8);
@@ -127,15 +127,15 @@ public class SidebarView extends VBox {
                             Bindings.createObjectBinding(() -> {
                                 boolean expanded = getTreeItem().isExpanded();
                                 String iconPath = expanded ? "images/icon/yellow-open-folder-11567.svg" : "images/icon/folder-1484.svg";
-                                return com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconPath, 18);
+                                return com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconPath, 26);
                             }, getTreeItem().expandedProperty());
                         folderIcon.imageProperty().bind(imageBinding);
                     } else {
-                        javafx.scene.image.Image closedImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/folder-1484.svg", 18);
+                        javafx.scene.image.Image closedImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/folder-1484.svg", 26);
                         if (closedImg != null) folderIcon.setImage(closedImg);
                     }
-                    folderIcon.setFitWidth(18);
-                    folderIcon.setFitHeight(18);
+                    folderIcon.setFitWidth(26);
+                    folderIcon.setFitHeight(26);
                     setGraphic(folderIcon);
                 }
             }
@@ -188,8 +188,14 @@ public class SidebarView extends VBox {
 
         javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView();
         try {
-            java.net.URL url = getClass().getResource(iconUrl);
-            if (url != null) icon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+            if (iconUrl.endsWith(".svg")) {
+                javafx.scene.image.Image img = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconUrl, 18);
+                if (img != null) icon.setImage(img);
+            } else {
+                String path = iconUrl.startsWith("/") ? iconUrl : "/" + iconUrl;
+                java.net.URL url = getClass().getResource(path);
+                if (url != null) icon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+            }
         } catch (Exception e) {}
         icon.setFitWidth(18);
         icon.setFitHeight(18);
