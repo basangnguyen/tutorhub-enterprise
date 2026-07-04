@@ -98,19 +98,22 @@ public class CloudStorageService {
         String cloudFileName = UUID.randomUUID().toString() + extension;
 
         try {
-            String contentType = URLConnection.guessContentTypeFromName(originalName);
-            if (contentType == null) {
-                String ext = originalName.substring(originalName.lastIndexOf(".") + 1).toLowerCase();
-                switch (ext) {
-                    case "docx": contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; break;
-                    case "xlsx": contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; break;
-                    case "pptx": contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"; break;
-                    case "pdf": contentType = "application/pdf"; break;
-                    case "doc": contentType = "application/msword"; break;
-                    case "xls": contentType = "application/vnd.ms-excel"; break;
-                    case "ppt": contentType = "application/vnd.ms-powerpoint"; break;
-                    default: contentType = "application/octet-stream";
-                }
+            String contentType = null;
+            String ext = "";
+            if (originalName.contains(".")) {
+                ext = originalName.substring(originalName.lastIndexOf(".") + 1).toLowerCase();
+            }
+            switch (ext) {
+                case "docx": contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; break;
+                case "xlsx": contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; break;
+                case "pptx": contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"; break;
+                case "pdf": contentType = "application/pdf"; break;
+                case "doc": contentType = "application/msword"; break;
+                case "xls": contentType = "application/vnd.ms-excel"; break;
+                case "ppt": contentType = "application/vnd.ms-powerpoint"; break;
+                default: 
+                    contentType = URLConnection.guessContentTypeFromName(originalName);
+                    if (contentType == null) contentType = "application/octet-stream";
             }
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
