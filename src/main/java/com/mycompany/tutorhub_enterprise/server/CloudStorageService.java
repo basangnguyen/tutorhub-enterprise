@@ -17,6 +17,7 @@ import java.time.Duration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 /**
  * Enterprise Cloud Storage Service (S3 Compatible)
@@ -99,7 +100,17 @@ public class CloudStorageService {
         try {
             String contentType = URLConnection.guessContentTypeFromName(originalName);
             if (contentType == null) {
-                contentType = "application/octet-stream";
+                String ext = originalName.substring(originalName.lastIndexOf(".") + 1).toLowerCase();
+                switch (ext) {
+                    case "docx": contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; break;
+                    case "xlsx": contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; break;
+                    case "pptx": contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"; break;
+                    case "pdf": contentType = "application/pdf"; break;
+                    case "doc": contentType = "application/msword"; break;
+                    case "xls": contentType = "application/vnd.ms-excel"; break;
+                    case "ppt": contentType = "application/vnd.ms-powerpoint"; break;
+                    default: contentType = "application/octet-stream";
+                }
             }
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -164,10 +175,12 @@ public class CloudStorageService {
 
         try {
             AwsBasicCredentials credentials = AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY);
+            S3Configuration s3Config = S3Configuration.builder().pathStyleAccessEnabled(true).build();
             S3Presigner presigner = S3Presigner.builder()
                     .endpointOverride(URI.create(ENDPOINT))
                     .credentialsProvider(StaticCredentialsProvider.create(credentials))
                     .region(Region.US_EAST_1)
+                    .serviceConfiguration(s3Config)
                     .build();
 
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
