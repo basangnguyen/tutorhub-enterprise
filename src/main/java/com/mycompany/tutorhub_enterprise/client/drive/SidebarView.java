@@ -69,7 +69,7 @@ public class SidebarView extends VBox {
         subtitle.setTextFill(Color.web(TEXT_MUTED));
         brandBlock.getChildren().addAll(title, subtitle);
 
-        VBox driveGroup = new VBox(6);
+        VBox driveGroup = new VBox(3);
         Label lblDriveTitle = sectionLabel("Không gian");
 
         Button btnRecent = createNavItem("Gần đây", "images/icon/recent_color.svg", "recent");
@@ -80,7 +80,7 @@ public class SidebarView extends VBox {
         Button btnTrash = createNavItem("Thùng rác", "images/icon/material-symbols--delete.svg", "trash");
         driveGroup.getChildren().addAll(lblDriveTitle, btnRecent, btnMyDrive, btnOrgDrive, btnShared, btnStarred, btnTrash);
 
-        VBox folderGroup = new VBox(8);
+        VBox folderGroup = new VBox(4);
         HBox folderHeader = new HBox(8);
         folderHeader.setAlignment(Pos.CENTER_LEFT);
         Label lblFolderTitle = sectionLabel("Thư mục");
@@ -260,7 +260,7 @@ public class SidebarView extends VBox {
     private void applyNavStyle(Button btn, javafx.scene.image.ImageView icon, boolean active, boolean hover) {
         if (active) {
             btn.setStyle(
-                "-fx-padding: 11 12;" +
+                "-fx-padding: 7 12;" +
                 "-fx-background-radius: 14;" +
                 "-fx-background-color: linear-gradient(to right, rgba(124,58,237,0.14), rgba(37,99,235,0.10));" +
                 "-fx-text-fill: " + PRIMARY_BLUE + ";" +
@@ -270,13 +270,13 @@ public class SidebarView extends VBox {
             icon.setOpacity(1.0);
         } else {
             btn.setStyle(
-                "-fx-padding: 11 12;" +
+                "-fx-padding: 7 12;" +
                 "-fx-background-radius: 14;" +
                 "-fx-background-color: " + (hover ? "#F6F8FC" : "transparent") + ";" +
                 "-fx-text-fill: " + TEXT_MAIN + ";" +
                 "-fx-cursor: hand;"
             );
-            icon.setOpacity(hover ? 0.95 : 0.72);
+            icon.setOpacity(1.0);
         }
     }
 
