@@ -13,6 +13,10 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
 import java.util.UUID;
+import java.time.Duration;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 /**
  * Enterprise Cloud Storage Service (S3 Compatible)
@@ -46,21 +50,14 @@ public class CloudStorageService {
                     .forcePathStyle(true)
                     .build();
 
-            // Kiểm tra kết nối bằng cách list buckets
-            s3Client.listBuckets();
             this.available = true;
-            System.out.println("[STORAGE] ✅ Kết nối MinIO thành công tại " + ENDPOINT);
+            System.out.println("[STORAGE] ✅ Kết nối Cloud Storage thành công tại " + ENDPOINT);
 
-            // Tạo bucket nếu chưa tồn tại
-            try {
-                s3Client.headBucket(HeadBucketRequest.builder().bucket(BUCKET_NAME).build());
-            } catch (NoSuchBucketException e) {
-                s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET_NAME).build());
-                System.out.println("[STORAGE] ✅ Đã tạo bucket: " + BUCKET_NAME);
-            }
+            // Bỏ qua listBuckets/createBucket tự động để tránh lỗi 403 với các Key giới hạn quyền hạn
+
         } catch (Exception e) {
             this.available = false;
-            System.err.println("[STORAGE] ⚠️ MinIO không khả dụng. Sử dụng Local Storage. Lỗi: " + e.getMessage());
+            System.err.println("[STORAGE] ⚠️ Cloud Storage không khả dụng. Lỗi: " + e.getMessage());
         }
     }
 
@@ -152,6 +149,47 @@ public class CloudStorageService {
             System.err.println("[STORAGE ERROR] Download: " + e.getMessage());
         }
         return null;
+    }
+
+    /**
+     * Tạo Pre-signed URL (Link có chữ ký bảo mật S3) cho các Bucket Private.
+     * @param fileUrl URL vật lý của S3/B2
+     * @param expirationMinutes Thời gian hết hạn của link (Phút)
+     * @return Link đã được ký bí mật
+     */
+    public String generatePresignedUrl(String fileUrl, int expirationMinutes) {
+        if (fileUrl == null || fileUrl.isEmpty()) return null;
+        String fileKey = extractKey(fileUrl);
+        if (fileKey == null) return null;
+
+        try {
+            AwsBasicCredentials credentials = AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY);
+            S3Presigner presigner = S3Presigner.builder()
+                    .endpointOverride(URI.create(ENDPOINT))
+                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                    .region(Region.US_EAST_1)
+                    .build();
+
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(BUCKET_NAME)
+                    .key(fileKey)
+                    .build();
+
+            GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(expirationMinutes))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            PresignedGetObjectRequest presignedGetObjectRequest = presigner.presignGetObject(getObjectPresignRequest);
+            String theUrl = presignedGetObjectRequest.url().toString();
+            presigner.close();
+            
+            System.out.println("[STORAGE] 🔐 Đã tạo Pre-signed URL (Sống trong " + expirationMinutes + " phút)");
+            return theUrl;
+        } catch (Exception e) {
+            System.err.println("[STORAGE ERROR] Presign URL thất bại: " + e.getMessage());
+            return null;
+        }
     }
 
     /**

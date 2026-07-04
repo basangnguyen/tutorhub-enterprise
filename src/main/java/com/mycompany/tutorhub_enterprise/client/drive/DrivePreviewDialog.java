@@ -55,7 +55,15 @@ public class DrivePreviewDialog extends JDialog {
             if (OFFICE_EXTENSIONS.contains(ext)) {
                 if (isHttp) {
                     try {
-                        url = "https://docs.google.com/viewer?url=" + URLEncoder.encode(url, "UTF-8") + "&embedded=true";
+                        String finalUrl = url;
+                        // Nếu file lưu trên S3/B2, tạo Presigned URL để mở khóa bucket Private cho Google
+                        if ("B2_AND_LOCAL".equalsIgnoreCase(file.getSourceLocation()) || "MINIO".equalsIgnoreCase(file.getSourceLocation())) {
+                            String presignedUrl = com.mycompany.tutorhub_enterprise.server.CloudStorageService.getInstance().generatePresignedUrl(url, 15);
+                            if (presignedUrl != null) {
+                                finalUrl = presignedUrl;
+                            }
+                        }
+                        url = "https://docs.google.com/viewer?url=" + URLEncoder.encode(finalUrl, "UTF-8") + "&embedded=true";
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
