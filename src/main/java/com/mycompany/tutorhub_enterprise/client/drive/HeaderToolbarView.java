@@ -91,11 +91,11 @@ public class HeaderToolbarView extends VBox {
         );
 
         MenuButton btnUpload = createSecondaryMenuButton("Tải lên");
-        javafx.scene.image.Image upImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/arrow-cloud-upload-svgrepo-com.svg", 18);
+        javafx.scene.image.Image upImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/arrow-cloud-upload-svgrepo-com.svg", 22);
         if (upImg != null) {
             javafx.scene.image.ImageView uploadIcon = new javafx.scene.image.ImageView(upImg);
-            uploadIcon.setFitWidth(18);
-            uploadIcon.setFitHeight(18);
+            uploadIcon.setFitWidth(22);
+            uploadIcon.setFitHeight(22);
             btnUpload.setGraphic(uploadIcon);
         }
         MenuItem itemUploadFile = new MenuItem("Tải file lên");
