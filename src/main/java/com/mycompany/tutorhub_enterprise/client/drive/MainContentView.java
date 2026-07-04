@@ -86,6 +86,7 @@ public class MainContentView extends StackPane {
         listTable = new TableView<>();
         listTable.getStyleClass().add("drive-table");
         listTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        StackPane.setMargin(listTable, new Insets(0, 26, 26, 26));
         
         String tableCss = "data:text/css," +
             ".table-view {" +
@@ -125,7 +126,8 @@ public class MainContentView extends StackPane {
             "}" +
             ".table-row-cell:selected {" +
             "  -fx-background-color: #DBEAFE;" +
-            "  -fx-border-color: #60A5FA;" +
+            "  -fx-border-color: #94A3B8;" +
+            "  -fx-border-width: 0 0 1.5 0;" +
             "}" +
             ".table-cell {" +
             "  -fx-padding: 12 14;" +
