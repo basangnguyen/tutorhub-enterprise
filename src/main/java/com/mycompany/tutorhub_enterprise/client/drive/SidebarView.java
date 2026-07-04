@@ -72,12 +72,12 @@ public class SidebarView extends VBox {
         VBox driveGroup = new VBox(6);
         Label lblDriveTitle = sectionLabel("Không gian");
 
-        Button btnRecent = createNavItem("Gần đây", "images/icon/drive_time.png", "recent");
-        Button btnMyDrive = createNavItem("Drive của tôi", "images/icon/drive_home.png", "my_drive");
-        Button btnOrgDrive = createNavItem("Drive tổ chức", "images/icon/drive_home.png", "org_drive");
-        Button btnShared = createNavItem("Được chia sẻ", "images/icon/user.svg", "shared");
-        Button btnStarred = createNavItem("Đã gắn sao", "images/icon/bookmark.svg", "starred");
-        Button btnTrash = createNavItem("Thùng rác", "images/icon/drive_trash.png", "trash");
+        Button btnRecent = createNavItem("Gần đây", "images/icon/recent_color.png", "recent");
+        Button btnMyDrive = createNavItem("Drive của tôi", "images/icon/my_drive_color.png", "my_drive");
+        Button btnOrgDrive = createNavItem("Drive tổ chức", "images/icon/org_drive_color.png", "org_drive");
+        Button btnShared = createNavItem("Được chia sẻ", "images/icon/shared_color.png", "shared");
+        Button btnStarred = createNavItem("Đã gắn sao", "images/icon/starred_color.png", "starred");
+        Button btnTrash = createNavItem("Thùng rác", "images/icon/trash_color.png", "trash");
         driveGroup.getChildren().addAll(lblDriveTitle, btnRecent, btnMyDrive, btnOrgDrive, btnShared, btnStarred, btnTrash);
 
         VBox folderGroup = new VBox(8);
