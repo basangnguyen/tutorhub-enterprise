@@ -178,7 +178,10 @@ public class CloudStorageService {
 
         try {
             AwsBasicCredentials credentials = AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY);
-            S3Configuration s3Config = S3Configuration.builder().pathStyleAccessEnabled(true).build();
+            S3Configuration s3Config = S3Configuration.builder()
+                    .pathStyleAccessEnabled(true)
+                    .checksumValidationEnabled(false)
+                    .build();
             S3Presigner presigner = S3Presigner.builder()
                     .endpointOverride(URI.create(ENDPOINT))
                     .credentialsProvider(StaticCredentialsProvider.create(credentials))
