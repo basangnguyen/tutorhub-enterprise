@@ -126,13 +126,13 @@ public class SidebarView extends VBox {
                         javafx.beans.binding.ObjectBinding<javafx.scene.image.Image> imageBinding =
                             Bindings.createObjectBinding(() -> {
                                 boolean expanded = getTreeItem().isExpanded();
-                                java.net.URL url = getClass().getResource(expanded ? "/images/icon/drive_folder_opened.png" : "/images/icon/drive_folder_closed.png");
-                                return url != null ? new javafx.scene.image.Image(url.toExternalForm()) : null;
+                                String iconPath = expanded ? "images/icon/yellow-open-folder-11567.svg" : "images/icon/folder-1484.svg";
+                                return com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconPath, 18);
                             }, getTreeItem().expandedProperty());
                         folderIcon.imageProperty().bind(imageBinding);
                     } else {
-                        java.net.URL url = getClass().getResource("/images/icon/drive_folder_closed.png");
-                        if (url != null) folderIcon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
+                        javafx.scene.image.Image closedImg = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage("images/icon/folder-1484.svg", 18);
+                        if (closedImg != null) folderIcon.setImage(closedImg);
                     }
                     folderIcon.setFitWidth(18);
                     folderIcon.setFitHeight(18);

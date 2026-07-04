@@ -103,10 +103,8 @@ public class MainContentView extends StackPane {
                         HBox box = new HBox(12);
                         box.setAlignment(Pos.CENTER_LEFT);
                         javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView();
-                        try {
-                            java.net.URL url = getClass().getResource(getIconUrl(file.getFileType()));
-                            if (url != null) icon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
-                        } catch (Exception e) {}
+                        javafx.scene.image.Image img = loadIconImage(getIconUrl(file.getFileType()), 24);
+                        if (img != null) icon.setImage(img);
                         icon.setFitWidth(24);
                         icon.setFitHeight(24);
                         Label lbl = new Label(item);
@@ -371,10 +369,8 @@ public class MainContentView extends StackPane {
         subRow.setAlignment(Pos.CENTER_LEFT);
         
         javafx.scene.image.ImageView typeSmall = new javafx.scene.image.ImageView();
-        try {
-            java.net.URL url = getClass().getResource(iconUrl);
-            if (url != null) typeSmall.setImage(new javafx.scene.image.Image(url.toExternalForm()));
-        } catch (Exception e) {}
+        javafx.scene.image.Image smallImg = loadIconImage(iconUrl, 14);
+        if (smallImg != null) typeSmall.setImage(smallImg);
         typeSmall.setFitWidth(14);
         typeSmall.setFitHeight(14);
 
@@ -610,22 +606,32 @@ public class MainContentView extends StackPane {
 
     private String getIconUrl(String type) {
         switch (type.toLowerCase()) {
-            case "pdf": return "/images/icon/file_pdf.png";
-            case "document": case "doc": case "docx": return "/images/icon/file_word.png";
-            case "video": return "/images/icon/file_video.png";
-            case "excel": case "xlsx": return "/images/icon/file_excel.png";
-            case "slide": case "ppt": case "pptx": return "/images/icon/file_powerpoint.png";
-            case "folder": return "/images/icon/file_folder.png";
-            default: return "/images/icon/file_document.png";
+            case "pdf": return "images/icon/pdf-2616.svg";
+            case "document": case "doc": case "docx": return "images/icon/microsoft-word-icon.svg";
+            case "video": return "images/icon/file_video.png";
+            case "excel": case "xlsx": return "images/icon/file_excel.png";
+            case "slide": case "ppt": case "pptx": return "images/icon/file_powerpoint.png";
+            case "folder": return "images/icon/folder-1484.svg";
+            default: return "images/icon/file_document.png";
+        }
+    }
+
+    private javafx.scene.image.Image loadIconImage(String iconPath, int size) {
+        if (iconPath.endsWith(".svg")) {
+            return com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconPath, size);
+        } else {
+            try {
+                java.net.URL url = getClass().getResource("/" + iconPath);
+                if (url != null) return new javafx.scene.image.Image(url.toExternalForm(), size, size, true, true);
+            } catch (Exception e) {}
+            return null;
         }
     }
 
     private void addIconToThumb(StackPane thumb, String iconUrl) {
         javafx.scene.image.ImageView centerIcon = new javafx.scene.image.ImageView();
-        try {
-            java.net.URL url = getClass().getResource(iconUrl);
-            if (url != null) centerIcon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
-        } catch (Exception e) {}
+        javafx.scene.image.Image img = loadIconImage(iconUrl, 64);
+        if (img != null) centerIcon.setImage(img);
         centerIcon.setFitWidth(64); centerIcon.setFitHeight(64);
         thumb.getChildren().add(centerIcon);
     }

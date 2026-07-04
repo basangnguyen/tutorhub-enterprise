@@ -170,4 +170,19 @@ public class DriveSvgIconFactory {
             default: return "Tài liệu hệ thống";
         }
     }
+
+    public static javafx.scene.image.Image loadSvgImage(String resourcePath, int size) {
+        try {
+            com.formdev.flatlaf.extras.FlatSVGIcon svgIcon = new com.formdev.flatlaf.extras.FlatSVGIcon(resourcePath, size, size);
+            java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            java.awt.Graphics2D g2 = bi.createGraphics();
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            svgIcon.paintIcon(null, g2, 0, 0);
+            g2.dispose();
+            return javafx.embed.swing.SwingFXUtils.toFXImage(bi, null);
+        } catch (Exception e) {
+            System.err.println("[SVG LOAD ERROR] " + resourcePath + ": " + e.getMessage());
+            return null;
+        }
+    }
 }
