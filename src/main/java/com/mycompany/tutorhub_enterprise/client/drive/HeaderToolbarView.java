@@ -282,25 +282,25 @@ public class HeaderToolbarView extends VBox {
     private MenuButton createPrimaryMenuButton(String text) {
         MenuButton btn = new MenuButton(text);
         String styleNormal = 
-            "-fx-background-color: #7C3AED;" +
-            "-fx-border-color: #7C3AED;" +
+            "-fx-background-color: #EFF6FF;" +
+            "-fx-border-color: #3B82F6;" +
             "-fx-border-radius: 14;" +
             "-fx-background-radius: 14;" +
             "-fx-border-width: 1.5;" +
-            "-fx-text-fill: #FFFFFF;" +
-            "-fx-mark-color: #FFFFFF;" +
+            "-fx-text-fill: #2563EB;" +
+            "-fx-mark-color: #2563EB;" +
             "-fx-font-weight: bold;" +
             "-fx-font-size: 13;" +
             "-fx-padding: 8 16;" +
             "-fx-cursor: hand;";
         String styleHover = 
-            "-fx-background-color: #6D28D9;" +
-            "-fx-border-color: #6D28D9;" +
+            "-fx-background-color: #DBEAFE;" +
+            "-fx-border-color: #2563EB;" +
             "-fx-border-radius: 14;" +
             "-fx-background-radius: 14;" +
             "-fx-border-width: 1.5;" +
-            "-fx-text-fill: #FFFFFF;" +
-            "-fx-mark-color: #FFFFFF;" +
+            "-fx-text-fill: #1D4ED8;" +
+            "-fx-mark-color: #1D4ED8;" +
             "-fx-font-weight: bold;" +
             "-fx-font-size: 13;" +
             "-fx-padding: 8 16;" +

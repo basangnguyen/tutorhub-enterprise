@@ -92,46 +92,46 @@ public class MainContentView extends StackPane {
             "  -fx-background-color: #FFFFFF;" +
             "  -fx-background-radius: 12;" +
             "  -fx-border-radius: 12;" +
-            "  -fx-border-color: #CBD5E1;" +
-            "  -fx-border-width: 1;" +
+            "  -fx-border-color: #94A3B8;" +
+            "  -fx-border-width: 1.5;" +
             "}" +
             ".table-view .column-header-background {" +
-            "  -fx-background-color: #F8FAFC;" +
+            "  -fx-background-color: #E2E8F0;" +
             "  -fx-background-radius: 12 12 0 0;" +
             "}" +
             ".table-view .column-header {" +
             "  -fx-background-color: transparent;" +
-            "  -fx-border-color: #E2E8F0;" +
-            "  -fx-border-width: 0 1 1 0;" +
-            "  -fx-padding: 10 12;" +
+            "  -fx-border-color: #94A3B8;" +
+            "  -fx-border-width: 0 1.2 1.5 0;" +
+            "  -fx-padding: 12 14;" +
             "}" +
             ".table-view .column-header:last-visible {" +
-            "  -fx-border-width: 0 0 1 0;" +
+            "  -fx-border-width: 0 0 1.5 0;" +
             "}" +
             ".table-view .column-header .label {" +
             "  -fx-font-family: 'Segoe UI';" +
             "  -fx-font-weight: bold;" +
             "  -fx-font-size: 13px;" +
-            "  -fx-text-fill: #475569;" +
+            "  -fx-text-fill: #1E293B;" +
             "}" +
             ".table-row-cell {" +
             "  -fx-background-color: #FFFFFF;" +
-            "  -fx-border-color: #E2E8F0;" +
-            "  -fx-border-width: 0 0 1 0;" +
+            "  -fx-border-color: #94A3B8;" +
+            "  -fx-border-width: 0 0 1.5 0;" +
             "  -fx-padding: 0;" +
             "}" +
             ".table-row-cell:hover {" +
-            "  -fx-background-color: #F8FAFC;" +
+            "  -fx-background-color: #F1F5F9;" +
             "}" +
             ".table-row-cell:selected {" +
-            "  -fx-background-color: #EEF2FF;" +
-            "  -fx-border-color: #C7D2FE;" +
+            "  -fx-background-color: #DBEAFE;" +
+            "  -fx-border-color: #60A5FA;" +
             "}" +
             ".table-cell {" +
-            "  -fx-padding: 8 12;" +
+            "  -fx-padding: 12 14;" +
             "  -fx-font-family: 'Segoe UI';" +
             "  -fx-font-size: 13px;" +
-            "  -fx-text-fill: #111827;" +
+            "  -fx-text-fill: #0F172A;" +
             "}";
         listTable.getStylesheets().add(tableCss);
 
