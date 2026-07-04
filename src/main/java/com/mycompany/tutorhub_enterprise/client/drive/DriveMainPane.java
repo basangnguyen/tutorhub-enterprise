@@ -109,6 +109,13 @@ public class DriveMainPane extends BorderPane {
         this.setCenter(centerContainer);
 
         setupDragAndDrop(this, centerContainer);
+
+        // Nạp thông tin dung lượng và trạng thái sao ngay khi khởi tạo
+        Platform.runLater(() -> {
+            viewModel.loadStorageQuota();
+            viewModel.loadStarredIds();
+            viewModel.loadFiles();
+        });
     }
 
     private void setupDragAndDrop(BorderPane pane, StackPane parentStack) {
