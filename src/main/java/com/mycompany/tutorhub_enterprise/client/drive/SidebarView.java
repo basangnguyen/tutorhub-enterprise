@@ -186,10 +186,23 @@ public class SidebarView extends VBox {
         btn.setUserData(mode);
         btn.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
 
+        int iconSize = 18;
+        if (iconUrl.contains("google-drive")) {
+            iconSize = 25;
+        } else if (iconUrl.contains("cloud-acceleration")) {
+            iconSize = 22;
+        } else if (iconUrl.contains("path-svgrepo")) {
+            iconSize = 23;
+        } else if (iconUrl.contains("group")) {
+            iconSize = 16;
+        } else if (iconUrl.contains("delete")) {
+            iconSize = 16;
+        }
+
         javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView();
         try {
             if (iconUrl.endsWith(".svg")) {
-                javafx.scene.image.Image img = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconUrl, 18);
+                javafx.scene.image.Image img = com.mycompany.tutorhub_enterprise.utils.DriveSvgIconFactory.loadSvgImage(iconUrl, iconSize);
                 if (img != null) icon.setImage(img);
             } else {
                 String path = iconUrl.startsWith("/") ? iconUrl : "/" + iconUrl;
@@ -197,10 +210,17 @@ public class SidebarView extends VBox {
                 if (url != null) icon.setImage(new javafx.scene.image.Image(url.toExternalForm()));
             }
         } catch (Exception e) {}
-        icon.setFitWidth(18);
-        icon.setFitHeight(18);
-        btn.setGraphic(icon);
-        btn.setGraphicTextGap(12);
+        icon.setFitWidth(iconSize);
+        icon.setFitHeight(iconSize);
+
+        javafx.scene.layout.StackPane iconContainer = new javafx.scene.layout.StackPane(icon);
+        iconContainer.setPrefSize(26, 26);
+        iconContainer.setMinSize(26, 26);
+        iconContainer.setMaxSize(26, 26);
+        iconContainer.setAlignment(Pos.CENTER);
+
+        btn.setGraphic(iconContainer);
+        btn.setGraphicTextGap(8);
 
         applyNavStyle(btn, icon, mode.equals(viewModel.currentViewModeProperty().get()), false);
 
