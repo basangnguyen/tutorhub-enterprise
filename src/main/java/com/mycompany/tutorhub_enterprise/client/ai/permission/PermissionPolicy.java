@@ -36,6 +36,20 @@ public final class PermissionPolicy {
         return policy;
     }
 
+    public static PermissionPolicy phase10Defaults() {
+        PermissionPolicy policy = phase9Defaults();
+        policy.allow("mcp_list_tools", "Discovers configured external MCP tools without invoking them.");
+        policy.ask("mcp_call_tool", "External MCP tool execution requires a dedicated approval flow.");
+        return policy;
+    }
+
+    public static PermissionPolicy phase101Defaults() {
+        PermissionPolicy policy = phase10Defaults();
+        policy.allow("propose_mcp_tool_call", "Creates a pending external MCP tool call proposal only.");
+        policy.ask("run_mcp_tool_call", "Calls an external MCP tool after explicit user approval.");
+        return policy;
+    }
+
     private static PermissionPolicy phase7DefaultsWithoutCommandDeny() {
         PermissionPolicy policy = new PermissionPolicy();
         policy.deny("shell", "Shell execution is not available.");

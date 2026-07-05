@@ -28,4 +28,24 @@ class AiLongTermMemoryStoreTest {
 
         store.clear();
     }
+
+    @Test
+    void updatesAndRemovesIndividualMemoryNotes() {
+        AiLongTermMemoryStore store = new AiLongTermMemoryStore("phase91_test_user", "phase91_test_conversation");
+        store.clear();
+        AiLongTermMemoryStore.MemoryWriteResult saved =
+                store.addAuto("Original stable project fact.", "test");
+        String id = saved.getSnapshot().getItems().get(0).getId();
+
+        AiLongTermMemoryStore.MemoryWriteResult updated =
+                store.update(id, "Updated stable project fact.");
+        AiLongTermMemoryStore.MemoryWriteResult removed = store.remove(id);
+
+        assertTrue(updated.isSaved());
+        assertTrue(updated.getSnapshot().getContext().contains("Updated stable project fact"));
+        assertTrue(removed.isSaved());
+        assertEquals(0, removed.getSnapshot().getCount());
+
+        store.clear();
+    }
 }

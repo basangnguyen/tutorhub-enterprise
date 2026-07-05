@@ -1,13 +1,17 @@
 package com.mycompany.tutorhub_enterprise.client.ai.tool;
 
 import com.mycompany.tutorhub_enterprise.client.ai.AiLongTermMemoryStore;
+import com.mycompany.tutorhub_enterprise.client.ai.mcp.McpServerRegistry;
+import com.mycompany.tutorhub_enterprise.client.ai.mcp.PendingMcpToolCallStore;
 import com.mycompany.tutorhub_enterprise.client.ai.permission.WorkspaceBoundary;
 import com.mycompany.tutorhub_enterprise.client.ai.command.PendingCommandStore;
 import com.mycompany.tutorhub_enterprise.client.ai.patch.PendingPatchStore;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.GitStatusTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.GetProjectInfoTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ListFilesTool;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.McpListToolsTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ProposeCommandTool;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ProposeMcpToolCallTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ProposePatchTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ReadFileTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.RememberNoteTool;
@@ -54,6 +58,28 @@ public final class ToolRegistry {
                                                    AiLongTermMemoryStore memoryStore) {
         ToolRegistry registry = phase8AgentDefaults(boundary, pendingPatchStore, pendingCommandStore);
         registry.register(new RememberNoteTool(memoryStore));
+        return registry;
+    }
+
+    public static ToolRegistry phase10AgentDefaults(WorkspaceBoundary boundary,
+                                                    PendingPatchStore pendingPatchStore,
+                                                    PendingCommandStore pendingCommandStore,
+                                                    AiLongTermMemoryStore memoryStore,
+                                                    McpServerRegistry mcpServerRegistry) {
+        ToolRegistry registry = phase9AgentDefaults(boundary, pendingPatchStore, pendingCommandStore, memoryStore);
+        registry.register(new McpListToolsTool(mcpServerRegistry));
+        return registry;
+    }
+
+    public static ToolRegistry phase101AgentDefaults(WorkspaceBoundary boundary,
+                                                     PendingPatchStore pendingPatchStore,
+                                                     PendingCommandStore pendingCommandStore,
+                                                     AiLongTermMemoryStore memoryStore,
+                                                     McpServerRegistry mcpServerRegistry,
+                                                     PendingMcpToolCallStore pendingMcpToolCallStore) {
+        ToolRegistry registry = phase10AgentDefaults(boundary, pendingPatchStore, pendingCommandStore,
+                memoryStore, mcpServerRegistry);
+        registry.register(new ProposeMcpToolCallTool(mcpServerRegistry, pendingMcpToolCallStore));
         return registry;
     }
 

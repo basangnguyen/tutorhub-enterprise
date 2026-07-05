@@ -6,20 +6,22 @@
   <title>Lavie AI Agent</title>
   <style>
     :root {
-      --bg: #f6f7fb;
+      --bg: #fbfaf7;
       --surface: #ffffff;
-      --surface-soft: #f8fafc;
-      --line: #e3e8f0;
-      --text: #111827;
-      --muted: #667085;
-      --faint: #98a2b3;
-      --blue: #1f5b99;
-      --blue-strong: #174b82;
-      --blue-soft: #eaf2fb;
+      --surface-soft: #f6f4ef;
+      --line: #e4dfd6;
+      --line-strong: #d6cec1;
+      --text: #191714;
+      --muted: #625c54;
+      --faint: #8b847a;
+      --blue: #1d5f95;
+      --blue-strong: #15496f;
+      --blue-soft: #e9f3fb;
       --green: #0f9f6e;
       --red: #b42318;
       --amber: #b76e00;
-      --shadow: 0 16px 44px rgba(30, 41, 59, .08);
+      --shadow: 0 20px 56px rgba(42, 35, 26, .12);
+      --composer-shadow: 0 20px 70px rgba(31, 26, 20, .16);
       --radius: 18px;
       font-family: "Segoe UI", "Be Vietnam Pro", Arial, sans-serif;
     }
@@ -38,6 +40,41 @@
     body {
       display: grid;
       grid-template-rows: auto auto 1fr auto;
+      background: var(--bg);
+    }
+
+    body.artifact-open {
+      grid-template-columns: minmax(520px, 1fr) minmax(420px, 46vw);
+    }
+    body.artifact-open .topbar,
+    body.artifact-open .settings-panel,
+    body.artifact-open .transcript,
+    body.artifact-open .composer-shell {
+      grid-column: 1;
+    }
+    body.artifact-open .thread {
+      width: min(820px, 100%);
+    }
+    body.artifact-open .composer {
+      width: min(780px, 100%);
+    }
+    body.artifact-open .artifact-panel {
+      position: relative;
+      grid-column: 2;
+      grid-row: 1 / -1;
+      margin: 0;
+      height: 100vh;
+      box-shadow: none;
+      border-radius: 0;
+      border-top: 0;
+      border-right: 0;
+      border-bottom: 0;
+      animation: panelSlide .25s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes panelSlide {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
     }
 
     button, select, input, textarea {
@@ -45,14 +82,15 @@
     }
 
     .topbar {
-      min-height: 70px;
-      padding: 12px 22px;
+      min-height: 62px;
+      padding: 10px 28px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      background: rgba(255, 255, 255, .94);
+      background: rgba(251, 250, 247, .90);
       border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(18px);
     }
 
     .agent-title {
@@ -63,9 +101,9 @@
     }
 
     .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       object-fit: cover;
       background: var(--blue-soft);
       border: 1px solid rgba(31, 91, 153, .18);
@@ -78,7 +116,7 @@
     }
 
     .title-stack strong {
-      font-size: 16px;
+      font-size: 15px;
       line-height: 1.2;
       font-weight: 650;
       color: var(--text);
@@ -107,7 +145,7 @@
       padding: 8px 11px;
       border-radius: 999px;
       border: 1px solid var(--line);
-      background: var(--surface-soft);
+      background: rgba(255, 255, 255, .72);
       color: var(--muted);
       font-size: 12px;
       white-space: nowrap;
@@ -124,7 +162,7 @@
     .ghost-btn {
       height: 36px;
       padding: 0 13px;
-      border-radius: 12px;
+      border-radius: 11px;
       border: 1px solid var(--line);
       background: #fff;
       color: #344054;
@@ -138,6 +176,35 @@
       background: var(--blue-soft);
       border-color: rgba(31, 91, 153, .30);
       color: var(--blue);
+    }
+
+    .layout-toggle-btn {
+      width: 38px;
+      height: 36px;
+      padding: 0;
+      border-radius: 11px;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease, transform .16s ease;
+    }
+
+    .layout-toggle-btn:hover {
+      background: var(--blue-soft);
+      border-color: rgba(31, 91, 153, .30);
+    }
+
+    .layout-toggle-btn:active {
+      transform: translateY(1px) scale(.98);
+    }
+
+    .layout-toggle-icon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      opacity: .88;
     }
 
     .settings-panel {
@@ -237,7 +304,7 @@
 
     .long-memory-form {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 10px;
     }
 
@@ -380,6 +447,185 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 1.5;
+    }
+
+    .agent-context-panel {
+      display: grid;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+
+    .context-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .context-title {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .context-title strong {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .context-title small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .context-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .context-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 10px 11px;
+      min-width: 0;
+    }
+
+    .context-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1.35;
+    }
+
+    .context-card strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 750;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .context-sections {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+      gap: 10px;
+    }
+
+    .context-box {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface-soft);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .context-box h3 {
+      margin: 0;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .context-list {
+      display: grid;
+      gap: 7px;
+      max-height: 158px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .context-row {
+      display: grid;
+      gap: 3px;
+      border: 1px solid #e1e7ef;
+      border-radius: 11px;
+      background: #fff;
+      padding: 8px 9px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .context-row strong {
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .context-row code {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-radius: 7px;
+      padding: 1px 5px;
+      width: fit-content;
+    }
+
+    .memory-item {
+      display: grid;
+      gap: 7px;
+    }
+
+    .memory-item-main {
+      display: grid;
+      gap: 5px;
+    }
+
+    .memory-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      color: var(--faint);
+      font-size: 11px;
+    }
+
+    .memory-actions {
+      display: flex;
+      gap: 7px;
+      justify-content: flex-end;
+    }
+
+    .mini-btn {
+      height: 28px;
+      padding: 0 9px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #344054;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .mini-btn:hover {
+      border-color: rgba(31, 91, 153, .35);
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .mini-btn.danger {
+      color: var(--red);
+      border-color: #f5c6c2;
+    }
+
+    .mini-btn.danger:hover {
+      background: #fff1f0;
+      color: var(--red);
     }
 
     .tool-log-list {
@@ -733,42 +979,166 @@
       display: none;
     }
 
+    .mcp-preview-list {
+      display: grid;
+      gap: 10px;
+      max-width: min(760px, 100%);
+    }
+
+    .mcp-preview {
+      border: 1px solid #d8e2ef;
+      border-radius: 16px;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(30, 41, 59, .06);
+    }
+
+    .mcp-head {
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid #e4ebf5;
+      background: #fbfdff;
+    }
+
+    .mcp-title {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .mcp-title strong {
+      color: var(--text);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: "Cascadia Code", Consolas, monospace;
+    }
+
+    .mcp-title span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .mcp-status {
+      height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--amber);
+      background: #fff7e6;
+      border: 1px solid #f6dfae;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mcp-preview.completed .mcp-status {
+      color: var(--green);
+      background: #ecfdf3;
+      border-color: #b8e8cf;
+    }
+
+    .mcp-preview.rejected .mcp-status,
+    .mcp-preview.failed .mcp-status {
+      color: var(--red);
+      background: #fff1f0;
+      border-color: #f5c6c2;
+    }
+
+    .mcp-preview.running .mcp-status {
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-color: rgba(31, 91, 153, .22);
+    }
+
+    .mcp-output {
+      max-height: 300px;
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      border: 0;
+    }
+
+    .mcp-actions {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-top: 1px solid #e4ebf5;
+      background: #fbfdff;
+    }
+
+    .mcp-message {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      min-width: 0;
+    }
+
+    .mcp-buttons {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .mcp-preview.completed .mcp-buttons,
+    .mcp-preview.rejected .mcp-buttons,
+    .mcp-preview.failed .mcp-buttons,
+    .mcp-preview.running .mcp-buttons {
+      display: none;
+    }
+
     .transcript {
       min-height: 0;
       overflow-y: auto;
-      padding: 26px 28px 32px;
+      padding: 34px 34px 132px;
       scroll-behavior: smooth;
     }
 
     .thread {
-      width: min(980px, 100%);
+      width: min(900px, 100%);
       margin: 0 auto;
       display: grid;
-      gap: 18px;
+      gap: 34px;
     }
 
     .intro {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 22px;
-      box-shadow: var(--shadow);
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 20px 0 8px;
+      box-shadow: none;
     }
 
     .intro h1 {
       margin: 0 0 8px;
-      font-size: 24px;
+      font-size: clamp(29px, 3vw, 40px);
       line-height: 1.2;
       letter-spacing: 0;
-      font-weight: 700;
+      font-weight: 720;
+      text-wrap: balance;
     }
 
     .intro p {
       margin: 0;
       color: var(--muted);
-      font-size: 14px;
-      line-height: 1.65;
-      max-width: 760px;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.7;
+      max-width: 780px;
     }
 
     .quick-grid {
@@ -779,34 +1149,36 @@
     }
 
     .quick {
-      border: 1px solid var(--line);
-      background: var(--surface-soft);
+      border: 1px solid #ded7cc;
+      background: rgba(255, 255, 255, .64);
       border-radius: 14px;
-      padding: 12px;
-      color: #344054;
+      padding: 13px 15px;
+      color: #352f28;
       font-size: 13px;
+      font-weight: 600;
       line-height: 1.35;
       text-align: left;
       cursor: pointer;
-      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
     }
 
     .quick:hover {
       transform: translateY(-1px);
-      border-color: rgba(31, 91, 153, .35);
+      border-color: #c9bdad;
       background: #ffffff;
+      box-shadow: 0 8px 24px rgba(38, 31, 24, .06);
     }
 
     .message {
       display: grid;
-      grid-template-columns: 42px minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 12px;
       align-items: start;
-      animation: enter .2s ease both;
+      animation: enter .24s cubic-bezier(.2, .8, .2, 1) both;
     }
 
     .message.user {
-      grid-template-columns: minmax(0, 1fr) 42px;
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .message.user .bubble-wrap {
@@ -816,16 +1188,14 @@
     }
 
     .message.user .mini-avatar {
-      grid-column: 2;
-      grid-row: 1;
-      background: #e7edf7;
-      color: #1e3a5f;
+      display: none;
     }
 
     .mini-avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 13px;
+      display: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       display: grid;
       place-items: center;
       overflow: hidden;
@@ -844,7 +1214,7 @@
 
     .bubble-wrap {
       display: grid;
-      gap: 7px;
+      gap: 10px;
     }
 
     .meta {
@@ -852,34 +1222,40 @@
       gap: 8px;
       align-items: baseline;
       color: var(--faint);
-      font-size: 11px;
+      font-size: 12px;
+      font-weight: 550;
       padding: 0 2px;
     }
 
     .meta strong {
-      color: #344054;
+      color: #4b463f;
       font-size: 12px;
-      font-weight: 650;
+      font-weight: 620;
     }
 
     .bubble {
-      max-width: min(760px, 100%);
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: var(--surface);
-      padding: 14px 16px;
-      line-height: 1.65;
-      font-size: 14px;
+      max-width: min(780px, 100%);
+      border-radius: 0;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      line-height: 1.72;
+      font-size: 16.5px;
+      font-weight: 450;
       color: var(--text);
-      box-shadow: 0 10px 26px rgba(30, 41, 59, .06);
+      box-shadow: none;
       overflow-wrap: anywhere;
     }
 
     .message.user .bubble {
-      background: var(--blue);
-      color: #ffffff;
-      border-color: var(--blue);
-      box-shadow: 0 12px 30px rgba(31, 91, 153, .20);
+      max-width: min(560px, 76%);
+      background: #ffffff;
+      color: #24201b;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 11px 15px;
+      font-size: 15.5px;
+      box-shadow: 0 9px 26px rgba(37, 31, 25, .055);
     }
 
     .bubble p {
@@ -888,6 +1264,48 @@
 
     .bubble p:last-child {
       margin-bottom: 0;
+    }
+
+    .message-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      opacity: 0;
+      transform: translateY(-2px);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+
+    .message.assistant .bubble-wrap:hover .message-actions,
+    .message-actions:focus-within {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .msg-action-btn {
+      height: 30px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: #756d63;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease;
+    }
+
+    .msg-action-btn:hover {
+      background: rgba(255, 255, 255, .82);
+      border-color: #d7cec2;
+      color: #24201b;
+      transform: translateY(-1px);
+    }
+
+    .msg-action-btn:disabled {
+      cursor: default;
+      opacity: .48;
+      transform: none;
     }
 
     .bubble code:not(pre code) {
@@ -902,46 +1320,140 @@
       background: rgba(255, 255, 255, .16);
     }
 
-    .code-block {
+    .bubble h1, .bubble h2, .bubble h3 {
+      margin: 20px 0 8px;
+      color: #161411;
+      line-height: 1.25;
+      font-weight: 760;
+      text-wrap: balance;
+    }
+
+    .bubble h1 { font-size: 24px; }
+    .bubble h2 { font-size: 20px; }
+    .bubble h3 { font-size: 17px; }
+
+    .bubble ul, .bubble ol {
+      margin: 8px 0 12px;
+      padding-left: 24px;
+    }
+
+    .bubble li {
+      margin: 5px 0;
+      padding-left: 2px;
+    }
+
+    .bubble blockquote {
       margin: 12px 0;
-      border: 1px solid #d8dde7;
+      padding: 10px 14px;
+      border-left: 3px solid rgba(63, 55, 45, .28);
+      background: rgba(246, 244, 239, .82);
+      border-radius: 0 12px 12px 0;
+      color: #39342d;
+    }
+
+    .bubble a {
+      color: var(--blue);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(31, 91, 153, .28);
+    }
+
+    .bubble a:hover {
+      border-bottom-color: var(--blue);
+    }
+
+    .markdown-table-wrap {
+      max-width: 100%;
+      overflow: auto;
+      margin: 13px 0;
+      border: 1px solid #ded8cf;
+      border-radius: 14px;
+      background: #ffffff;
+    }
+
+    .markdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .markdown-table th,
+    .markdown-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ebe6df;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .markdown-table th {
+      color: #2e2923;
+      background: #f7f5f1;
+      font-weight: 750;
+    }
+
+    .markdown-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .code-block {
+      margin: 14px 0;
+      border: 1px solid #ded8cf;
       border-radius: 14px;
       overflow: hidden;
-      background: #0f172a;
+      background: #ffffff;
+      box-shadow: 0 8px 24px rgba(37, 31, 25, .045);
     }
 
     .code-head {
-      height: 34px;
+      height: 42px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 10px 0 13px;
-      color: #cbd5e1;
-      background: rgba(255, 255, 255, .04);
-      border-bottom: 1px solid rgba(255, 255, 255, .08);
-      font-size: 11px;
+      padding: 0 14px 0 16px;
+      color: #5f574d;
+      background: #fbfaf7;
+      border-bottom: 1px solid #e7e1d8;
+      font-size: 12px;
+      font-weight: 600;
       font-family: "Cascadia Code", Consolas, monospace;
     }
 
     .copy-code {
-      height: 24px;
-      border: 0;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, .10);
-      color: #e2e8f0;
-      font-size: 11px;
+      height: 30px;
+      border: 1px solid #d8d1c6;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #2d2923;
+      font-size: 12px;
+      font-weight: 650;
       cursor: pointer;
+      padding: 0 11px;
+      transition: background .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
+    }
+
+    .copy-code:hover {
+      background: #f6f4ef;
+      color: #15120f;
+      border-color: #c9beae;
+      transform: translateY(-1px);
     }
 
     pre {
       margin: 0;
-      padding: 14px;
+      padding: 16px;
       overflow: auto;
-      color: #e2e8f0;
+      color: #24201b;
       font-family: "Cascadia Code", Consolas, monospace;
       font-size: 13px;
       line-height: 1.55;
     }
+
+    .syntax-keyword { color: #8b3a2b; font-weight: 650; }
+    .syntax-string { color: #186b3f; }
+    .syntax-number { color: #9a5a00; }
+    .syntax-comment { color: #8b847a; font-style: italic; }
+    .syntax-key { color: #4d5f92; }
+    .syntax-tag { color: #8b3a2b; }
 
     .thinking {
       display: inline-flex;
@@ -962,31 +1474,213 @@
     .thinking i:nth-child(2) { animation-delay: .14s; }
     .thinking i:nth-child(3) { animation-delay: .28s; }
 
+    .answer-placeholder {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      color: var(--faint);
+      font-size: 14px;
+      font-weight: 550;
+      position: relative;
+    }
+
+    .answer-placeholder::after {
+      content: "";
+      width: 96px;
+      height: 10px;
+      margin-left: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(226, 220, 210, .35), rgba(255, 255, 255, .88), rgba(226, 220, 210, .35));
+      background-size: 220% 100%;
+      animation: shimmer 1.25s ease-in-out infinite;
+    }
+
+    .activity-panel {
+      max-width: min(700px, 100%);
+      margin: 0 0 6px;
+      border: 1px solid #e3ddd4;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .62);
+      box-shadow: none;
+      overflow: hidden;
+    }
+
+    .activity-summary {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      color: #2b313b;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .activity-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: #efeae1;
+      color: #5c5145;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .activity-copy {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .activity-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #252b36;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .activity-subtitle {
+      font-size: 12px;
+      font-weight: 560;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .activity-time {
+      font-variant-numeric: tabular-nums;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .activity-steps {
+      display: grid;
+      gap: 7px;
+      padding: 0 14px 12px 48px;
+    }
+
+    .activity-panel.collapsed .activity-steps {
+      display: none;
+    }
+
+    .activity-step {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .activity-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 99px;
+      border: 2px solid #cfd6e0;
+      background: #ffffff;
+    }
+
+    .activity-step.running .activity-dot {
+      border-color: #7b95b2;
+      background: #7b95b2;
+      box-shadow: 0 0 0 5px rgba(91, 119, 148, .10);
+      animation: pulseRing 1.2s ease-in-out infinite;
+    }
+
+    .activity-step.done .activity-dot {
+      border-color: #85a987;
+      background: #85a987;
+    }
+
+    .activity-step.done,
+    .activity-step.running {
+      color: #252b36;
+    }
+
+    .activity-panel.done {
+      border-color: #e4ded5;
+      background: rgba(255, 255, 255, .56);
+    }
+
+    .activity-panel.stopped {
+      border-color: #e8d8c8;
+      background: rgba(255, 250, 244, .90);
+    }
+
     .composer-shell {
-      background: linear-gradient(180deg, rgba(246, 247, 251, .70), #f6f7fb 36%);
-      border-top: 1px solid var(--line);
-      padding: 14px 24px 18px;
+      background: linear-gradient(180deg, rgba(251, 250, 247, 0), rgba(251, 250, 247, .92) 38%, #fbfaf7);
+      border-top: 0;
+      padding: 8px 28px 18px;
     }
 
     .composer {
-      width: min(980px, 100%);
+      width: min(940px, 100%);
       margin: 0 auto;
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: end;
-      gap: 10px;
-      padding: 9px;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid #ded8cf;
+      border-radius: 24px;
+      box-shadow: var(--composer-shadow);
+      transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .composer:focus-within {
+      border-color: #c9beae;
+      box-shadow: 0 22px 76px rgba(31, 26, 20, .18);
+    }
+
+    .composer-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      min-width: 0;
+    }
+
+    .composer-toolbar {
+      display: contents;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .composer-spacer {
+      flex: 1;
+      min-width: 12px;
+    }
+
+    .model-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #514b44;
+      font-size: 14px;
+      font-weight: 560;
+      white-space: nowrap;
+      padding: 0 4px;
+    }
+
+    .model-chip span {
+      color: var(--faint);
     }
 
     .tool-btn, .send-btn {
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 40px;
       border: 0;
-      border-radius: 13px;
+      border-radius: 14px;
       display: grid;
       place-items: center;
       cursor: pointer;
@@ -995,20 +1689,22 @@
     }
 
     .tool-btn {
-      background: var(--surface-soft);
+      background: transparent;
       color: var(--muted);
-      border: 1px solid var(--line);
+      border: 1px solid transparent;
     }
 
     .tool-btn:hover {
-      background: var(--blue-soft);
-      color: var(--blue);
+      background: var(--surface-soft);
+      color: var(--text);
+      border-color: var(--line);
     }
 
     .send-btn {
-      background: var(--blue);
+      background: #1f5b99;
       color: #ffffff;
       font-weight: 700;
+      font-size: 18px;
     }
 
     .send-btn:hover {
@@ -1016,24 +1712,40 @@
       transform: translateY(-1px);
     }
 
+    .composer.generating {
+      border-color: rgba(42, 35, 26, .28);
+      box-shadow: 0 22px 76px rgba(31, 26, 20, .18);
+    }
+
+    .send-btn.is-stop {
+      background: #344054;
+      color: #ffffff;
+      font-size: 14px;
+    }
+
+    .send-btn.is-stop:hover {
+      background: #1f2937;
+    }
+
     .send-btn:active, .tool-btn:active, .primary-btn:active, .ghost-btn:active {
       transform: translateY(1px) scale(.98);
     }
 
     textarea {
-      min-height: 38px;
-      max-height: 132px;
+      min-height: 42px;
+      max-height: 128px;
       border: 0;
       outline: 0;
       resize: none;
-      padding: 9px 6px;
-      font: 14px/1.45 "Segoe UI", "Be Vietnam Pro", Arial, sans-serif;
+      padding: 10px 6px;
+      font: 17px/1.45 "Segoe UI", "Be Vietnam Pro", Arial, sans-serif;
+      font-weight: 450;
       color: var(--text);
       background: transparent;
     }
 
     textarea::placeholder {
-      color: #98a2b3;
+      color: #8a8278;
     }
 
     .error {
@@ -1043,6 +1755,101 @@
       text-align: center;
     }
 
+    .ai-disclaimer {
+      width: min(940px, 100%);
+      margin: 7px auto 0;
+      text-align: center;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .artifact-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid #ded8cf;
+      z-index: 40;
+    }
+
+    .artifact-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 16px;
+      border-bottom: 1px solid #e7e1d8;
+      background: rgba(255, 255, 255, .96);
+      backdrop-filter: blur(14px);
+    }
+
+    .artifact-title {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .artifact-title span {
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .artifact-title strong {
+      color: #1d1a16;
+      font-size: 15px;
+      font-weight: 720;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .artifact-title small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 560;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .artifact-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .artifact-body {
+      overflow: auto;
+      padding: 22px 24px 28px;
+      color: var(--text);
+      font-size: 15.5px;
+      line-height: 1.72;
+    }
+
+    .artifact-panel[data-kind="code"] .artifact-body {
+      padding: 18px;
+      background: #fbfaf7;
+    }
+
+    .artifact-panel[data-kind="code"] .code-block {
+      margin: 0;
+      border-color: #ded8cf;
+      box-shadow: none;
+    }
+
+    .artifact-panel[data-kind="table"] .artifact-body {
+      padding: 14px;
+      background: #fbfdff;
+    }
+
+    .artifact-body p {
+      margin: 0 0 12px;
+    }
+
     [hidden] { display: none !important; }
 
     @keyframes enter {
@@ -1050,9 +1857,24 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateX(14px) scale(.98); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
     @keyframes pulse {
       0%, 80%, 100% { opacity: .35; transform: translateY(0); }
       40% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(91, 119, 148, .10); }
+      50% { box-shadow: 0 0 0 7px rgba(91, 119, 148, .035); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 220% 0; }
+      100% { background-position: -220% 0; }
     }
 
     @media (max-width: 920px) {
@@ -1062,8 +1884,32 @@
       .agent-workspace-row {
         grid-template-columns: 1fr;
       }
+      .context-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .context-sections {
+        grid-template-columns: 1fr;
+      }
       .primary-btn, .ghost-btn {
         width: 100%;
+      }
+      body.artifact-open {
+        grid-template-columns: 1fr;
+      }
+      body.artifact-open .artifact-panel {
+        position: fixed;
+        top: 86px;
+        right: 16px;
+        bottom: 104px;
+        left: 16px;
+        width: auto;
+        height: auto;
+        margin: 0;
+        z-index: 50;
+        box-shadow: 0 20px 60px rgba(36, 29, 22, .16);
+        border-radius: 20px;
+        border: 1px solid #ded8cf;
+        animation: panelIn .2s ease both;
       }
     }
 
@@ -1073,11 +1919,17 @@
       .status-pill { display: none; }
       .settings-panel { padding: 12px 14px; }
       .settings-inner { grid-template-columns: 1fr; }
+      .context-grid { grid-template-columns: 1fr; }
+      .long-memory-form { grid-template-columns: 1fr; }
       .patch-actions {
         align-items: stretch;
         flex-direction: column;
       }
       .command-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .mcp-actions {
         align-items: stretch;
         flex-direction: column;
       }
@@ -1087,15 +1939,28 @@
       .command-buttons {
         width: 100%;
       }
+      .mcp-buttons {
+        width: 100%;
+      }
       .patch-buttons button {
         flex: 1;
       }
       .command-buttons button {
         flex: 1;
       }
+      .mcp-buttons button {
+        flex: 1;
+      }
       .transcript { padding: 18px 14px 24px; }
       .quick-grid { grid-template-columns: 1fr; }
       .composer-shell { padding: 12px; }
+      .composer-toolbar { flex-wrap: wrap; }
+      .model-chip { display: none; }
+      body.artifact-open .artifact-panel {
+        inset: 74px 12px 96px;
+        width: auto;
+      }
+      textarea { font-size: 15px; }
     }
   </style>
 </head>
@@ -1111,6 +1976,11 @@
     <div class="top-actions">
       <div class="status-pill"><span class="status-dot"></span><span id="statusText">Bridge đang khởi tạo</span></div>
       <button type="button" id="settingsBtn" class="ghost-btn">Cấu hình</button>
+      <button type="button" id="layoutToggleBtn" class="layout-toggle-btn" title="Mở rộng Lavie">
+        <img id="layoutToggleIcon" class="layout-toggle-icon"
+             src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/panel-left-close.svg"
+             alt="Mở rộng">
+      </button>
     </div>
   </header>
 
@@ -1121,6 +1991,7 @@
         <select id="providerSelect">
           <option value="lavie">Lavie / Hugging Face</option>
           <option value="langchain4j-ollama">LangChain4j Ollama</option>
+          <option value="openai-compatible">OpenAI-compatible</option>
         </select>
       </label>
       <label class="field ollama-field">
@@ -1130,6 +2001,18 @@
       <label class="field ollama-field">
         <span>Model</span>
         <input id="ollamaModel" type="text" spellcheck="false" placeholder="llama3.2">
+      </label>
+      <label class="field openai-field">
+        <span>OpenAI Base URL</span>
+        <input id="openAiBaseUrl" type="text" spellcheck="false" placeholder="https://api.openai.com/v1">
+      </label>
+      <label class="field openai-field">
+        <span>OpenAI Model</span>
+        <input id="openAiModel" type="text" spellcheck="false" placeholder="gpt-4o-mini">
+      </label>
+      <label class="field openai-field">
+        <span>API key phiên này</span>
+        <input id="openAiApiKey" type="password" spellcheck="false" placeholder="Để trống để dùng TUTORHUB_OPENAI_API_KEY">
       </label>
       <button type="button" id="checkProviderBtn" class="ghost-btn">Kiểm tra</button>
       <button type="button" id="resetProviderBtn" class="ghost-btn">Mặc định</button>
@@ -1148,6 +2031,7 @@
       <div class="long-memory-form">
         <input id="longMemoryInput" type="text" maxlength="700" spellcheck="true" placeholder="Ghi chú Lavie cần nhớ lâu dài...">
         <button type="button" id="saveLongMemoryBtn" class="primary-btn">Ghi nhớ</button>
+        <button type="button" id="cancelEditMemoryBtn" class="ghost-btn" hidden>Hủy sửa</button>
       </div>
       <div id="longMemoryList" class="memory-list"></div>
     </div>
@@ -1171,11 +2055,31 @@
         <button type="button" id="applyAgentModeBtn" class="primary-btn">Áp dụng Agent Mode</button>
       </div>
       <div id="agentModeText" class="agent-note">Agent Mode đang tắt.</div>
-      <div id="agentToolsText" class="agent-note">Tools: list_files, read_file, search_text, get_project_info, propose_patch, git_status, propose_command</div>
+      <div id="agentToolsText" class="agent-note">Tools: list_files, read_file, search_text, get_project_info, propose_patch, git_status, propose_command, remember_note, mcp_list_tools, propose_mcp_tool_call</div>
+      <div class="agent-context-panel">
+        <div class="context-head">
+          <div class="context-title">
+            <strong>Agent Context</strong>
+            <small>Kiểm tra workspace, AGENTS.md, memory và audit log trước khi giao việc cho agent.</small>
+          </div>
+          <button type="button" id="refreshContextBtn" class="ghost-btn">Làm mới context</button>
+        </div>
+        <div id="agentContextStats" class="context-grid"></div>
+        <div class="context-sections">
+          <section class="context-box">
+            <h3>Project instructions</h3>
+            <div id="agentInstructionFiles" class="context-list"></div>
+          </section>
+          <section class="context-box">
+            <h3>Audit gần đây</h3>
+            <div id="auditLogList" class="context-list"></div>
+          </section>
+        </div>
+      </div>
     </div>
   </section>
 
-  <main id="transcript" class="transcript">
+  <main id="transcript" class="transcript" aria-live="polite">
     <div id="thread" class="thread">
       <section class="intro">
         <h1>Trò chuyện với Lavie</h1>
@@ -1187,6 +2091,9 @@
           <button class="quick" data-prompt="Tóm tắt giúp tôi nội dung cuộc trò chuyện gần đây">Tóm tắt cuộc trò chuyện</button>
           <button class="quick" data-prompt="Lập kế hoạch ôn tập trong 7 ngày cho môn An toàn thông tin">Lập kế hoạch ôn tập</button>
           <button class="quick" data-prompt="Giải thích ngắn gọn pipeline xử lý trong vi xử lý">Giải thích khái niệm</button>
+          <button class="quick" data-prompt="Tạo giúp tôi một quiz nhanh 5 câu từ nội dung đang học">Tạo quiz nhanh</button>
+          <button class="quick" data-prompt="Viết lại tin nhắn này cho rõ ràng, lịch sự và chuyên nghiệp hơn">Viết lại tin nhắn</button>
+          <button class="quick" data-prompt="Phân tích tài liệu học tập này thành các ý chính, thuật ngữ và câu hỏi ôn tập">Phân tích tài liệu</button>
         </div>
       </section>
     </div>
@@ -1195,11 +2102,34 @@
   <footer class="composer-shell">
     <form id="composer" class="composer">
       <button type="button" id="attachBtn" class="tool-btn" title="Đính kèm">+</button>
-      <textarea id="input" rows="1" placeholder="Nhập tin nhắn cho Lavie..."></textarea>
-      <button type="submit" class="send-btn" title="Gửi">→</button>
+      <div class="composer-row">
+        <textarea id="input" rows="1" aria-label="Nhập tin nhắn cho Lavie" placeholder="Nhập tin nhắn cho Lavie..."></textarea>
+      </div>
+      <div class="composer-toolbar">
+        <div class="model-chip">Lavie <span>·</span> Agent</div>
+        <button type="button" class="tool-btn" title="Giọng nói">♩</button>
+        <button type="button" class="tool-btn" title="Công cụ">≋</button>
+        <button type="submit" id="sendBtn" class="send-btn" title="Gửi">→</button>
+      </div>
     </form>
     <div id="errorText" class="error" hidden></div>
+    <div class="ai-disclaimer">Lavie có thể mắc lỗi. Hãy kiểm tra lại thông tin quan trọng.</div>
   </footer>
+
+  <aside id="artifactPanel" class="artifact-panel" hidden aria-label="Lavie content panel">
+    <div class="artifact-head">
+      <div class="artifact-title">
+        <span>Lavie panel</span>
+        <strong id="artifactTitle">Nội dung từ Lavie</strong>
+        <small id="artifactMeta">Markdown preview</small>
+      </div>
+      <div class="artifact-actions">
+        <button type="button" id="artifactCopyBtn" class="msg-action-btn">Copy</button>
+        <button type="button" id="artifactCloseBtn" class="msg-action-btn">Đóng</button>
+      </div>
+    </div>
+    <div id="artifactBody" class="artifact-body"></div>
+  </aside>
 
   <script>
     const CHANNEL = 'tutorhub.ai';
@@ -1207,15 +2137,21 @@
     const transcript = document.getElementById('transcript');
     const input = document.getElementById('input');
     const composer = document.getElementById('composer');
+    const sendBtn = document.getElementById('sendBtn');
     const errorText = document.getElementById('errorText');
     const statusText = document.getElementById('statusText');
     const providerSubtitle = document.getElementById('providerSubtitle');
     const attachBtn = document.getElementById('attachBtn');
     const settingsBtn = document.getElementById('settingsBtn');
+    const layoutToggleBtn = document.getElementById('layoutToggleBtn');
+    const layoutToggleIcon = document.getElementById('layoutToggleIcon');
     const settingsPanel = document.getElementById('settingsPanel');
     const providerSelect = document.getElementById('providerSelect');
     const ollamaBaseUrl = document.getElementById('ollamaBaseUrl');
     const ollamaModel = document.getElementById('ollamaModel');
+    const openAiBaseUrl = document.getElementById('openAiBaseUrl');
+    const openAiModel = document.getElementById('openAiModel');
+    const openAiApiKey = document.getElementById('openAiApiKey');
     const checkProviderBtn = document.getElementById('checkProviderBtn');
     const resetProviderBtn = document.getElementById('resetProviderBtn');
     const applyProviderBtn = document.getElementById('applyProviderBtn');
@@ -1225,6 +2161,7 @@
     const longMemoryText = document.getElementById('longMemoryText');
     const longMemoryInput = document.getElementById('longMemoryInput');
     const saveLongMemoryBtn = document.getElementById('saveLongMemoryBtn');
+    const cancelEditMemoryBtn = document.getElementById('cancelEditMemoryBtn');
     const clearLongMemoryBtn = document.getElementById('clearLongMemoryBtn');
     const longMemoryList = document.getElementById('longMemoryList');
     const agentModeToggle = document.getElementById('agentModeToggle');
@@ -1233,24 +2170,50 @@
     const agentModeText = document.getElementById('agentModeText');
     const agentToolsText = document.getElementById('agentToolsText');
     const agentModeBadge = document.getElementById('agentModeBadge');
+    const refreshContextBtn = document.getElementById('refreshContextBtn');
+    const agentContextStats = document.getElementById('agentContextStats');
+    const agentInstructionFiles = document.getElementById('agentInstructionFiles');
+    const auditLogList = document.getElementById('auditLogList');
+    const artifactPanel = document.getElementById('artifactPanel');
+    const artifactTitle = document.getElementById('artifactTitle');
+    const artifactMeta = document.getElementById('artifactMeta');
+    const artifactBody = document.getElementById('artifactBody');
+    const artifactCopyBtn = document.getElementById('artifactCopyBtn');
+    const artifactCloseBtn = document.getElementById('artifactCloseBtn');
     let assistantBubble = null;
     let assistantToolLog = null;
     let assistantPatchList = null;
     let assistantCommandList = null;
+    let assistantMcpList = null;
     let assistantRaw = '';
+    let isGenerating = false;
+    let currentArtifactRaw = '';
+    let activeActivity = null;
+    let activityTimer = null;
+    const ACTIVITY_STEPS = [
+      { label: 'Hiểu yêu cầu', detail: 'Đang đọc nội dung bạn vừa gửi' },
+      { label: 'Tìm ngữ cảnh', detail: 'Đang kiểm tra bộ nhớ và hội thoại liên quan' },
+      { label: 'Lập kế hoạch', detail: 'Đang chọn hướng trả lời phù hợp' },
+      { label: 'Soạn phản hồi', detail: 'Đang viết câu trả lời cho bạn' },
+      { label: 'Kiểm tra câu trả lời', detail: 'Đang rà lại nội dung trước khi hoàn tất' }
+    ];
     let providerConfig = {
       provider: 'lavie',
       displayName: 'Lavie / Hugging Face',
       providerName: 'Lavie / Hugging Face',
       ollamaBaseUrl: 'http://localhost:11434',
-      ollamaModel: 'llama3.2'
+      ollamaModel: 'llama3.2',
+      openAiBaseUrl: 'https://api.openai.com/v1',
+      openAiModel: 'gpt-4o-mini',
+      openAiApiKeyConfigured: false
     };
     let agentModeState = {
       enabled: false,
       workspacePath: '',
       validWorkspace: false,
-      tools: ['list_files', 'read_file', 'search_text', 'get_project_info', 'propose_patch', 'git_status', 'propose_command']
+      tools: ['list_files', 'read_file', 'search_text', 'get_project_info', 'propose_patch', 'git_status', 'propose_command', 'remember_note', 'mcp_list_tools', 'propose_mcp_tool_call']
     };
+    let editingMemoryId = '';
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -1269,29 +2232,168 @@
     }
 
     function inlineMarkdown(text) {
-      return escapeHtml(text)
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      const codeSpans = [];
+      let value = escapeHtml(text).replace(/`([^`]+)`/g, (_, code) => {
+        const token = '\u0000CODE' + codeSpans.length + '\u0000';
+        codeSpans.push('<code>' + code + '</code>');
+        return token;
+      });
+      value = value
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+      codeSpans.forEach((html, index) => {
+        value = value.replace('\u0000CODE' + index + '\u0000', html);
+      });
+      return value;
     }
 
     function renderMarkdown(text) {
-      const parts = String(text ?? '').split(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g);
+      const parts = String(text ?? '').replace(/\r\n/g, '\n').split(/```([a-zA-Z0-9_+.#-]*)\n?([\s\S]*?)```/g);
       let html = '';
       for (let i = 0; i < parts.length; i++) {
         if (i % 3 === 0) {
-          const blocks = parts[i].split(/\n{2,}/).filter(Boolean);
-          html += blocks.map(block => '<p>' + inlineMarkdown(block).replace(/\n/g, '<br>') + '</p>').join('');
+          html += renderMarkdownBlocks(parts[i]);
         } else if (i % 3 === 1) {
-          const lang = parts[i] || 'text';
+          const lang = normalizeLanguage(parts[i] || 'text');
           const code = parts[i + 1] || '';
-          html += '<div class="code-block">'
-            + '<div class="code-head"><span>' + escapeHtml(lang) + '</span><button class="copy-code" type="button">Copy</button></div>'
-            + '<pre><code>' + escapeHtml(code) + '</code></pre>'
-            + '</div>';
+          html += renderCodeBlock(lang, code);
           i++;
         }
       }
       return html || '<p></p>';
+    }
+
+    function renderMarkdownBlocks(markdown) {
+      const lines = String(markdown || '').split('\n');
+      let html = '';
+      for (let i = 0; i < lines.length;) {
+        const line = lines[i];
+        if (!line || !line.trim()) {
+          i++;
+          continue;
+        }
+        const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+        if (heading) {
+          const level = heading[1].length;
+          html += '<h' + level + '>' + inlineMarkdown(heading[2].trim()) + '</h' + level + '>';
+          i++;
+          continue;
+        }
+        if (isMarkdownTableAt(lines, i)) {
+          const tableResult = renderMarkdownTable(lines, i);
+          html += tableResult.html;
+          i = tableResult.nextIndex;
+          continue;
+        }
+        if (/^\s*>\s?/.test(line)) {
+          const quote = [];
+          while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+            quote.push(lines[i].replace(/^\s*>\s?/, ''));
+            i++;
+          }
+          html += '<blockquote>' + renderMarkdownBlocks(quote.join('\n')) + '</blockquote>';
+          continue;
+        }
+        if (/^\s*[-*]\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+            items.push(lines[i].replace(/^\s*[-*]\s+/, ''));
+            i++;
+          }
+          html += '<ul>' + items.map(item => '<li>' + inlineMarkdown(item.trim()) + '</li>').join('') + '</ul>';
+          continue;
+        }
+        if (/^\s*\d+\.\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+            items.push(lines[i].replace(/^\s*\d+\.\s+/, ''));
+            i++;
+          }
+          html += '<ol>' + items.map(item => '<li>' + inlineMarkdown(item.trim()) + '</li>').join('') + '</ol>';
+          continue;
+        }
+        const para = [];
+        while (i < lines.length && lines[i].trim()
+          && !/^(#{1,3})\s+/.test(lines[i])
+          && !/^\s*>\s?/.test(lines[i])
+          && !/^\s*[-*]\s+/.test(lines[i])
+          && !/^\s*\d+\.\s+/.test(lines[i])
+          && !isMarkdownTableAt(lines, i)) {
+          para.push(lines[i]);
+          i++;
+        }
+        html += '<p>' + inlineMarkdown(para.join('\n')).replace(/\n/g, '<br>') + '</p>';
+      }
+      return html;
+    }
+
+    function normalizeLanguage(lang) {
+      const clean = String(lang || 'text').trim().toLowerCase();
+      return clean || 'text';
+    }
+
+    function renderCodeBlock(lang, code) {
+      const safeLang = normalizeLanguage(lang);
+      const className = safeLang.replace(/[^a-z0-9_+#.-]/g, '') || 'text';
+      return '<div class="code-block" data-lang="' + escapeHtml(safeLang) + '">'
+        + '<div class="code-head"><span>' + escapeHtml(safeLang) + '</span><button class="copy-code" type="button">Copy</button></div>'
+        + '<pre><code class="language-' + escapeHtml(className) + '">' + highlightCode(code, safeLang) + '</code></pre>'
+        + '</div>';
+    }
+
+    function highlightCode(code, lang) {
+      let html = escapeHtml(code);
+      const group = normalizeLanguage(lang);
+      if (/^(json|jsonc)$/.test(group)) {
+        return html
+          .replace(/(&quot;[^&]*?&quot;)(\s*:)/g, '<span class="syntax-key">$1</span>$2')
+          .replace(/(:\s*)(&quot;.*?&quot;)/g, '$1<span class="syntax-string">$2</span>')
+          .replace(/\b(true|false|null)\b/g, '<span class="syntax-keyword">$1</span>')
+          .replace(/\b(-?\d+(?:\.\d+)?)\b/g, '<span class="syntax-number">$1</span>');
+      }
+      if (/^(html|xml|svg)$/.test(group)) {
+        return html
+          .replace(/(&lt;\/?)([a-zA-Z0-9:-]+)/g, '$1<span class="syntax-tag">$2</span>')
+          .replace(/(&quot;.*?&quot;)/g, '<span class="syntax-string">$1</span>');
+      }
+      if (/^(css|scss)$/.test(group)) {
+        return html
+          .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syntax-comment">$1</span>')
+          .replace(/\b(@media|@keyframes|from|to|important)\b/g, '<span class="syntax-keyword">$1</span>')
+          .replace(/(#(?:[a-fA-F0-9]{3}){1,2}|rgba?\([^)]+\)|\b\d+(?:px|rem|em|%|vh|vw)\b)/g, '<span class="syntax-number">$1</span>');
+      }
+      return html
+        .replace(/(\/\/.*$|#.*$)/gm, '<span class="syntax-comment">$1</span>')
+        .replace(/(&quot;.*?&quot;|&#039;.*?&#039;)/g, '<span class="syntax-string">$1</span>')
+        .replace(/\b(class|public|private|protected|final|static|void|return|if|else|for|while|try|catch|new|const|let|var|function|async|await|import|from|export|return|throw|extends|implements)\b/g, '<span class="syntax-keyword">$1</span>')
+        .replace(/\b(-?\d+(?:\.\d+)?)\b/g, '<span class="syntax-number">$1</span>');
+    }
+
+    function isMarkdownTableAt(lines, index) {
+      if (index + 1 >= lines.length) return false;
+      return /\|/.test(lines[index]) && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1] || '');
+    }
+
+    function splitTableRow(line) {
+      return String(line || '').trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+    }
+
+    function renderMarkdownTable(lines, index) {
+      const headers = splitTableRow(lines[index]);
+      let cursor = index + 2;
+      const rows = [];
+      while (cursor < lines.length && /\|/.test(lines[cursor]) && lines[cursor].trim()) {
+        rows.push(splitTableRow(lines[cursor]));
+        cursor++;
+      }
+      const head = headers.map(cell => '<th>' + inlineMarkdown(cell) + '</th>').join('');
+      const body = rows.map(row => '<tr>' + headers.map((_, cellIndex) =>
+        '<td>' + inlineMarkdown(row[cellIndex] || '') + '</td>').join('') + '</tr>').join('');
+      return {
+        html: '<div class="markdown-table-wrap"><table class="markdown-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>',
+        nextIndex: cursor
+      };
     }
 
     function nowTime() {
@@ -1301,6 +2403,118 @@
 
     function scrollBottom() {
       requestAnimationFrame(() => transcript.scrollTop = transcript.scrollHeight);
+    }
+
+    function formatDuration(ms) {
+      const seconds = Math.max(.1, Number(ms || 0) / 1000);
+      if (seconds < 10) {
+        return seconds.toFixed(1).replace('.', ',') + ' giây';
+      }
+      return Math.round(seconds) + ' giây';
+    }
+
+    function startActivityPanel(wrap, meta = {}) {
+      stopActivityTimer();
+      if (!wrap) return;
+      const panel = document.createElement('section');
+      panel.className = 'activity-panel';
+      panel.innerHTML =
+        '<button type="button" class="activity-summary">'
+        + '<span class="activity-icon">·</span>'
+        + '<span class="activity-copy"><span class="activity-title"></span><span class="activity-subtitle"></span></span>'
+        + '<span class="activity-time">0 giây</span>'
+        + '</button>'
+        + '<div class="activity-steps"></div>';
+      const bubble = wrap.querySelector('.bubble');
+      wrap.insertBefore(panel, bubble || null);
+      activeActivity = {
+        panel,
+        startedAt: Number(meta?.startedAt || Date.now()),
+        stepIndex: 0,
+        collapsed: false,
+        completed: false,
+        stopped: false,
+        firstDelta: false
+      };
+      panel.querySelector('.activity-summary')?.addEventListener('click', () => {
+        if (!activeActivity) return;
+        activeActivity.collapsed = !activeActivity.collapsed;
+        renderActivityPanel();
+      });
+      renderActivityPanel();
+      activityTimer = setInterval(() => {
+        if (!activeActivity || activeActivity.completed) return;
+        const elapsed = Date.now() - activeActivity.startedAt;
+        const timeStep = Math.min(ACTIVITY_STEPS.length - 1, Math.floor(elapsed / 2400));
+        if (timeStep > activeActivity.stepIndex) {
+          activeActivity.stepIndex = timeStep;
+        }
+        renderActivityPanel();
+      }, 500);
+    }
+
+    function stopActivityTimer() {
+      if (activityTimer) {
+        clearInterval(activityTimer);
+        activityTimer = null;
+      }
+    }
+
+    function renderActivityPanel() {
+      if (!activeActivity?.panel) return;
+      const elapsed = Date.now() - activeActivity.startedAt;
+      const panel = activeActivity.panel;
+      panel.classList.toggle('collapsed', activeActivity.collapsed || activeActivity.completed);
+      panel.classList.toggle('done', activeActivity.completed && !activeActivity.stopped);
+      panel.classList.toggle('stopped', activeActivity.completed && activeActivity.stopped);
+      const title = panel.querySelector('.activity-title');
+      const subtitle = panel.querySelector('.activity-subtitle');
+      const time = panel.querySelector('.activity-time');
+      const icon = panel.querySelector('.activity-icon');
+      const currentStep = ACTIVITY_STEPS[Math.min(activeActivity.stepIndex, ACTIVITY_STEPS.length - 1)];
+      if (activeActivity.completed) {
+        title.textContent = activeActivity.stopped
+          ? 'Đã dừng xử lý'
+          : 'Đã suy nghĩ trong ' + formatDuration(elapsed);
+        subtitle.textContent = activeActivity.stopped
+          ? 'Phản hồi đã được dừng theo yêu cầu'
+          : 'Hoàn tất các bước xử lý cấp cao';
+        icon.textContent = activeActivity.stopped ? '!' : '✓';
+      } else {
+        title.textContent = currentStep.label;
+        subtitle.textContent = currentStep.detail;
+        icon.textContent = '·';
+      }
+      time.textContent = formatDuration(elapsed);
+      const steps = panel.querySelector('.activity-steps');
+      steps.innerHTML = ACTIVITY_STEPS.map((step, index) => {
+        let state = 'pending';
+        if (activeActivity.completed && !activeActivity.stopped) {
+          state = 'done';
+        } else if (index < activeActivity.stepIndex) {
+          state = 'done';
+        } else if (index === activeActivity.stepIndex && !activeActivity.completed) {
+          state = 'running';
+        }
+        return '<div class="activity-step ' + state + '"><span class="activity-dot"></span><span>' + escapeHtml(step.label) + '</span></div>';
+      }).join('');
+    }
+
+    function advanceActivityTo(index) {
+      if (!activeActivity || activeActivity.completed) return;
+      activeActivity.stepIndex = Math.max(activeActivity.stepIndex, Math.min(index, ACTIVITY_STEPS.length - 1));
+      renderActivityPanel();
+    }
+
+    function completeActivityPanel(stopped = false) {
+      if (!activeActivity) return;
+      stopActivityTimer();
+      activeActivity.completed = true;
+      activeActivity.stopped = !!stopped;
+      activeActivity.stepIndex = stopped ? activeActivity.stepIndex : ACTIVITY_STEPS.length - 1;
+      activeActivity.collapsed = true;
+      renderActivityPanel();
+      activeActivity = null;
     }
 
     function createAvatar(kind) {
@@ -1317,12 +2531,152 @@
       return avatar;
     }
 
+    function copyText(text, btn) {
+      const value = String(text || '');
+      if (!value.trim()) return;
+      const done = () => {
+        if (!btn) return;
+        const previous = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => btn.textContent = previous, 900);
+      };
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(value).then(done).catch(() => fallbackCopyText(value, done));
+      } else {
+        fallbackCopyText(value, done);
+      }
+    }
+
+    function fallbackCopyText(text, done) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } finally {
+        ta.remove();
+        if (typeof done === 'function') done();
+      }
+    }
+
+    function shouldOpenInPanel(rawText) {
+      const text = String(rawText || '');
+      const lineCount = text ? text.split(/\r\n|\r|\n/).length : 0;
+      const longCode = /```[a-zA-Z0-9_+.#-]*\n?([\s\S]{180,}?)```/.test(text);
+      return text.length >= 1500 || lineCount >= 22 || longCode || hasMarkdownTable(text);
+    }
+
+    function hasMarkdownTable(rawText) {
+      const lines = String(rawText || '').replace(/\r\n/g, '\n').split('\n');
+      return lines.some((_, index) => isMarkdownTableAt(lines, index));
+    }
+
+    function classifyArtifact(rawText) {
+      const text = String(rawText || '');
+      const codeMatch = /```([a-zA-Z0-9_+.#-]*)\n?([\s\S]*?)```/.exec(text);
+      if (codeMatch && (codeMatch[2] || '').trim().length > 120) {
+        return { kind: 'code', label: 'Code artifact', language: normalizeLanguage(codeMatch[1] || 'text') };
+      }
+      const lines = text.replace(/\r\n/g, '\n').split('\n');
+      if (hasMarkdownTable(text)) {
+        return { kind: 'table', label: 'Table artifact', language: 'markdown' };
+      }
+      if (text.length >= 1400 || /^#{1,3}\s+/m.test(text)) {
+        return { kind: 'document', label: 'Document artifact', language: 'markdown' };
+      }
+      return { kind: 'text', label: 'Text artifact', language: 'markdown' };
+    }
+
+    function artifactStats(rawText, artifact) {
+      const text = String(rawText || '');
+      const lines = text ? text.split(/\r\n|\r|\n/).length : 0;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      if (artifact.kind === 'code') {
+        return artifact.language + ' · ' + lines + ' dòng';
+      }
+      return words + ' từ · ' + lines + ' dòng';
+    }
+
+    function openArtifactPanel(title, rawText, options = {}) {
+      currentArtifactRaw = String(rawText || '');
+      const artifact = classifyArtifact(currentArtifactRaw);
+      artifactPanel.dataset.kind = artifact.kind;
+      artifactPanel.dataset.auto = options.auto ? 'true' : 'false';
+      artifactTitle.textContent = title || 'Nội dung từ Lavie';
+      artifactMeta.textContent = artifact.label + ' · ' + artifactStats(currentArtifactRaw, artifact);
+      artifactBody.innerHTML = renderMarkdown(currentArtifactRaw);
+      wireCopyButtons(artifactBody);
+      artifactPanel.hidden = false;
+      document.body.classList.add('artifact-open');
+    }
+
+    function maybeOpenArtifactFromAssistant(rawText) {
+      const raw = String(rawText || '');
+      if (!shouldOpenInPanel(raw)) return;
+      openArtifactPanel('Phản hồi từ Lavie', raw, { auto: true });
+    }
+
+    function closeArtifactPanel() {
+      artifactPanel.hidden = true;
+      artifactPanel.dataset.kind = '';
+      artifactPanel.dataset.auto = '';
+      currentArtifactRaw = '';
+      artifactBody.innerHTML = '';
+      artifactMeta.textContent = 'Markdown preview';
+      document.body.classList.remove('artifact-open');
+    }
+
+    function refreshMessageActions(wrap, bubble, rawText) {
+      if (!wrap) return;
+      const raw = String(rawText || '');
+      wrap.dataset.raw = raw;
+      const actions = wrap.querySelector('.message-actions');
+      if (!actions) return;
+      actions.hidden = !raw.trim();
+      const copyBtn = actions.querySelector('.copy-message');
+      const openBtn = actions.querySelector('.open-panel');
+      if (copyBtn) copyBtn.disabled = !raw.trim();
+      if (openBtn) openBtn.hidden = !shouldOpenInPanel(raw);
+    }
+
+    function createMessageActions(wrap, bubble) {
+      const actions = document.createElement('div');
+      actions.className = 'message-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'msg-action-btn copy-message';
+      copyBtn.textContent = 'Copy';
+      copyBtn.title = 'Copy phản hồi';
+      copyBtn.addEventListener('click', () => {
+        copyText(wrap.dataset.raw || bubble.innerText || '', copyBtn);
+      });
+
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'msg-action-btn open-panel';
+      openBtn.textContent = 'Mở panel';
+      openBtn.title = 'Mở nội dung dài trong panel riêng';
+      openBtn.addEventListener('click', () => {
+        openArtifactPanel('Phản hồi từ Lavie', wrap.dataset.raw || bubble.innerText || '');
+      });
+
+      actions.appendChild(copyBtn);
+      actions.appendChild(openBtn);
+      return actions;
+    }
+
     function appendMessage(kind, rawText) {
       const row = document.createElement('article');
       row.className = 'message ' + kind;
       const avatar = createAvatar(kind === 'assistant' ? 'assistant' : 'user');
       const wrap = document.createElement('div');
       wrap.className = 'bubble-wrap';
+      wrap.dataset.raw = String(rawText || '');
       const meta = document.createElement('div');
       meta.className = 'meta';
       meta.innerHTML = '<strong>' + (kind === 'assistant' ? 'Lavie' : 'Bạn') + '</strong><span>' + nowTime() + '</span>';
@@ -1331,6 +2685,10 @@
       bubble.innerHTML = renderMarkdown(rawText);
       wrap.appendChild(meta);
       wrap.appendChild(bubble);
+      if (kind === 'assistant') {
+        wrap.appendChild(createMessageActions(wrap, bubble));
+        refreshMessageActions(wrap, bubble, rawText);
+      }
       row.appendChild(avatar);
       row.appendChild(wrap);
       thread.appendChild(row);
@@ -1343,9 +2701,7 @@
       root.querySelectorAll('.copy-code').forEach(btn => {
         btn.onclick = () => {
           const code = btn.closest('.code-block')?.querySelector('code')?.innerText || '';
-          navigator.clipboard?.writeText(code);
-          btn.textContent = 'Copied';
-          setTimeout(() => btn.textContent = 'Copy', 900);
+          copyText(code, btn);
         };
       });
     }
@@ -1379,11 +2735,20 @@
       providerSelect.value = providerConfig.provider || 'lavie';
       ollamaBaseUrl.value = providerConfig.ollamaBaseUrl || 'http://localhost:11434';
       ollamaModel.value = providerConfig.ollamaModel || 'llama3.2';
+      openAiBaseUrl.value = providerConfig.openAiBaseUrl || 'https://api.openai.com/v1';
+      openAiModel.value = providerConfig.openAiModel || 'gpt-4o-mini';
       const isOllama = providerSelect.value === 'langchain4j-ollama';
+      const isOpenAi = providerSelect.value === 'openai-compatible';
       document.querySelectorAll('.ollama-field').forEach(node => node.hidden = !isOllama);
+      document.querySelectorAll('.openai-field').forEach(node => node.hidden = !isOpenAi);
       providerSubtitle.textContent = isOllama
         ? 'LangChain4j Ollama · ' + ollamaModel.value + ' · ' + ollamaBaseUrl.value
-        : 'Lavie / Hugging Face · streaming server';
+        : (isOpenAi
+          ? 'OpenAI-compatible · ' + openAiModel.value + ' · ' + openAiBaseUrl.value
+          : 'Lavie / Hugging Face · streaming server');
+      openAiApiKey.placeholder = isOpenAi && providerConfig.openAiApiKeyConfigured && !openAiApiKey.value
+        ? 'Đã có API key trong phiên/env. Nhập mới để thay đổi.'
+        : 'Để trống để dùng TUTORHUB_OPENAI_API_KEY';
       statusText.textContent = 'Sẵn sàng - ' + (providerConfig.displayName || providerConfig.providerName || 'AI Agent');
     }
 
@@ -1397,9 +2762,13 @@
       const payload = {
         provider: providerSelect.value,
         ollamaBaseUrl: ollamaBaseUrl.value,
-        ollamaModel: ollamaModel.value
+        ollamaModel: ollamaModel.value,
+        openAiBaseUrl: openAiBaseUrl.value,
+        openAiModel: openAiModel.value,
+        openAiApiKey: openAiApiKey.value
       };
       const response = await postBridge('UPDATE_CONFIG', payload);
+      openAiApiKey.value = '';
       applyProviderConfig(parseJsonResponse(response));
       setProviderCheckResult('ok', 'Đã lưu cấu hình. Lần sau mở TutorHub sẽ dùng provider này.');
     }
@@ -1414,6 +2783,22 @@
     function setProviderCheckResult(status, message) {
       providerCheckText.className = 'check-result ' + (status || '');
       providerCheckText.textContent = message || '';
+    }
+
+    function setLavieLayoutState(state) {
+      const expanded = !!state?.expanded;
+      layoutToggleBtn.title = expanded ? 'Thu gọn cột trò chuyện' : 'Mở rộng Lavie';
+      layoutToggleIcon.alt = expanded ? 'Thu gọn' : 'Mở rộng';
+      layoutToggleIcon.src = expanded
+        ? 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/panel-left-open.svg'
+        : 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/panel-left-close.svg';
+      document.body.classList.toggle('lavie-expanded', expanded);
+    }
+
+    async function toggleLavieLayout() {
+      hideError();
+      const response = await postBridge('TOGGLE_LAVIE_EXPANDED', {});
+      setLavieLayoutState(parseJsonResponse(response));
     }
 
     function setMemoryState(state) {
@@ -1443,8 +2828,31 @@
       longMemoryText.innerHTML = '<strong>Bộ nhớ lâu dài:</strong> đang lưu ' + count + ' ghi chú';
       const items = Array.isArray(state?.items) ? state.items : [];
       longMemoryList.innerHTML = items.map(item =>
-        '<div class="memory-item">' + escapeHtml(item.content || '') + '</div>'
+        '<div class="memory-item" data-memory-id="' + escapeHtml(item.id || '') + '">'
+        + '<div class="memory-item-main">'
+        + '<div>' + escapeHtml(item.content || '') + '</div>'
+        + '<div class="memory-meta">'
+        + '<span>' + (item.autoGenerated ? 'Agent tự lưu' : 'Người dùng lưu') + '</span>'
+        + '<span>·</span>'
+        + '<span>' + escapeHtml(item.source || 'memory') + '</span>'
+        + '</div>'
+        + '</div>'
+        + '<div class="memory-actions">'
+        + '<button type="button" class="mini-btn edit-memory-btn" data-memory-id="' + escapeHtml(item.id || '') + '">Sửa</button>'
+        + '<button type="button" class="mini-btn danger delete-memory-btn" data-memory-id="' + escapeHtml(item.id || '') + '">Xóa</button>'
+        + '</div>'
+        + '</div>'
       ).join('');
+      longMemoryList.querySelectorAll('.edit-memory-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.memoryId || '';
+          const item = items.find(candidate => String(candidate.id || '') === id);
+          if (item) editLongTermMemory(item);
+        });
+      });
+      longMemoryList.querySelectorAll('.delete-memory-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteLongTermMemoryNote(btn.dataset.memoryId || ''));
+      });
     }
 
     function setAgentModeState(state) {
@@ -1468,6 +2876,61 @@
       agentToolsText.textContent = 'Tools: ' + (tools.length ? tools.join(', ') : 'chưa có tool');
     }
 
+    function contextCard(label, value) {
+      return '<div class="context-card"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong></div>';
+    }
+
+    function setAgentContextState(state) {
+      const validText = state?.validWorkspace === false ? 'Chưa hợp lệ' : 'Hợp lệ';
+      const compacted = state?.hasCompactedSummary ? 'Đã nén' : 'Chưa nén';
+      agentContextStats.innerHTML =
+        contextCard('Workspace', validText)
+        + contextCard('AGENTS.md', String(Number(state?.projectInstructionCount || 0)) + ' file')
+        + contextCard('Memory', String(Number(state?.longTermMemoryCount || 0)) + ' note')
+        + contextCard('Context', String(Number(state?.conversationContextChars || 0)) + ' ký tự')
+        + contextCard('Compaction', compacted)
+        + contextCard('Patch chờ', String(Number(state?.pendingPatchCount || 0)))
+        + contextCard('Lệnh chờ', String(Number(state?.pendingCommandCount || 0)))
+        + contextCard('MCP chờ', String(Number(state?.pendingMcpToolCallCount || 0)))
+        + contextCard('MCP server', String(Number(state?.mcpServerCount || 0)))
+        + contextCard('Phase', String(state?.phase || '10.1'));
+
+      const instructions = Array.isArray(state?.instructionFiles) ? state.instructionFiles : [];
+      if (!instructions.length) {
+        agentInstructionFiles.innerHTML = '<div class="context-row">Chưa nạp được AGENTS.md trong workspace hiện tại.</div>';
+      } else {
+        agentInstructionFiles.innerHTML = instructions.map(item =>
+          '<div class="context-row">'
+          + '<strong>' + escapeHtml(item.path || 'AGENTS.md') + '</strong>'
+          + '<span>' + Number(item.chars || 0) + ' ký tự' + (item.truncated ? ' · đã cắt ngắn' : '') + '</span>'
+          + '</div>'
+        ).join('');
+      }
+
+      const audit = Array.isArray(state?.audit) ? state.audit : [];
+      renderAuditLog(audit);
+    }
+
+    function renderAuditLog(entries) {
+      if (!Array.isArray(entries) || !entries.length) {
+        auditLogList.innerHTML = '<div class="context-row">Chưa có audit log cho patch/lệnh.</div>';
+        return;
+      }
+      auditLogList.innerHTML = entries.map(entry =>
+        '<div class="context-row">'
+        + '<strong>' + escapeHtml(entry.action || 'action') + ' · ' + escapeHtml(entry.status || '') + '</strong>'
+        + '<code>' + escapeHtml(entry.path || entry.targetId || 'workspace') + '</code>'
+        + '<span>' + escapeHtml(entry.message || entry.timestamp || '') + '</span>'
+        + '</div>'
+      ).join('');
+    }
+
+    async function refreshAgentContext() {
+      hideError();
+      const response = await postBridge('GET_AGENT_CONTEXT', {});
+      setAgentContextState(parseJsonResponse(response));
+    }
+
     async function updateAgentMode() {
       hideError();
       const payload = {
@@ -1476,6 +2939,7 @@
       };
       const response = await postBridge('UPDATE_AGENT_MODE', payload);
       setAgentModeState(parseJsonResponse(response));
+      await refreshAgentContext();
       setProviderCheckResult('ok', payload.enabled
         ? 'Agent Mode đã bật. Patch/lệnh sẽ cần bạn duyệt trước khi áp dụng hoặc chạy.'
         : 'Agent Mode đã tắt.');
@@ -1644,6 +3108,7 @@
       hideError();
       const response = await postBridge('APPLY_PATCH', { patchId });
       updatePatchProposal(parseJsonResponse(response));
+      await refreshAgentContext();
     }
 
     async function rejectPatch(patchId) {
@@ -1651,6 +3116,7 @@
       hideError();
       const response = await postBridge('REJECT_PATCH', { patchId });
       updatePatchProposal(parseJsonResponse(response));
+      await refreshAgentContext();
     }
 
     function ensureCommandContainer() {
@@ -1760,6 +3226,7 @@
       hideError();
       const response = await postBridge('RUN_COMMAND', { commandId });
       updateCommandProposal(parseJsonResponse(response));
+      await refreshAgentContext();
     }
 
     async function rejectCommand(commandId) {
@@ -1767,22 +3234,178 @@
       hideError();
       const response = await postBridge('REJECT_COMMAND', { commandId });
       updateCommandProposal(parseJsonResponse(response));
+      await refreshAgentContext();
+    }
+
+    function ensureMcpContainer() {
+      if (!assistantBubble) {
+        window.TutorHubAgent.startAssistantMessage({ mode: 'agent-readonly' });
+      }
+      if (!assistantMcpList && assistantBubble?.parentElement) {
+        assistantMcpList = document.createElement('div');
+        assistantMcpList.className = 'mcp-preview-list';
+        assistantMcpList.hidden = true;
+        assistantBubble.parentElement.appendChild(assistantMcpList);
+      }
+      return assistantMcpList;
+    }
+
+    function mcpStatusText(status) {
+      if (status === 'completed') return 'Hoàn tất';
+      if (status === 'running') return 'Đang chạy';
+      if (status === 'rejected') return 'Đã từ chối';
+      if (status === 'failed') return 'Lỗi';
+      return 'Chờ duyệt';
+    }
+
+    function prettyJson(value) {
+      try {
+        return JSON.stringify(JSON.parse(value || '{}'), null, 2);
+      } catch (_) {
+        return String(value || '{}');
+      }
+    }
+
+    function renderMcpToolCallProposal(call) {
+      const status = call?.status || 'pending';
+      const id = call?.mcpCallId || '';
+      const title = (call?.serverName || 'mcp') + ' / ' + (call?.toolName || 'tool');
+      const output = call?.output || prettyJson(call?.argumentsJson || '{}');
+      const node = document.createElement('section');
+      node.className = 'mcp-preview ' + status;
+      node.dataset.mcpCallId = id;
+      node.innerHTML =
+        '<div class="mcp-head">'
+        + '<div class="mcp-title"><strong>' + escapeHtml(title) + '</strong>'
+        + '<span>' + escapeHtml(call?.reason || call?.message || 'AI đề xuất gọi MCP tool ngoài') + '</span></div>'
+        + '<span class="mcp-status">' + mcpStatusText(status) + '</span>'
+        + '</div>'
+        + '<pre class="mcp-output">' + escapeHtml(output || call?.message || 'MCP tool chưa chạy. Hãy xem kỹ arguments trước khi duyệt.') + '</pre>'
+        + '<div class="mcp-actions">'
+        + '<div class="mcp-message">' + escapeHtml(call?.message || 'MCP tool sẽ gọi server ngoài đã cấu hình. Chỉ duyệt nếu arguments phù hợp.') + '</div>'
+        + '<div class="mcp-buttons">'
+        + '<button type="button" class="primary-btn run-mcp-btn">Chạy MCP</button>'
+        + '<button type="button" class="danger-btn reject-mcp-btn">Từ chối</button>'
+        + '</div>'
+        + '</div>';
+      node.querySelector('.run-mcp-btn')?.addEventListener('click', () => runMcpToolCall(id));
+      node.querySelector('.reject-mcp-btn')?.addEventListener('click', () => rejectMcpToolCall(id));
+      return node;
+    }
+
+    function appendMcpToolCallProposal(call) {
+      if (!call?.mcpCallId) return;
+      const container = ensureMcpContainer();
+      if (!container) return;
+      container.hidden = false;
+      const selector = '[data-mcp-call-id="' + cssEscape(call.mcpCallId) + '"]';
+      const existing = container.querySelector(selector) || document.querySelector(selector);
+      const node = renderMcpToolCallProposal(call);
+      if (existing) {
+        existing.replaceWith(node);
+      } else {
+        container.appendChild(node);
+      }
+      scrollBottom();
+    }
+
+    function updateMcpToolCallProposal(call) {
+      if (!call?.mcpCallId) return;
+      const selector = '[data-mcp-call-id="' + cssEscape(call.mcpCallId) + '"]';
+      const existing = document.querySelector(selector);
+      if (!existing) {
+        appendMcpToolCallProposal(call);
+        return;
+      }
+      const title = existing.querySelector('.mcp-title strong')?.textContent || '';
+      const parts = title.split('/');
+      const merged = {
+        mcpCallId: call.mcpCallId,
+        serverName: call.serverName || (parts[0] || '').trim(),
+        toolName: call.toolName || (parts[1] || '').trim(),
+        reason: existing.querySelector('.mcp-title span')?.textContent || '',
+        argumentsJson: call.argumentsJson || existing.querySelector('.mcp-output')?.textContent || '{}',
+        output: call.output || existing.querySelector('.mcp-output')?.textContent || '',
+        status: call.status || 'pending',
+        message: call.message || ''
+      };
+      existing.replaceWith(renderMcpToolCallProposal(merged));
+      if (call.status === 'completed') {
+        setProviderCheckResult('ok', 'MCP tool đã chạy xong: ' + (call.toolName || call.mcpCallId));
+      } else if (call.status === 'rejected') {
+        setProviderCheckResult('ok', 'Đã từ chối MCP tool call ' + call.mcpCallId + '.');
+      } else if (call.status === 'failed') {
+        setProviderCheckResult('error', call.message || 'MCP tool chạy lỗi.');
+      } else if (call.status === 'running') {
+        setProviderCheckResult('checking', 'Đang gọi MCP tool ' + call.mcpCallId + '...');
+      }
+      scrollBottom();
+    }
+
+    async function runMcpToolCall(mcpCallId) {
+      if (!mcpCallId) return;
+      hideError();
+      const response = await postBridge('RUN_MCP_TOOL', { mcpCallId });
+      updateMcpToolCallProposal(parseJsonResponse(response));
+      await refreshAgentContext();
+    }
+
+    async function rejectMcpToolCall(mcpCallId) {
+      if (!mcpCallId) return;
+      hideError();
+      const response = await postBridge('REJECT_MCP_TOOL', { mcpCallId });
+      updateMcpToolCallProposal(parseJsonResponse(response));
+      await refreshAgentContext();
     }
 
     async function saveLongTermMemory() {
       const note = longMemoryInput.value.trim();
       if (!note) return;
       hideError();
-      const response = await postBridge('ADD_LONG_TERM_MEMORY', { note });
+      const type = editingMemoryId ? 'UPDATE_LONG_TERM_MEMORY' : 'ADD_LONG_TERM_MEMORY';
+      const payload = editingMemoryId ? { id: editingMemoryId, note } : { note };
+      const response = await postBridge(type, payload);
       longMemoryInput.value = '';
+      editingMemoryId = '';
+      saveLongMemoryBtn.textContent = 'Ghi nhớ';
+      cancelEditMemoryBtn.hidden = true;
       setLongTermMemoryState(parseJsonResponse(response));
-      setProviderCheckResult('ok', 'Đã lưu ghi chú vào bộ nhớ lâu dài.');
+      await refreshAgentContext();
+      setProviderCheckResult('ok', type === 'UPDATE_LONG_TERM_MEMORY'
+        ? 'Đã cập nhật ghi chú trong bộ nhớ lâu dài.'
+        : 'Đã lưu ghi chú vào bộ nhớ lâu dài.');
+    }
+
+    function editLongTermMemory(item) {
+      editingMemoryId = String(item?.id || '');
+      longMemoryInput.value = item?.content || '';
+      longMemoryInput.focus();
+      saveLongMemoryBtn.textContent = 'Cập nhật';
+      cancelEditMemoryBtn.hidden = false;
+    }
+
+    function cancelEditLongTermMemory() {
+      editingMemoryId = '';
+      longMemoryInput.value = '';
+      saveLongMemoryBtn.textContent = 'Ghi nhớ';
+      cancelEditMemoryBtn.hidden = true;
+    }
+
+    async function deleteLongTermMemoryNote(id) {
+      if (!id) return;
+      hideError();
+      const response = await postBridge('DELETE_LONG_TERM_MEMORY', { id });
+      setLongTermMemoryState(parseJsonResponse(response));
+      await refreshAgentContext();
+      setProviderCheckResult('ok', 'Đã xóa ghi chú khỏi bộ nhớ lâu dài.');
     }
 
     async function clearLongTermMemory() {
       hideError();
       const response = await postBridge('CLEAR_LONG_TERM_MEMORY', {});
+      cancelEditLongTermMemory();
       setLongTermMemoryState(parseJsonResponse(response));
+      await refreshAgentContext();
       setProviderCheckResult('ok', 'Đã xóa bộ nhớ lâu dài.');
     }
 
@@ -1793,11 +3416,50 @@
       appendMessage('user', text);
       input.value = '';
       resizeInput();
+      setGeneratingState(true);
       try {
         await postBridge('SEND_MESSAGE', { text, agentMode: !!agentModeState.enabled });
       } catch (err) {
+        setGeneratingState(false);
         showError(err.message);
       }
+    }
+
+    async function stopCurrentGeneration() {
+      if (!isGenerating) return;
+      try {
+        await postBridge('STOP_STREAM', {});
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        completeActivityPanel(true);
+        if (assistantBubble) {
+          const wrap = assistantBubble.closest('.bubble-wrap');
+          if (!assistantRaw.trim()) {
+            assistantRaw = 'Đã dừng phản hồi.';
+            assistantBubble.innerHTML = renderMarkdown(assistantRaw);
+            wireCopyButtons(assistantBubble);
+          }
+          refreshMessageActions(wrap, assistantBubble, assistantRaw);
+          assistantBubble = null;
+          assistantToolLog = null;
+          assistantPatchList = null;
+          assistantCommandList = null;
+          assistantMcpList = null;
+          assistantRaw = '';
+        }
+        setGeneratingState(false);
+        statusText.textContent = 'Đã dừng phản hồi.';
+      }
+    }
+
+    function setGeneratingState(active) {
+      isGenerating = !!active;
+      composer.classList.toggle('generating', isGenerating);
+      sendBtn.classList.toggle('is-stop', isGenerating);
+      sendBtn.textContent = isGenerating ? '■' : '→';
+      sendBtn.title = isGenerating ? 'Dừng phản hồi' : 'Gửi';
+      input.disabled = false;
     }
 
     function resizeInput() {
@@ -1827,46 +3489,65 @@
         statusText.textContent = text || '';
       },
       applyProviderConfig,
+      setLavieLayoutState,
       setProviderCheckResult,
       setMemoryState,
       setLongTermMemoryState,
       setAgentModeState,
+      setAgentContextState,
       appendToolLog,
       appendToolLogs,
       appendPatchProposal,
       updatePatchProposal,
       appendCommandProposal,
       updateCommandProposal,
+      appendMcpToolCallProposal,
+      updateMcpToolCallProposal,
       startAssistantMessage(meta = {}) {
+        setGeneratingState(true);
         assistantRaw = '';
         assistantToolLog = null;
         assistantPatchList = null;
         assistantCommandList = null;
+        assistantMcpList = null;
         assistantBubble = appendMessage('assistant', '');
+        startActivityPanel(assistantBubble.closest('.bubble-wrap'), meta);
         if (meta?.mode === 'agent-readonly') {
           ensureToolLogContainer();
           ensurePatchContainer();
           ensureCommandContainer();
+          ensureMcpContainer();
         }
-        assistantBubble.innerHTML = '<span class="thinking"><i></i><i></i><i></i> Đang suy nghĩ</span>';
+        assistantBubble.innerHTML = '<span class="answer-placeholder">Đang chuẩn bị phản hồi...</span>';
       },
       appendAssistantDelta(token) {
         if (!assistantBubble) this.startAssistantMessage();
         assistantRaw += token || '';
+        if (activeActivity && !activeActivity.firstDelta) {
+          activeActivity.firstDelta = true;
+          advanceActivityTo(3);
+        }
         assistantBubble.innerHTML = renderMarkdown(assistantRaw);
         wireCopyButtons(assistantBubble);
+        refreshMessageActions(assistantBubble.closest('.bubble-wrap'), assistantBubble, assistantRaw);
         scrollBottom();
       },
       finishAssistantMessage() {
         if (assistantBubble) {
+          advanceActivityTo(4);
           assistantBubble.innerHTML = renderMarkdown(assistantRaw);
           wireCopyButtons(assistantBubble);
+          refreshMessageActions(assistantBubble.closest('.bubble-wrap'), assistantBubble, assistantRaw);
+          maybeOpenArtifactFromAssistant(assistantRaw);
         }
+        completeActivityPanel(false);
         assistantBubble = null;
         assistantToolLog = null;
         assistantPatchList = null;
         assistantCommandList = null;
+        assistantMcpList = null;
         assistantRaw = '';
+        setGeneratingState(false);
         scrollBottom();
       },
       showError,
@@ -1877,14 +3558,22 @@
 
     composer.addEventListener('submit', event => {
       event.preventDefault();
-      sendCurrent();
+      if (isGenerating) {
+        stopCurrentGeneration();
+      } else {
+        sendCurrent();
+      }
     });
 
     input.addEventListener('input', resizeInput);
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        sendCurrent();
+        if (isGenerating) {
+          stopCurrentGeneration();
+        } else {
+          sendCurrent();
+        }
       }
     });
 
@@ -1898,6 +3587,14 @@
 
     settingsBtn.addEventListener('click', () => {
       settingsPanel.hidden = !settingsPanel.hidden;
+    });
+
+    layoutToggleBtn.addEventListener('click', async () => {
+      try {
+        await toggleLavieLayout();
+      } catch (err) {
+        showError(err.message);
+      }
     });
 
     providerSelect.addEventListener('change', () => {
@@ -1940,6 +3637,19 @@
     saveLongMemoryBtn.addEventListener('click', async () => {
       try {
         await saveLongTermMemory();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    cancelEditMemoryBtn.addEventListener('click', () => {
+      cancelEditLongTermMemory();
+    });
+
+    refreshContextBtn.addEventListener('click', async () => {
+      try {
+        await refreshAgentContext();
+        setProviderCheckResult('ok', 'Đã làm mới Agent Context.');
       } catch (err) {
         showError(err.message);
       }
@@ -1993,6 +3703,18 @@
       }
     });
 
+    artifactCopyBtn.addEventListener('click', () => {
+      copyText(currentArtifactRaw, artifactCopyBtn);
+    });
+
+    artifactCloseBtn.addEventListener('click', closeArtifactPanel);
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !artifactPanel.hidden) {
+        closeArtifactPanel();
+      }
+    });
+
     document.querySelectorAll('.quick').forEach(btn => {
       btn.addEventListener('click', () => {
         input.value = btn.dataset.prompt || '';
@@ -2008,6 +3730,7 @@
         await refreshProviderConfig();
         const agentState = await postBridge('GET_AGENT_MODE', {});
         setAgentModeState(parseJsonResponse(agentState));
+        await refreshAgentContext();
       } catch (err) {
         statusText.textContent = 'Bridge chưa sẵn sàng';
         showError(err.message);

@@ -13,6 +13,9 @@ import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentTurn;
 import com.mycompany.tutorhub_enterprise.client.ai.agent.AgentsMdLoader;
 import com.mycompany.tutorhub_enterprise.client.ai.command.PendingCommandStore;
 import com.mycompany.tutorhub_enterprise.client.ai.command.CommandSpec;
+import com.mycompany.tutorhub_enterprise.client.ai.mcp.McpServerRegistry;
+import com.mycompany.tutorhub_enterprise.client.ai.mcp.McpToolCallSpec;
+import com.mycompany.tutorhub_enterprise.client.ai.mcp.PendingMcpToolCallStore;
 import com.mycompany.tutorhub_enterprise.client.ai.patch.PendingPatchStore;
 import com.mycompany.tutorhub_enterprise.client.ai.patch.PatchProposal;
 import com.mycompany.tutorhub_enterprise.client.ai.permission.WorkspaceBoundary;
@@ -22,8 +25,10 @@ import com.mycompany.tutorhub_enterprise.client.ai.tool.ToolRegistry;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.ToolCallRequest;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.ToolCallResult;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.ApplyPatchTool;
+import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.RunMcpToolCallTool;
 import com.mycompany.tutorhub_enterprise.client.ai.tool.impl.RunCommandTool;
 import com.mycompany.tutorhub_enterprise.client.ai.ui.CommandPreviewView;
+import com.mycompany.tutorhub_enterprise.client.ai.ui.McpToolCallPreviewView;
 import com.mycompany.tutorhub_enterprise.client.ai.ui.PatchPreviewView;
 import com.mycompany.tutorhub_enterprise.client.ai.ui.ToolCallLogView;
 import org.cef.browser.CefBrowser;
@@ -45,6 +50,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class AiChatPanel extends JPanel {
 
@@ -64,13 +70,17 @@ public class AiChatPanel extends JPanel {
     private final AiLongTermMemoryStore longTermMemoryStore;
     private final PendingPatchStore pendingPatchStore = new PendingPatchStore();
     private final PendingCommandStore pendingCommandStore = new PendingCommandStore();
-    private final PermissionPolicy permissionPolicy = PermissionPolicy.phase9Defaults();
+    private final PendingMcpToolCallStore pendingMcpToolCallStore = new PendingMcpToolCallStore();
+    private final PermissionPolicy permissionPolicy = PermissionPolicy.phase101Defaults();
     private final AuditLog auditLog = new AuditLog();
+    private final McpServerRegistry mcpServerRegistry = McpServerRegistry.fromEnvironment();
     private final String userId;
     private final String conversationId;
     private volatile boolean agentModeEnabled = false;
     private volatile String agentWorkspacePath;
     private volatile Future<?> activeAgentFuture;
+    private volatile boolean lavieExpanded = false;
+    private volatile Consumer<Boolean> lavieExpandedListener;
 
     public AiChatPanel() {
         this(AiAgentServiceFactory.loadDefaultConfig(), "tutorhub_desktop", "lavie");
@@ -142,6 +152,17 @@ public class AiChatPanel extends JPanel {
         executeAgentJs("focusComposer");
     }
 
+    public void setLavieExpandedListener(Consumer<Boolean> listener) {
+        this.lavieExpandedListener = listener;
+    }
+
+    public void setLavieExpandedState(boolean expanded) {
+        this.lavieExpanded = expanded;
+        JsonObject json = new JsonObject();
+        json.addProperty("expanded", expanded);
+        executeAgentJs("setLavieLayoutState", json);
+    }
+
     private void initBrowser() {
         try {
             URL url = getClass().getResource("/ai/ai_chat.html");
@@ -194,7 +215,20 @@ public class AiChatPanel extends JPanel {
                 executeAgentJs("setMemoryState", buildMemoryStateJson());
                 executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
                 executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+                executeAgentJs("setAgentContextState", buildAgentContextJson());
+                setLavieExpandedState(lavieExpanded);
                 executeAgentJs("setStatus", "Sẵn sàng - " + providerConfig.getDisplayName());
+                break;
+            case "TOGGLE_LAVIE_EXPANDED":
+                lavieExpanded = !lavieExpanded;
+                Consumer<Boolean> listener = lavieExpandedListener;
+                if (listener != null) {
+                    SwingUtilities.invokeLater(() -> listener.accept(lavieExpanded));
+                }
+                JsonObject layout = new JsonObject();
+                layout.addProperty("expanded", lavieExpanded);
+                callback.success(GSON.toJson(layout));
+                setLavieExpandedState(lavieExpanded);
                 break;
             case "GET_CONFIG":
                 callback.success(GSON.toJson(buildProviderConfigJson()));
@@ -222,12 +256,26 @@ public class AiChatPanel extends JPanel {
                 addLongTermMemory(payload);
                 callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
                 break;
+            case "UPDATE_LONG_TERM_MEMORY":
+                updateLongTermMemory(payload);
+                callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
+                break;
+            case "DELETE_LONG_TERM_MEMORY":
+                deleteLongTermMemory(payload);
+                callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
+                break;
             case "CLEAR_LONG_TERM_MEMORY":
                 clearLongTermMemory();
                 callback.success(GSON.toJson(buildLongTermMemoryStateJson()));
                 break;
             case "GET_AGENT_MODE":
                 callback.success(GSON.toJson(buildAgentModeStateJson()));
+                break;
+            case "GET_AGENT_CONTEXT":
+                callback.success(GSON.toJson(buildAgentContextJson()));
+                break;
+            case "GET_AUDIT_LOG":
+                callback.success(GSON.toJson(buildAuditLogJson()));
                 break;
             case "UPDATE_AGENT_MODE":
                 try {
@@ -250,6 +298,14 @@ public class AiChatPanel extends JPanel {
                 break;
             case "REJECT_COMMAND":
                 callback.success(GSON.toJson(rejectCommand(payload)));
+                break;
+            case "RUN_MCP_TOOL":
+                String mcpCallId = getString(payload, "mcpCallId").trim();
+                callback.success(GSON.toJson(McpToolCallPreviewView.running(mcpCallId)));
+                runApprovedMcpToolAsync(mcpCallId);
+                break;
+            case "REJECT_MCP_TOOL":
+                callback.success(GSON.toJson(rejectMcpToolCall(payload)));
                 break;
             case "SEND_MESSAGE":
                 String text = getString(payload, "text").trim();
@@ -310,7 +366,12 @@ public class AiChatPanel extends JPanel {
         json.addProperty("providerName", aiService == null ? config.getDisplayName() : aiService.getProviderName());
         json.addProperty("ollamaBaseUrl", config.getOllamaBaseUrl());
         json.addProperty("ollamaModel", config.getOllamaModel());
-        json.addProperty("mode", config.isOllama() ? "langchain4j-ollama" : "lavie-hf");
+        json.addProperty("openAiBaseUrl", config.getOpenAiBaseUrl());
+        json.addProperty("openAiModel", config.getOpenAiModel());
+        json.addProperty("openAiApiKeyConfigured", config.getOpenAiApiKey() != null && !config.getOpenAiApiKey().isBlank());
+        json.addProperty("mode", config.isOllama()
+                ? "langchain4j-ollama"
+                : (config.isOpenAiCompatible() ? "openai-compatible" : "lavie-hf"));
         return json;
     }
 
@@ -318,6 +379,8 @@ public class AiChatPanel extends JPanel {
         JsonObject json = new JsonObject();
         json.addProperty("messageCount", conversationMemory.size());
         json.addProperty("hasContext", conversationMemory.size() > 0);
+        json.addProperty("hasCompactedSummary", conversationMemory.hasCompactedSummary());
+        json.addProperty("contextChars", conversationMemory.buildContext().length());
         return json;
     }
 
@@ -344,17 +407,19 @@ public class AiChatPanel extends JPanel {
         JsonObject json = new JsonObject();
         json.addProperty("enabled", agentModeEnabled);
         json.addProperty("workspacePath", agentWorkspacePath == null ? "" : agentWorkspacePath);
-        json.addProperty("phase", "9");
+        json.addProperty("phase", "10.1");
         json.addProperty("mode", "approval-required");
         json.addProperty("pendingPatchCount", pendingPatchStore.snapshot().size());
         json.addProperty("pendingCommandCount", pendingCommandStore.snapshot().size());
+        json.addProperty("pendingMcpToolCallCount", pendingMcpToolCallStore.snapshot().size());
         json.addProperty("maxTurns", AgentConfig.defaults().getMaxTurns());
+        json.addProperty("mcpServerCount", mcpServerRegistry.getServers().size());
 
         JsonArray tools = new JsonArray();
         try {
             WorkspaceBoundary boundary = WorkspaceBoundary.from(agentWorkspacePath);
-            ToolRegistry registry = ToolRegistry.phase9AgentDefaults(boundary, pendingPatchStore,
-                    pendingCommandStore, longTermMemoryStore);
+            ToolRegistry registry = ToolRegistry.phase101AgentDefaults(boundary, pendingPatchStore,
+                    pendingCommandStore, longTermMemoryStore, mcpServerRegistry, pendingMcpToolCallStore);
             registry.getTools().forEach(tool -> tools.add(tool.name()));
             AgentsMdLoader.ProjectInstructionSnapshot projectInstructions = AgentsMdLoader.loadForWorkspace(boundary);
             json.addProperty("validWorkspace", true);
@@ -370,27 +435,112 @@ public class AiChatPanel extends JPanel {
             tools.add("git_status");
             tools.add("propose_command");
             tools.add("remember_note");
+            tools.add("mcp_list_tools");
+            tools.add("propose_mcp_tool_call");
         }
         json.add("tools", tools);
         return json;
+    }
+
+    private JsonObject buildAgentContextJson() {
+        JsonObject json = new JsonObject();
+        json.addProperty("phase", "10.1");
+        json.addProperty("provider", providerConfig == null ? "" : providerConfig.getDisplayName());
+        json.addProperty("agentEnabled", agentModeEnabled);
+        json.addProperty("workspacePath", agentWorkspacePath == null ? "" : agentWorkspacePath);
+        json.addProperty("conversationMessageCount", conversationMemory.size());
+        json.addProperty("conversationContextChars", conversationMemory.buildContext().length());
+        json.addProperty("hasCompactedSummary", conversationMemory.hasCompactedSummary());
+        json.addProperty("longTermMemoryCount", longTermMemoryStore.snapshot().getCount());
+        json.addProperty("pendingPatchCount", pendingPatchStore.snapshot().size());
+        json.addProperty("pendingCommandCount", pendingCommandStore.snapshot().size());
+        json.addProperty("pendingMcpToolCallCount", pendingMcpToolCallStore.snapshot().size());
+        json.addProperty("mcpServerCount", mcpServerRegistry.getServers().size());
+
+        JsonArray instructionFiles = new JsonArray();
+        try {
+            WorkspaceBoundary boundary = WorkspaceBoundary.from(agentWorkspacePath);
+            AgentsMdLoader.ProjectInstructionSnapshot projectInstructions = AgentsMdLoader.loadForWorkspace(boundary);
+            json.addProperty("validWorkspace", true);
+            json.addProperty("projectInstructionCount", projectInstructions.getCount());
+            json.addProperty("projectInstructionChars", projectInstructions.getContext().length());
+            for (AgentsMdLoader.ProjectInstruction instruction : projectInstructions.getInstructions()) {
+                JsonObject node = new JsonObject();
+                node.addProperty("path", instruction.getRelativePath());
+                node.addProperty("chars", instruction.getContent().length());
+                node.addProperty("truncated", instruction.isTruncated());
+                instructionFiles.add(node);
+            }
+        } catch (Exception ex) {
+            json.addProperty("validWorkspace", false);
+            json.addProperty("workspaceError", ex.getMessage());
+            json.addProperty("projectInstructionCount", 0);
+            json.addProperty("projectInstructionChars", 0);
+        }
+        json.add("instructionFiles", instructionFiles);
+        json.add("audit", buildAuditLogEntriesArray(10));
+        return json;
+    }
+
+    private JsonObject buildAuditLogJson() {
+        JsonObject json = new JsonObject();
+        JsonArray entries = buildAuditLogEntriesArray(20);
+        json.addProperty("count", entries.size());
+        json.add("entries", entries);
+        return json;
+    }
+
+    private JsonArray buildAuditLogEntriesArray(int limit) {
+        JsonArray entries = new JsonArray();
+        for (AuditLog.Entry entry : auditLog.readRecent(limit)) {
+            JsonObject node = new JsonObject();
+            node.addProperty("timestamp", entry.getTimestamp());
+            node.addProperty("action", entry.getAction());
+            node.addProperty("targetId", entry.getTargetId());
+            node.addProperty("path", entry.getPath());
+            node.addProperty("status", entry.getStatus());
+            node.addProperty("message", entry.getMessage());
+            entries.add(node);
+        }
+        return entries;
     }
 
     private void addLongTermMemory(JsonObject payload) {
         String note = getString(payload, "note");
         longTermMemoryStore.add(note);
         executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
         executeAgentJs("setProviderCheckResult", "ok", "Đã lưu ghi chú vào bộ nhớ lâu dài.");
+    }
+
+    private void updateLongTermMemory(JsonObject payload) {
+        String id = getString(payload, "id");
+        String note = getString(payload, "note");
+        AiLongTermMemoryStore.MemoryWriteResult result = longTermMemoryStore.update(id, note);
+        executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
+        executeAgentJs("setProviderCheckResult", result.isSaved() ? "ok" : "error", result.getMessage());
+    }
+
+    private void deleteLongTermMemory(JsonObject payload) {
+        String id = getString(payload, "id");
+        AiLongTermMemoryStore.MemoryWriteResult result = longTermMemoryStore.remove(id);
+        executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
+        executeAgentJs("setProviderCheckResult", result.isSaved() ? "ok" : "error", result.getMessage());
     }
 
     private void clearLongTermMemory() {
         longTermMemoryStore.clear();
         executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
         executeAgentJs("setProviderCheckResult", "ok", "Đã xóa bộ nhớ lâu dài.");
     }
 
     private void clearConversationMemory() {
         conversationMemory.clear();
         executeAgentJs("setMemoryState", buildMemoryStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
         executeAgentJs("setProviderCheckResult", "ok", "Đã xóa bộ nhớ phiên hội thoại.");
     }
 
@@ -423,11 +573,13 @@ public class AiChatPanel extends JPanel {
             JsonObject json = PatchPreviewView.applyResult(patchId, result);
             executeAgentJs("updatePatchProposal", json);
             executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+            executeAgentJs("setAgentContextState", buildAgentContextJson());
             return json;
         } catch (Exception ex) {
             ToolCallResult result = ToolCallResult.failure(ex.getMessage());
             JsonObject json = PatchPreviewView.applyResult(patchId, result);
             executeAgentJs("updatePatchProposal", json);
+            executeAgentJs("setAgentContextState", buildAgentContextJson());
             return json;
         }
     }
@@ -440,6 +592,7 @@ public class AiChatPanel extends JPanel {
         JsonObject json = PatchPreviewView.rejected(proposal);
         executeAgentJs("updatePatchProposal", json);
         executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
         return json;
     }
 
@@ -464,6 +617,7 @@ public class AiChatPanel extends JPanel {
             SwingUtilities.invokeLater(() -> {
                 executeAgentJs("updateCommandProposal", finalJson);
                 executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+                executeAgentJs("setAgentContextState", buildAgentContextJson());
             });
         });
     }
@@ -476,14 +630,65 @@ public class AiChatPanel extends JPanel {
         JsonObject json = CommandPreviewView.rejected(command);
         executeAgentJs("updateCommandProposal", json);
         executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
+        return json;
+    }
+
+    private void runApprovedMcpToolAsync(String mcpCallId) {
+        if (mcpCallId == null || mcpCallId.isBlank()) {
+            executeAgentJs("updateMcpToolCallProposal",
+                    McpToolCallPreviewView.result("", ToolCallResult.failure("mcpCallId is required")));
+            return;
+        }
+        executeAgentJs("updateMcpToolCallProposal", McpToolCallPreviewView.running(mcpCallId));
+        agentExecutor.submit(() -> {
+            JsonObject json;
+            try {
+                RunMcpToolCallTool tool = new RunMcpToolCallTool(
+                        mcpServerRegistry,
+                        pendingMcpToolCallStore,
+                        permissionPolicy,
+                        auditLog);
+                ToolCallResult result = tool.execute(ToolCallRequest.of("run_mcp_tool_call",
+                        java.util.Map.of("mcpCallId", mcpCallId, "approved", "true")));
+                json = McpToolCallPreviewView.result(mcpCallId, result);
+            } catch (Exception ex) {
+                json = McpToolCallPreviewView.result(mcpCallId, ToolCallResult.failure(ex.getMessage()));
+            }
+            JsonObject finalJson = json;
+            SwingUtilities.invokeLater(() -> {
+                executeAgentJs("updateMcpToolCallProposal", finalJson);
+                executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+                executeAgentJs("setAgentContextState", buildAgentContextJson());
+            });
+        });
+    }
+
+    private JsonObject rejectMcpToolCall(JsonObject payload) {
+        String mcpCallId = getString(payload, "mcpCallId").trim();
+        McpToolCallSpec spec = pendingMcpToolCallStore.remove(mcpCallId).orElse(null);
+        auditLog.record("reject_mcp_tool_call", mcpCallId,
+                spec == null ? "" : spec.getServerName() + "/" + spec.getToolName(),
+                "rejected", "Rejected by user");
+        JsonObject json = McpToolCallPreviewView.rejected(spec);
+        executeAgentJs("updateMcpToolCallProposal", json);
+        executeAgentJs("setAgentModeState", buildAgentModeStateJson());
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
         return json;
     }
 
     private void updateProviderConfig(JsonObject payload) {
+        String nextOpenAiKey = getString(payload, "openAiApiKey");
+        if (nextOpenAiKey.isBlank() && providerConfig != null) {
+            nextOpenAiKey = providerConfig.getOpenAiApiKey();
+        }
         AiAgentProviderConfig nextConfig = AiAgentProviderConfig.of(
                 getString(payload, "provider"),
                 getString(payload, "ollamaBaseUrl"),
-                getString(payload, "ollamaModel"));
+                getString(payload, "ollamaModel"),
+                getString(payload, "openAiBaseUrl"),
+                getString(payload, "openAiModel"),
+                nextOpenAiKey);
         stopStream();
         providerConfig = nextConfig;
         AiAgentSettingsStore.save(nextConfig);
@@ -521,6 +726,9 @@ public class AiChatPanel extends JPanel {
     }
 
     private ProviderProbeResult probeProvider(AiAgentProviderConfig config) {
+        if (config != null && config.isOpenAiCompatible()) {
+            return probeOpenAiCompatible(config);
+        }
         if (config == null || !config.isOllama()) {
             return probeHttp(
                     LavieAiService.DEFAULT_STREAM_URL,
@@ -535,13 +743,34 @@ public class AiChatPanel extends JPanel {
                 "Không kết nối được Ollama. Hãy kiểm tra ollama serve và model " + config.getOllamaModel() + ".");
     }
 
+    private ProviderProbeResult probeOpenAiCompatible(AiAgentProviderConfig config) {
+        String apiKey = config.getOpenAiApiKey();
+        if ((apiKey == null || apiKey.isBlank()) && !isLocalHttpEndpoint(config.getOpenAiBaseUrl())) {
+            return ProviderProbeResult.fail("OpenAI-compatible cần API key. Hãy đặt TUTORHUB_OPENAI_API_KEY hoặc nhập key cho phiên này.");
+        }
+        return probeHttp(
+                joinUrl(config.getOpenAiBaseUrl(), "/models"),
+                false,
+                "OpenAI-compatible endpoint phản hồi. Model hiện chọn: " + config.getOpenAiModel() + ".",
+                "Không kết nối được OpenAI-compatible endpoint.",
+                apiKey);
+    }
+
     private ProviderProbeResult probeHttp(String targetUrl, boolean allowClientError, String okMessage, String failMessage) {
+        return probeHttp(targetUrl, allowClientError, okMessage, failMessage, "");
+    }
+
+    private ProviderProbeResult probeHttp(String targetUrl, boolean allowClientError,
+                                         String okMessage, String failMessage, String bearerToken) {
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) new URL(targetUrl).openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(4500);
             conn.setReadTimeout(4500);
+            if (bearerToken != null && !bearerToken.isBlank()) {
+                conn.setRequestProperty("Authorization", "Bearer " + bearerToken.trim());
+            }
             int status = conn.getResponseCode();
             boolean ok = status >= 200 && (status < 300 || (allowClientError && status < 500));
             if (ok) {
@@ -555,6 +784,16 @@ public class AiChatPanel extends JPanel {
                 conn.disconnect();
             }
         }
+    }
+
+    private boolean isLocalHttpEndpoint(String url) {
+        if (url == null) {
+            return false;
+        }
+        String lower = url.trim().toLowerCase();
+        return lower.startsWith("http://localhost")
+                || lower.startsWith("http://127.0.0.1")
+                || lower.startsWith("http://[::1]");
     }
 
     private String joinUrl(String baseUrl, String path) {
@@ -620,8 +859,8 @@ public class AiChatPanel extends JPanel {
                                   AiAgentProviderConfig config, String workspace) {
         try {
             WorkspaceBoundary boundary = WorkspaceBoundary.from(workspace);
-            ToolRegistry registry = ToolRegistry.phase9AgentDefaults(boundary, pendingPatchStore,
-                    pendingCommandStore, longTermMemoryStore);
+            ToolRegistry registry = ToolRegistry.phase101AgentDefaults(boundary, pendingPatchStore,
+                    pendingCommandStore, longTermMemoryStore, mcpServerRegistry, pendingMcpToolCallStore);
             AgentsMdLoader.ProjectInstructionSnapshot projectInstructions = AgentsMdLoader.loadForWorkspace(boundary);
             AiLongTermMemoryStore.MemorySnapshot longTermSnapshot = longTermMemoryStore.snapshot();
             AgentContext context = AgentContext.builder(registry)
@@ -645,6 +884,7 @@ public class AiChatPanel extends JPanel {
                     rememberCompletedExchange(userMessage, assistantMessage);
                     executeAgentJs("setMemoryState", buildMemoryStateJson());
                     executeAgentJs("setLongTermMemoryState", buildLongTermMemoryStateJson());
+                    executeAgentJs("setAgentContextState", buildAgentContextJson());
                 }
                 executeAgentJs("setStatus", "Sẵn sàng - Agent Mode");
                 executeAgentJs("setAgentModeState", buildAgentModeStateJson());
@@ -679,6 +919,14 @@ public class AiChatPanel extends JPanel {
             pendingCommandStore.find(commandId)
                     .map(CommandPreviewView::proposal)
                     .ifPresent(json -> executeAgentJs("appendCommandProposal", json));
+        }
+        String mcpCallId = invocation.getResult() == null
+                ? ""
+                : invocation.getResult().getMetadata().getOrDefault("mcpCallId", "");
+        if (!mcpCallId.isBlank()) {
+            pendingMcpToolCallStore.find(mcpCallId)
+                    .map(McpToolCallPreviewView::proposal)
+                    .ifPresent(json -> executeAgentJs("appendMcpToolCallProposal", json));
         }
         if (invocation.getResult() != null
                 && invocation.getResult().getMetadata().containsKey("memoryCount")) {
@@ -757,6 +1005,7 @@ public class AiChatPanel extends JPanel {
                         rememberCompletedExchange(userMessage, assistantBuffer.toString());
                         executeAgentJs("finishAssistantMessage");
                         executeAgentJs("setMemoryState", buildMemoryStateJson());
+                        executeAgentJs("setAgentContextState", buildAgentContextJson());
                         executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
                     });
                 }
@@ -771,6 +1020,7 @@ public class AiChatPanel extends JPanel {
                         if (hasDelta.get()) {
                             rememberCompletedExchange(userMessage, assistantBuffer.toString());
                             executeAgentJs("setMemoryState", buildMemoryStateJson());
+                            executeAgentJs("setAgentContextState", buildAgentContextJson());
                         }
                         executeAgentJs("appendAssistantDelta", message);
                         executeAgentJs("finishAssistantMessage");

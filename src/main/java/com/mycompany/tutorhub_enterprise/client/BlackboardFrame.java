@@ -60,10 +60,11 @@ public class BlackboardFrame extends JFrame {
     }
 
     private void initUI() {
-        CefApp cefApp = JcefHelper.getCefApp();
+        CefApp cefApp = JcefManager.getCefApp();
         if (cefApp != null) {
-            cefClient = cefApp.createClient();
+            cefClient = JcefManager.getClient();
             
+            // Add Javascript binding message router
             CefMessageRouter msgRouter = CefMessageRouter.create();
             msgRouter.addHandler(new CefMessageRouterHandlerAdapter() {
                 @Override
@@ -119,37 +120,22 @@ public class BlackboardFrame extends JFrame {
             
             String url = "";
             try {
-                InputStream in = getClass().getResourceAsStream("/html/tldraw_board_v2.html");
+                java.io.InputStream in = getClass().getResourceAsStream("/html/tldraw_board_v2.html");
                 if (in != null) {
                     byte[] htmlBytes = in.readAllBytes();
                     in.close();
                     
-                    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-                    server.createContext("/", new HttpHandler() {
-                        @Override
-                        public void handle(HttpExchange exchange) throws java.io.IOException {
-                            exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-                            exchange.sendResponseHeaders(200, htmlBytes.length);
-                            OutputStream os = exchange.getResponseBody();
-                            os.write(htmlBytes);
-                            os.close();
-                        }
-                    });
-                    server.setExecutor(null);
-                    server.start();
-                    int port = server.getAddress().getPort();
+                    java.io.File tempHtml = java.io.File.createTempFile("tldraw_board_", ".html");
+                    tempHtml.deleteOnExit();
+                    java.nio.file.Files.write(tempHtml.toPath(), htmlBytes);
+                    
                     boolean admitted = "teacher".equalsIgnoreCase(this.role);
                     boolean canDraw = "teacher".equalsIgnoreCase(this.role) || this.allowStudentDraw;
-                    url = "http://localhost:" + port + "/?role=" + this.role
-                            + "&admitted=" + admitted
-                            + "&canDraw=" + canDraw;
+                    String admittedStr = String.valueOf(admitted);
+                    String canDrawStr = String.valueOf(canDraw);
+                    url = tempHtml.toURI().toURL().toExternalForm() + "?role=" + this.role + "&admitted=" + admittedStr + "&canDraw=" + canDrawStr;
                 } else {
-                    boolean admitted = "teacher".equalsIgnoreCase(this.role);
-                    boolean canDraw = "teacher".equalsIgnoreCase(this.role) || this.allowStudentDraw;
-                    url = getClass().getResource("/html/tldraw_board_v2.html").toExternalForm()
-                            + "?role=" + this.role
-                            + "&admitted=" + admitted
-                            + "&canDraw=" + canDraw;
+                    System.err.println("Could not find /html/tldraw_board_v2.html resource.");
                 }
             } catch (Exception e) {
                 e.printStackTrace();

@@ -93,8 +93,14 @@ public class PreJoinDialog extends JDialog {
         
         JButton btnJoin = createButton("Vào phòng", primaryBlue, Color.WHITE, primaryBlue);
         btnJoin.addActionListener(e -> {
+            System.out.println("[DEBUG] btnJoin clicked in PreJoinDialog");
             dispose();
-            if (onJoin != null) onJoin.run();
+            if (onJoin != null) {
+                System.out.println("[DEBUG] Invoking onJoin");
+                SwingUtilities.invokeLater(onJoin);
+            } else {
+                System.out.println("[DEBUG] onJoin is NULL!");
+            }
         });
         
         actionPanel.add(btnCancel, "w 80!, h 36!");

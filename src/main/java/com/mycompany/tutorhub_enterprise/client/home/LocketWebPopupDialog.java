@@ -140,16 +140,20 @@ public class LocketWebPopupDialog extends JDialog {
     public static void passCommentsList(String payload) {
         LocketWebPopupDialog instance = activeInstance;
         if (instance != null) {
-            String b64 = Base64.getEncoder().encodeToString(payload.getBytes());
-            instance.executePopupScript("updateComments", b64);
+            try {
+                String b64 = Base64.getEncoder().encodeToString(payload.getBytes("UTF-8"));
+                instance.executePopupScript("updateComments", b64);
+            } catch (Exception e) {}
         }
     }
 
     public static void passNewComment(String payload) {
         LocketWebPopupDialog instance = activeInstance;
         if (instance != null) {
-            String b64 = Base64.getEncoder().encodeToString(payload.getBytes());
-            instance.executePopupScript("addComment", b64);
+            try {
+                String b64 = Base64.getEncoder().encodeToString(payload.getBytes("UTF-8"));
+                instance.executePopupScript("addComment", b64);
+            } catch (Exception e) {}
         }
     }
 
@@ -546,7 +550,7 @@ public class LocketWebPopupDialog extends JDialog {
                     mockComment.addProperty("authorAvatar", com.mycompany.tutorhub_enterprise.client.MainDashboard.currentStaticUserAvatarBase64);
                     mockComment.addProperty("content", content);
                     mockComment.addProperty("timeAgo", "Vừa xong");
-                    executePopupScript("addComment", Base64.getEncoder().encodeToString(mockComment.toString().getBytes()));
+                    executePopupScript("addComment", Base64.getEncoder().encodeToString(mockComment.toString().getBytes("UTF-8")));
                     return;
                 }
                 long postId = Long.parseLong(rawId);

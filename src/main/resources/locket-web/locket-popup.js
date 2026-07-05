@@ -434,7 +434,7 @@
     var post = getCurrentPost();
     if (!post) return;
     
-    emit("LOCKET_COMMENT_CREATE", { postId: post.id, text: text });
+    emit("LOCKET_COMMENT_CREATE", { id: post.id, content: text });
     cInput.value = "";
   }
 
@@ -461,8 +461,8 @@
            +  '  <div class="comment-avatar"' + avatarStyle + '>' + avatarContent + '</div>'
            +  '  <div class="comment-content">'
            +  '    <div class="comment-author">' + escapeHtml(c.authorName || "TutorHub") + '</div>'
-           +  '    <div class="comment-text">' + escapeHtml(c.text || "") + '</div>'
-           +  '    <div class="comment-time">' + escapeHtml(c.timeText || "Vừa xong") + '</div>'
+           +  '    <div class="comment-text">' + escapeHtml(c.content || c.text || "") + '</div>'
+           +  '    <div class="comment-time">' + escapeHtml(c.timeAgo || c.timeText || "Vừa xong") + '</div>'
            +  '  </div>'
            +  '</div>';
     }
@@ -492,8 +492,14 @@
       setStatus("Tùy chọn nâng cao sẽ được bổ sung sau.", "");
     };
     $("messageButton").onclick = function () {
-      toggleComments();
+      emit("LOCKET_MESSAGE_OPEN", {});
     };
+    var commentBtn = $("commentButton");
+    if (commentBtn) {
+      commentBtn.onclick = function() {
+        toggleComments();
+      };
+    }
 
     var reactionBtns = document.getElementsByClassName("reaction");
     for (var i = 0; i < reactionBtns.length; i++) {

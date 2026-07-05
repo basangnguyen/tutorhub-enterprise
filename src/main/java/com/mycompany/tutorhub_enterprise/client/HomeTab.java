@@ -114,14 +114,15 @@ public class HomeTab extends JPanel {
                     );
                     NetworkManager.getInstance().sendPacket(request);
                 } else if ("LOCKET_CREATE_OPEN".equals(type)) {
-                    openLocketPopup(0);
+                    openLocketPopup(0, false);
                 } else if ("LOCKET_VIEW_OPEN".equals(type)) {
-                    openLocketPopup(resolveLocketIndex(payload));
+                    openLocketPopup(resolveLocketIndex(payload), false);
                 } else if ("LOCKET_COMMENT_OPEN".equals(type)) {
                     // Mở danh sách bình luận
                     com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
                     Long postId = parseLocketPostId(json);
                     if (postId != null) {
+                        openLocketPopup(resolveLocketIndex(payload), true);
                         com.google.gson.JsonObject reqPayload = new com.google.gson.JsonObject();
                         reqPayload.addProperty("postId", postId);
                         reqPayload.addProperty("limit", 20);
@@ -259,7 +260,7 @@ public class HomeTab extends JPanel {
         }
     }
 
-    private void openLocketPopup(int startIndex) {
+    private void openLocketPopup(int startIndex, boolean openComments) {
         SwingUtilities.invokeLater(() -> {
             Window owner = SwingUtilities.getWindowAncestor(this);
             Frame frame = owner instanceof Frame ? (Frame) owner : null;
@@ -269,7 +270,8 @@ public class HomeTab extends JPanel {
                             new ArrayList<>(currentLocketItems),
                             Math.max(0, startIndex),
                             this::refreshLocketPosts,
-                            this::openMessagesFromLocket
+                            this::openMessagesFromLocket,
+                            openComments
                     );
             dialog.setVisible(true);
         });
@@ -469,6 +471,17 @@ public class HomeTab extends JPanel {
 
     public void handleLocketReactionSuccess(long postId, boolean reacted) {
         SwingUtilities.invokeLater(() -> {
+            for (HomeLocketItem item : currentLocketItems) {
+                if (String.valueOf(postId).equals(item.id)) {
+                    item.likedByMe = reacted;
+                    if (reacted) {
+                        item.likeCount++;
+                    } else {
+                        item.likeCount = Math.max(0, item.likeCount - 1);
+                    }
+                    break;
+                }
+            }
             if (homeSocialWebPanel != null) {
                 homeSocialWebPanel.updateLocketReaction(postId, reacted);
             }
@@ -480,19 +493,41 @@ public class HomeTab extends JPanel {
             if (homeSocialWebPanel != null) {
                 homeSocialWebPanel.updateLocketComments(payload);
             }
+            com.mycompany.tutorhub_enterprise.client.home.LocketWebPopupDialog.passCommentsList(payload);
         });
     }
 
     public void handleLocketCommentCreateSuccess(String payload) {
         SwingUtilities.invokeLater(() -> {
+            try {
+                com.google.gson.JsonObject obj = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+                if (obj.has("postId")) {
+                    String postId = obj.get("postId").getAsString();
+                    for (HomeLocketItem item : currentLocketItems) {
+                        if (postId.equals(item.id)) {
+                            item.commentCount++;
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {}
             if (homeSocialWebPanel != null) {
                 homeSocialWebPanel.addLocketComment(payload);
             }
+            com.mycompany.tutorhub_enterprise.client.home.LocketWebPopupDialog.passNewComment(payload);
         });
     }
 
-    public void handleLocketCommentDeleteSuccess(long commentId) {
+    public void handleLocketCommentDeleteSuccess(long commentId, long postId) {
         SwingUtilities.invokeLater(() -> {
+            if (postId != -1) {
+                for (HomeLocketItem item : currentLocketItems) {
+                    if (String.valueOf(postId).equals(item.id)) {
+                        item.commentCount = Math.max(0, item.commentCount - 1);
+                        break;
+                    }
+                }
+            }
             if (homeSocialWebPanel != null) {
                 homeSocialWebPanel.deleteLocketComment(commentId);
             }

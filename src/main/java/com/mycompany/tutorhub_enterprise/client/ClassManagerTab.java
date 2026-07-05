@@ -757,7 +757,7 @@ public class ClassManagerTab extends JPanel {
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2 && !waiting) {
+                if (e.getClickCount() >= 1 && !waiting) {
                     enterLesson(lesson);
                 }
             }
@@ -837,6 +837,28 @@ public class ClassManagerTab extends JPanel {
 
         card.add(body, BorderLayout.CENTER);
         addHover(card, cover);
+        
+        card.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                boolean waiting = false;
+                if (e.getClickCount() >= 1 && !waiting) {
+                    if (dashboard != null) {
+                        String joinRole = isCurrentUserOwner(classroom) ? "teacher" : "student";
+                        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(ClassManagerTab.this);
+                        PreJoinDialog preJoin = new PreJoinDialog(owner, valueOrDefault(classroom.getName(), "Lớp học"), joinRole, () -> {
+                            dashboard.openLiveClassroom(
+                                    String.valueOf(classroom.getId()),
+                                    valueOrDefault(classroom.getName(), "Lớp học"),
+                                    joinRole
+                            );
+                        });
+                        preJoin.setVisible(true);
+                    }
+                }
+            }
+        });
+        
         return card;
     }
 

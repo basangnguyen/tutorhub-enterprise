@@ -7794,6 +7794,14 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
             <i class="fa-solid fa-file-code"></i>
             <span>Snippet</span>
         </button>
+        <button class="zoom-bottom-btn" data-tooltip="Thành viên (Java)" onclick="if(window.cefQuery) window.cefQuery({request: 'TOGGLE_PERMISSION_PANEL', persistent: false, onSuccess: function(r){}, onFailure: function(e,m){}})">
+            <i class="fa-solid fa-users-gear"></i>
+            <span>Members</span>
+        </button>
+        <button class="zoom-bottom-btn" data-tooltip="Kho Bảng Vẽ" onclick="if(window.cefQuery) window.cefQuery({request: 'GET_BOARDS_FOR_PICKER', persistent: false, onSuccess: function(r){}, onFailure: function(e,m){}})">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>Kho bảng</span>
+        </button>
         <button class="zoom-bottom-btn" data-tooltip="Tạo Trắc nghiệm" onclick="if(window.addQuizNode) window.addQuizNode()">
             <i class="fa-solid fa-list-check"></i>
             <span>Quiz</span>
@@ -9118,20 +9126,20 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
             const btn = document.getElementById('code-toggle-btn');
             
             if (isCodeMode) {
-                wrapper.style.display = 'flex';
-                root.style.display = 'none'; // Ẩn bảng vẽ
-                btn.classList.add('active');
+                if (wrapper) wrapper.style.display = 'flex';
+                if (root) root.style.display = 'none'; // Ẩn bảng vẽ
+                if (btn) btn.classList.add('active');
                 
                 const container = document.getElementById('editor-container');
                 // Nếu chưa có iframe thì tạo, gọi qua endpoint /login để set Cookie
-                if (container.innerHTML.trim() === '') {
-                    const userName = window.currentRoom ? window.currentRoom.localParticipant.identity : "guest";
+                if (container && container.innerHTML.trim() === '') {
+                    const userName = window.currentRoom && window.currentRoom.localParticipant ? window.currentRoom.localParticipant.identity : "guest";
                     container.innerHTML = `<iframe src="${HUGGING_FACE_URL}/login?user=${userName}" style="width:100%; height:100%; border:none;"></iframe>`;
                 }
             } else {
-                wrapper.style.display = 'none';
-                root.style.display = 'block'; // Hiện lại bảng vẽ
-                btn.classList.remove('active');
+                if (wrapper) wrapper.style.display = 'none';
+                if (root) root.style.display = 'block'; // Hiện lại bảng vẽ
+                if (btn) btn.classList.remove('active');
             }
         }
         

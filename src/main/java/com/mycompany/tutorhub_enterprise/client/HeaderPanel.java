@@ -112,7 +112,7 @@ public class HeaderPanel extends JPanel {
         rightControls.add(btnNewClass);
         */
         // --- NÚT TIN NHẮN ---
-        chatBox = new ActionBox("https://img.icons8.com/fluency-systems-regular/48/4B5563/chat.png", 0);
+        chatBox = new ActionBox("message-circle", 0);
         chatBox.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) { 
                 if (System.currentTimeMillis() - lastChatCloseTime < 200) return; // Chống vòng lặp
@@ -122,7 +122,7 @@ public class HeaderPanel extends JPanel {
         rightControls.add(chatBox);
         
         // --- NÚT THÔNG BÁO ---
-        bellBox = new ActionBox("https://img.icons8.com/fluency-systems-regular/48/4B5563/appointment-reminders.png", 0);
+        bellBox = new ActionBox("bell", 0);
         bellBox.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) { 
                 if (System.currentTimeMillis() - lastNotifCloseTime < 200) return; // Chống vòng lặp
@@ -347,8 +347,8 @@ public class HeaderPanel extends JPanel {
 
     private void showNotificationPopup(Component invoker) {
         JPopupMenu popup = new JPopupMenu();
-        popup.setBackground(Color.decode("#F9FAFB"));
-        popup.setBorder(BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1));
+        popup.setBackground(Color.WHITE);
+        popup.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(new Insets(1, 1, 1, 1), Color.decode("#E5E7EB"), 1, 16));
         
         popup.addPopupMenuListener(new PopupMenuListener() {
             @Override public void popupMenuWillBecomeVisible(PopupMenuEvent e) {}
@@ -356,35 +356,24 @@ public class HeaderPanel extends JPanel {
             @Override public void popupMenuCanceled(PopupMenuEvent e) {}
         });
         
-        int popupWidth = 460;
+        int popupWidth = 320;
         JPanel container = new JPanel(new BorderLayout());
-        container.setBackground(Color.WHITE);
-        container.setPreferredSize(new Dimension(popupWidth, 520)); 
+        container.setOpaque(false);
+        container.setPreferredSize(new Dimension(popupWidth, 400)); 
         
         JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(Color.WHITE);
-        header.setBorder(new EmptyBorder(16, 20, 10, 20));
-        
-        JPanel leftHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0)); leftHeader.setOpaque(false);
-        JPanel iconWrap = new JPanel(new BorderLayout()) {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D)g.create(); g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.decode("#F3F4F6")); g2.fillOval(0,0,getWidth(),getHeight()); g2.dispose();
-            }
-        };
-        iconWrap.setPreferredSize(new Dimension(36, 36)); iconWrap.setOpaque(false);
-        JLabel bellIcon = new JLabel("", SwingConstants.CENTER); 
-        setNetworkIcon(bellIcon, "https://img.icons8.com/fluency-systems-regular/48/4B5563/appointment-reminders.png", 20, 20);
-        iconWrap.add(bellIcon);
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(12, 16, 6, 16));
         
         JLabel title = new JLabel("Thông báo");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
         title.setForeground(Color.decode("#111827"));
-        leftHeader.add(iconWrap); leftHeader.add(title);
         
-        JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 8)); rightHeader.setOpaque(false);
-        JLabel markRead = new JLabel("Đánh dấu tất cả là đã đọc");
-        markRead.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        rightHeader.setOpaque(false);
+        
+        JLabel markRead = new JLabel("Đọc tất cả");
+        markRead.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         markRead.setForeground(Color.decode("#2563EB"));
         markRead.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
@@ -397,47 +386,75 @@ public class HeaderPanel extends JPanel {
             }
         });
 
-        JLabel settingsIcon = new JLabel(); setNetworkIcon(settingsIcon, "https://img.icons8.com/fluency-systems-regular/48/4B5563/settings.png", 20, 20);
+        JLabel settingsIcon = new JLabel(); setNetworkIcon(settingsIcon, "https://img.icons8.com/fluency-systems-regular/48/4B5563/settings.png", 16, 16);
         settingsIcon.setCursor(new Cursor(Cursor.HAND_CURSOR));
         rightHeader.add(markRead); rightHeader.add(settingsIcon);
         
-        header.add(leftHeader, BorderLayout.WEST);
+        header.add(title, BorderLayout.WEST);
         header.add(rightHeader, BorderLayout.EAST);
         
         JPanel body = new JPanel();
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
-        body.setBackground(Color.WHITE);
-        body.setBorder(new EmptyBorder(10, 16, 10, 16));
+        body.setOpaque(false);
+        body.setBorder(new EmptyBorder(8, 12, 8, 12));
         
         if (notifications.isEmpty()) {
-            JPanel p = new JPanel(); p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setBackground(Color.WHITE); p.setBorder(new EmptyBorder(40, 20, 20, 20));
+            JPanel p = new JPanel(); p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setOpaque(false); p.setBorder(new EmptyBorder(40, 20, 20, 20));
             JLabel icon = new JLabel(); 
-            setNetworkIcon(icon, "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/appointment-reminders.png", 48, 48); 
+            setNetworkIcon(icon, "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/appointment-reminders.png", 32, 32); 
             icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-            JLabel lblEmpty = new JLabel("Không có thông báo nào"); lblEmpty.setFont(new Font("Segoe UI", Font.BOLD, 15)); lblEmpty.setForeground(Color.decode("#0F172A")); lblEmpty.setAlignmentX(Component.CENTER_ALIGNMENT);
-            p.add(icon); p.add(Box.createVerticalStrut(15)); p.add(lblEmpty);
+            JLabel lblEmpty = new JLabel("Không có thông báo"); lblEmpty.setFont(new Font("Segoe UI", Font.BOLD, 14)); lblEmpty.setForeground(Color.decode("#0F172A")); lblEmpty.setAlignmentX(Component.CENTER_ALIGNMENT);
+            p.add(icon); p.add(Box.createVerticalStrut(10)); p.add(lblEmpty);
             body.add(p);
         } else {
             for (int i = 0; i < notifications.size(); i++) {
                 NotificationModel n = notifications.get(i);
                 body.add(createNotificationCard(n.iconUrl, n.bgIconColor, n.title, n.desc, n.time, n.isUnread, popup));
-                if (i < notifications.size() - 1) body.add(Box.createVerticalStrut(8));
+                if (i < notifications.size() - 1) body.add(Box.createVerticalStrut(6));
             }
         }
         
         JScrollPane scrollPane = new JScrollPane(body);
         scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         
         JPanel footer = new JPanel(new BorderLayout());
-        footer.setBackground(Color.decode("#F8FAFC"));
-        footer.setBorder(new EmptyBorder(15, 0, 15, 0));
-        JLabel viewAll = new JLabel("Xem tất cả thông báo  >", SwingConstants.CENTER);
-        viewAll.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        footer.setOpaque(false);
+        footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.decode("#F3F4F6")));
+        
+        JLabel viewAll = new JLabel("Xem tất cả thông báo", SwingConstants.CENTER);
+        viewAll.setFont(new Font("Segoe UI", Font.BOLD, 13));
         viewAll.setForeground(Color.decode("#2563EB"));
-        viewAll.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        footer.add(viewAll, BorderLayout.CENTER);
+        viewAll.setBorder(new EmptyBorder(12, 0, 12, 0));
+        
+        JPanel hoverPanel = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                boolean isHover = Boolean.TRUE.equals(getClientProperty("hover"));
+                if (isHover) { 
+                    g2.setColor(Color.decode("#F8F9FA")); 
+                } else { 
+                    g2.setColor(Color.WHITE); 
+                }
+                // Only round bottom corners
+                g2.fillRoundRect(1, 0, getWidth() - 2, getHeight() - 1, 16, 16);
+                g2.fillRect(1, 0, getWidth() - 2, 10);
+                g2.dispose();
+            }
+        };
+        hoverPanel.setOpaque(false);
+        hoverPanel.add(viewAll, BorderLayout.CENTER);
+        hoverPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        hoverPanel.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { hoverPanel.putClientProperty("hover", true); hoverPanel.repaint(); }
+            @Override public void mouseExited(MouseEvent e) { hoverPanel.putClientProperty("hover", false); hoverPanel.repaint(); }
+            @Override public void mouseClicked(MouseEvent e) { popup.setVisible(false); }
+        });
+        footer.add(hoverPanel, BorderLayout.CENTER);
         
         container.add(header, BorderLayout.NORTH);
         container.add(scrollPane, BorderLayout.CENTER);
@@ -448,42 +465,42 @@ public class HeaderPanel extends JPanel {
     }
 
     private JPanel createNotificationCard(String iconUrl, String bgIconColor, String title, String desc, String time, boolean isUnread, JPopupMenu parentPopup) {
-        JPanel card = new JPanel(new BorderLayout(15, 0)) {
+        JPanel card = new JPanel(new BorderLayout(10, 0)) {
             boolean isHover = false;
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create(); g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(isHover ? Color.decode("#F9FAFB") : Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
                 g2.setColor(Color.decode("#F3F4F6"));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
                 g2.dispose(); super.paintComponent(g);
             }
             public void setHover(boolean h) { this.isHover = h; repaint(); }
         };
-        card.setOpaque(false); card.setBorder(new EmptyBorder(16, 16, 16, 16)); card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        card.setMaximumSize(new Dimension(999, 90));
-
+        card.setOpaque(false); card.setBorder(new EmptyBorder(8, 12, 8, 12)); card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        card.setMaximumSize(new Dimension(999, 64));
+ 
         JPanel iconPanel = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create(); g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(Color.decode(bgIconColor != null ? bgIconColor : "#FFFFFF")); g2.fillOval(0, 0, getWidth(), getHeight()); g2.dispose();
             }
         };
-        iconPanel.setOpaque(false); iconPanel.setPreferredSize(new Dimension(48, 48));
-        JLabel lblIcon = new JLabel("", SwingConstants.CENTER); setNetworkIcon(lblIcon, iconUrl, 24, 24);
+        iconPanel.setOpaque(false); iconPanel.setPreferredSize(new Dimension(40, 40));
+        JLabel lblIcon = new JLabel("", SwingConstants.CENTER); setNetworkIcon(lblIcon, iconUrl, 20, 20);
         iconPanel.add(lblIcon, BorderLayout.CENTER);
         card.add(iconPanel, BorderLayout.WEST);
 
         JPanel textPanel = new JPanel(); textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS)); textPanel.setOpaque(false);
         String redDot = isUnread ? "<font color='#EF4444'>● </font>" : "";
         textPanel.add(new JLabel("<html>" + redDot + "<b style='color:#111827; font-size:14px; font-family:Segoe UI;'>" + title + "</b></html>"));
-        textPanel.add(Box.createVerticalStrut(6));
-        textPanel.add(new JLabel("<html><span style='color:#4B5563; font-size:13px; font-family:Segoe UI;'>" + desc + "</span></html>"));
-        textPanel.add(Box.createVerticalStrut(6));
+        textPanel.add(Box.createVerticalStrut(2));
+        textPanel.add(new JLabel("<html><span style='color:#4B5563; font-size:12px; font-family:Segoe UI;'>" + desc + "</span></html>"));
+        textPanel.add(Box.createVerticalStrut(2));
         textPanel.add(new JLabel("<html><span style='color:#9CA3AF; font-size:11px; font-family:Segoe UI;'>" + time + "</span></html>"));
         card.add(textPanel, BorderLayout.CENTER);
 
-        JLabel rightArrow = new JLabel(); setNetworkIcon(rightArrow, "https://img.icons8.com/material-rounded/24/9CA3AF/forward.png", 16, 16);
+        JLabel rightArrow = new JLabel(); setNetworkIcon(rightArrow, "https://img.icons8.com/material-rounded/24/9CA3AF/forward.png", 14, 14);
         card.add(rightArrow, BorderLayout.EAST);
 
         card.addMouseListener(new MouseAdapter() {
@@ -503,7 +520,7 @@ public class HeaderPanel extends JPanel {
 
         JPopupMenu popup = new JPopupMenu();
         popup.setBackground(Color.WHITE);
-        popup.setBorder(BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1));
+        popup.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(new Insets(1, 1, 1, 1), Color.decode("#E5E7EB"), 1, 16));
         
         popup.addPopupMenuListener(new PopupMenuListener() {
             @Override public void popupMenuWillBecomeVisible(PopupMenuEvent e) {}
@@ -511,38 +528,41 @@ public class HeaderPanel extends JPanel {
             @Override public void popupMenuCanceled(PopupMenuEvent e) {}
         });
         
-        int popupWidth = 380;
+        int popupWidth = 320;
         JPanel container = new JPanel(new BorderLayout());
-        container.setBackground(Color.WHITE);
-        container.setPreferredSize(new Dimension(popupWidth, 520));
+        container.setOpaque(false);
+        container.setPreferredSize(new Dimension(popupWidth, 400));
+        container.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         
         JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(Color.WHITE);
+        header.setOpaque(false);
         
         JPanel titlePanel = new JPanel(new BorderLayout());
-        titlePanel.setBackground(Color.WHITE);
-        titlePanel.setBorder(new EmptyBorder(15, 20, 10, 20));
+        titlePanel.setOpaque(false);
+        titlePanel.setBorder(new EmptyBorder(12, 16, 6, 16));
         JLabel title = new JLabel("Tin nhắn");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
         title.setForeground(Color.decode("#111827"));
         
         JLabel newMsg = new JLabel(); 
-        setNetworkIcon(newMsg, "https://img.icons8.com/fluency-systems-regular/48/4B5563/edit.png", 20, 20);
+        setNetworkIcon(newMsg, "https://img.icons8.com/fluency-systems-regular/48/4B5563/edit.png", 16, 16);
         newMsg.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
         titlePanel.add(title, BorderLayout.WEST);
         titlePanel.add(newMsg, BorderLayout.EAST);
         
-        JPanel tabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0));
-        tabs.setBackground(Color.WHITE);
+        JPanel tabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
+        tabs.setOpaque(false);
         tabs.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.decode("#E5E7EB")));
         
         JPanel body = new JPanel();
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
-        body.setBackground(Color.WHITE);
+        body.setOpaque(false);
         
         JScrollPane scrollPane = new JScrollPane(body);
         scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -565,9 +585,9 @@ public class HeaderPanel extends JPanel {
                 
                 if (!hasItem) {
                     JPanel p = new JPanel(); p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS)); p.setBackground(Color.WHITE); p.setBorder(new EmptyBorder(40, 20, 20, 20));
-                    JLabel icon = new JLabel(); setNetworkIcon(icon, "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/chat.png", 48, 48); icon.setAlignmentX(Component.CENTER_ALIGNMENT);
-                    JLabel lblEmpty = new JLabel("Hộp thư trống"); lblEmpty.setFont(new Font("Segoe UI", Font.BOLD, 15)); lblEmpty.setForeground(Color.decode("#0F172A")); lblEmpty.setAlignmentX(Component.CENTER_ALIGNMENT);
-                    p.add(icon); p.add(Box.createVerticalStrut(15)); p.add(lblEmpty);
+                    JLabel icon = new JLabel(); setNetworkIcon(icon, "https://img.icons8.com/fluency-systems-regular/48/CBD5E1/chat.png", 32, 32); icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    JLabel lblEmpty = new JLabel("Hộp thư trống"); lblEmpty.setFont(new Font("Segoe UI", Font.BOLD, 14)); lblEmpty.setForeground(Color.decode("#0F172A")); lblEmpty.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    p.add(icon); p.add(Box.createVerticalStrut(10)); p.add(lblEmpty);
                     body.add(p);
                 }
                 
@@ -581,19 +601,42 @@ public class HeaderPanel extends JPanel {
         header.add(titlePanel, BorderLayout.NORTH);
         header.add(tabs, BorderLayout.SOUTH);
         
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 10));
-        footer.setBackground(Color.WHITE);
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setOpaque(false);
         footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.decode("#F3F4F6")));
-        JLabel viewAll = new JLabel("Xem tất cả trong Messenger");
-        viewAll.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        
+        JLabel viewAll = new JLabel("Xem tất cả tin nhắn", SwingConstants.CENTER);
+        viewAll.setFont(new Font("Segoe UI", Font.BOLD, 13));
         viewAll.setForeground(Color.decode("#2563EB"));
-        viewAll.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        viewAll.addMouseListener(new MouseAdapter() { 
+        viewAll.setBorder(new EmptyBorder(12, 0, 12, 0));
+        
+        JPanel hoverPanel = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                boolean isHover = Boolean.TRUE.equals(getClientProperty("hover"));
+                if (isHover) { 
+                    g2.setColor(Color.decode("#F8F9FA")); 
+                } else { 
+                    g2.setColor(Color.WHITE); 
+                }
+                g2.fillRoundRect(1, 0, getWidth() - 2, getHeight() - 1, 16, 16);
+                g2.fillRect(1, 0, getWidth() - 2, 10);
+                g2.dispose();
+            }
+        };
+        hoverPanel.setOpaque(false);
+        hoverPanel.add(viewAll, BorderLayout.CENTER);
+        hoverPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        hoverPanel.addMouseListener(new MouseAdapter() { 
+            @Override public void mouseEntered(MouseEvent e) { hoverPanel.putClientProperty("hover", true); hoverPanel.repaint(); }
+            @Override public void mouseExited(MouseEvent e) { hoverPanel.putClientProperty("hover", false); hoverPanel.repaint(); }
             @Override public void mouseClicked(MouseEvent e) { 
                 popup.setVisible(false); if(dashboard != null) dashboard.switchToCard("Chat"); 
             }
         });
-        footer.add(viewAll);
+        
+        footer.add(hoverPanel, BorderLayout.CENTER);
         
         container.add(header, BorderLayout.NORTH);
         container.add(scrollPane, BorderLayout.CENTER);
@@ -639,31 +682,31 @@ public class HeaderPanel extends JPanel {
     }
 
     private JPanel createMessageItem(ConversationInfo c, JPopupMenu parentPopup) {
-        JPanel p = new JPanel(new BorderLayout(12, 0)) {
+        JPanel p = new JPanel(new BorderLayout(10, 0)) {
             boolean isHover = false;
             @Override protected void paintComponent(Graphics g) {
                 if (isHover) { g.setColor(Color.decode("#F8F9FA")); g.fillRect(0, 0, getWidth(), getHeight()); }
-                else { g.setColor(Color.WHITE); g.fillRect(0, 0, getWidth(), getHeight()); }
+                else { g.setColor(new Color(255, 255, 255, 0)); g.fillRect(0, 0, getWidth(), getHeight()); }
             }
             public void setHover(boolean h) { this.isHover = h; repaint(); }
         };
-        p.setOpaque(false); p.setBorder(new EmptyBorder(12, 16, 12, 16)); p.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74));
+        p.setOpaque(false); p.setBorder(new EmptyBorder(8, 14, 8, 14)); p.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
 
-        JLayeredPane avatarPane = new JLayeredPane(); avatarPane.setPreferredSize(new Dimension(48, 48));
-        JLabel lblAvatar = new JLabel(); setAvatarIcon(lblAvatar, c.avatarUrl, 48); lblAvatar.setBounds(0, 0, 48, 48); avatarPane.add(lblAvatar, Integer.valueOf(0));
+        JLayeredPane avatarPane = new JLayeredPane(); avatarPane.setPreferredSize(new Dimension(40, 40));
+        JLabel lblAvatar = new JLabel(); setAvatarIcon(lblAvatar, c.avatarUrl, 40); lblAvatar.setBounds(0, 0, 40, 40); avatarPane.add(lblAvatar, Integer.valueOf(0));
         JPanel dot = new CircleDot(c.isOnline ? Color.decode("#10B981") : Color.decode("#94A3B8"));
-        dot.setBounds(34, 34, 14, 14); avatarPane.add(dot, Integer.valueOf(1));
+        dot.setBounds(28, 28, 12, 12); avatarPane.add(dot, Integer.valueOf(1));
         p.add(avatarPane, BorderLayout.WEST);
 
         JPanel center = new JPanel(); center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS)); center.setOpaque(false);
-        JLabel lblName = new JLabel(c.displayName); lblName.setFont(new Font("Segoe UI", Font.BOLD, 15)); lblName.setForeground(Color.decode("#0F172A"));
+        JLabel lblName = new JLabel(c.displayName); lblName.setFont(new Font("Segoe UI", Font.BOLD, 14)); lblName.setForeground(Color.decode("#0F172A"));
         
         String msgContent = c.lastMessage != null ? c.lastMessage : "Bắt đầu trò chuyện!";
-        JLabel lblMsg = new JLabel("<html><div style='width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>" + msgContent + "</div></html>"); 
-        lblMsg.setFont(new Font("Segoe UI", c.unreadCount > 0 ? Font.BOLD : Font.PLAIN, 13)); 
+        JLabel lblMsg = new JLabel("<html><div style='width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>" + msgContent + "</div></html>"); 
+        lblMsg.setFont(new Font("Segoe UI", c.unreadCount > 0 ? Font.BOLD : Font.PLAIN, 12)); 
         lblMsg.setForeground(c.unreadCount > 0 ? Color.decode("#0F172A") : Color.decode("#64748B"));
-        center.add(lblName); center.add(Box.createVerticalStrut(4)); center.add(lblMsg); p.add(center, BorderLayout.CENTER);
+        center.add(lblName); center.add(Box.createVerticalStrut(2)); center.add(lblMsg); p.add(center, BorderLayout.CENTER);
 
         JPanel right = new JPanel(new BorderLayout()); right.setOpaque(false);
         String timeStr = c.lastMessageTime != null ? timeFormat.format(c.lastMessageTime) : "";
@@ -698,13 +741,16 @@ public class HeaderPanel extends JPanel {
         private JPanel badgePanel;
         private boolean isHovered = false;
 
-        public ActionBox(String iconUrl, int initialBadge) {
+        public ActionBox(String svgName, int initialBadge) {
             setOpaque(false); setPreferredSize(new Dimension(40, 40)); setCursor(new Cursor(Cursor.HAND_CURSOR));
             setLayout(new BorderLayout());
             
-            JLabel lblIcon = new JLabel(); setNetworkIcon(lblIcon, iconUrl, 22, 22);
+            JLabel lblIcon = new JLabel();
+            com.formdev.flatlaf.extras.FlatSVGIcon svgIcon = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon_svg/" + svgName + ".svg", 24, 24);
+            svgIcon.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(c -> Color.decode("#4B5563")));
+            lblIcon.setIcon(svgIcon);
             JLayeredPane layeredPane = new JLayeredPane(); layeredPane.setPreferredSize(new Dimension(40, 40));
-            lblIcon.setBounds(9, 9, 22, 22); layeredPane.add(lblIcon, Integer.valueOf(0));
+            lblIcon.setBounds(8, 8, 24, 24); layeredPane.add(lblIcon, Integer.valueOf(0));
             
             badgePanel = new JPanel(new BorderLayout()) {
                 @Override protected void paintComponent(Graphics g) {
@@ -737,7 +783,7 @@ public class HeaderPanel extends JPanel {
             if(count > 0) {
                 lblBadge.setText(count > 99 ? "99+" : String.valueOf(count));
                 int width = count > 9 ? 22 : 16;
-                badgePanel.setBounds(21, 5, width, 16); 
+                badgePanel.setBounds(23, 2, width, 16); 
                 badgePanel.setVisible(true);
             } else {
                 badgePanel.setVisible(false);
@@ -799,11 +845,20 @@ public class HeaderPanel extends JPanel {
         if (iconCache.containsKey(key)) { label.setIcon(iconCache.get(key)); return; } 
         new Thread(() -> { 
             try { 
-                Image img = finalUrl.startsWith("http") ? new ImageIcon(new URL(finalUrl)).getImage() : new ImageIcon(finalUrl).getImage(); 
+                Image img;
+                if (finalUrl.startsWith("http")) {
+                    img = new ImageIcon(new URL(finalUrl)).getImage();
+                } else if (finalUrl.startsWith("classpath:")) {
+                    String resourcePath = finalUrl.substring("classpath:".length());
+                    if (!resourcePath.startsWith("/")) resourcePath = "/" + resourcePath;
+                    URL resourceUrl = getClass().getResource(resourcePath);
+                    img = resourceUrl != null ? new ImageIcon(resourceUrl).getImage() : null;
+                } else {
+                    img = new ImageIcon(finalUrl).getImage();
+                }
                 if (img != null) { 
                     MediaTracker tracker = new MediaTracker(label); tracker.addImage(img, 0); tracker.waitForID(0); 
                     
-                    // Thu nhỏ ảnh mịn màng trước bằng thuật toán SCALE_SMOOTH để tránh hiện tượng mất nét răng cưa
                     Image scaledImg = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
                     MediaTracker tracker2 = new MediaTracker(label); tracker2.addImage(scaledImg, 1); tracker2.waitForID(1);
                     

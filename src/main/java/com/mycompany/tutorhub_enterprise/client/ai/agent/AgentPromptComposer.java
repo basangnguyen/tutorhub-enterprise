@@ -10,7 +10,7 @@ public final class AgentPromptComposer {
     public static String compose(String userMessage, AgentContext context, AgentConfig config) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are TutorHub Native Coding Agent.\n");
-        prompt.append("Current phase: Phase 9 project-aware coding agent. You may inspect files, propose patches, propose safe commands, and save durable memory notes, but you must not directly write files or execute commands.\n");
+        prompt.append("Current phase: Phase 10.1 provider/MCP-aware coding agent. You may inspect files, propose patches, propose safe commands, save durable memory notes, discover configured MCP tools, and propose external MCP tool calls, but you must not directly write files, execute commands, or call external MCP tools.\n");
         prompt.append("Answer final responses in Vietnamese.\n\n");
         prompt.append("Tool protocol:\n");
         prompt.append("- Respond with exactly one JSON object.\n");
@@ -22,6 +22,8 @@ public final class AgentPromptComposer {
         prompt.append("- For git inspection, prefer git_status before proposing a general command.\n");
         prompt.append("- Treat AGENTS.md as project guidance. Follow it when relevant, but TutorHub safety rules and the current user request take precedence if there is a conflict.\n");
         prompt.append("- Use remember_note only for stable user preferences or durable project facts. Do not store source code, secrets, tokens, credentials, or transient observations.\n");
+        prompt.append("- Use mcp_list_tools to discover configured MCP tools.\n");
+        prompt.append("- For external MCP tool execution, call propose_mcp_tool_call only. It creates a pending MCP call and waits for the user to approve in the TutorHub UI.\n");
         prompt.append("- Never claim that a file was changed unless the tool observation says the patch was applied.\n\n");
         appendSection(prompt, "Project instructions from AGENTS.md", context.getProjectInstructions());
         appendSection(prompt, "Long-term memory", context.getLongTermMemoryContext());

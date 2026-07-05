@@ -8,6 +8,8 @@ public final class AiAgentSettingsStore {
     private static final String KEY_PROVIDER = "provider";
     private static final String KEY_OLLAMA_BASE_URL = "ollamaBaseUrl";
     private static final String KEY_OLLAMA_MODEL = "ollamaModel";
+    private static final String KEY_OPENAI_BASE_URL = "openAiBaseUrl";
+    private static final String KEY_OPENAI_MODEL = "openAiModel";
 
     private AiAgentSettingsStore() {
     }
@@ -17,7 +19,10 @@ public final class AiAgentSettingsStore {
         return AiAgentProviderConfig.of(
                 prefs.get(KEY_PROVIDER, AiAgentProviderConfig.PROVIDER_LAVIE),
                 prefs.get(KEY_OLLAMA_BASE_URL, AiAgentProviderConfig.DEFAULT_OLLAMA_BASE_URL),
-                prefs.get(KEY_OLLAMA_MODEL, AiAgentProviderConfig.DEFAULT_OLLAMA_MODEL));
+                prefs.get(KEY_OLLAMA_MODEL, AiAgentProviderConfig.DEFAULT_OLLAMA_MODEL),
+                prefs.get(KEY_OPENAI_BASE_URL, AiAgentProviderConfig.DEFAULT_OPENAI_BASE_URL),
+                prefs.get(KEY_OPENAI_MODEL, AiAgentProviderConfig.DEFAULT_OPENAI_MODEL),
+                "");
     }
 
     public static void save(AiAgentProviderConfig config) {
@@ -28,6 +33,8 @@ public final class AiAgentSettingsStore {
         prefs.put(KEY_PROVIDER, config.getProvider());
         prefs.put(KEY_OLLAMA_BASE_URL, config.getOllamaBaseUrl());
         prefs.put(KEY_OLLAMA_MODEL, config.getOllamaModel());
+        prefs.put(KEY_OPENAI_BASE_URL, config.getOpenAiBaseUrl());
+        prefs.put(KEY_OPENAI_MODEL, config.getOpenAiModel());
         flushQuietly(prefs);
     }
 
@@ -36,6 +43,8 @@ public final class AiAgentSettingsStore {
         prefs.remove(KEY_PROVIDER);
         prefs.remove(KEY_OLLAMA_BASE_URL);
         prefs.remove(KEY_OLLAMA_MODEL);
+        prefs.remove(KEY_OPENAI_BASE_URL);
+        prefs.remove(KEY_OPENAI_MODEL);
         flushQuietly(prefs);
     }
 

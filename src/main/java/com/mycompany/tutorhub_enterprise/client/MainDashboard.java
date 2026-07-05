@@ -229,21 +229,33 @@ public class MainDashboard extends JFrame {
     }
 
         public void openLiveClassroom(String classId, String className, String role) {
+        System.out.println("[DEBUG] openLiveClassroom called for classId: " + classId);
         if (blackboardFrame != null) {
+            System.out.println("[DEBUG] Disposing existing blackboardFrame");
             blackboardFrame.dispose();
         }
+        System.out.println("[DEBUG] Creating new BlackboardFrame");
         blackboardFrame = new BlackboardFrame(this, classId, role);
         blackboardFrame.connectToLiveRoom("0", classId, className);
+        System.out.println("[DEBUG] Setting blackboardFrame visible");
         blackboardFrame.setVisible(true);
+        blackboardFrame.toFront();
+        System.out.println("[DEBUG] BlackboardFrame is now visible");
     }
 
         public void openLiveLesson(String classroomId, String lessonId, String boardId, String className, String role) {
+        System.out.println("[DEBUG] openLiveLesson called for boardId: " + boardId);
         if (blackboardFrame != null) {
+            System.out.println("[DEBUG] Disposing existing blackboardFrame");
             blackboardFrame.dispose();
         }
+        System.out.println("[DEBUG] Creating new BlackboardFrame");
         blackboardFrame = new BlackboardFrame(this, boardId, role);
         blackboardFrame.connectToLiveRoom(lessonId, boardId, className);
+        System.out.println("[DEBUG] Setting blackboardFrame visible");
         blackboardFrame.setVisible(true);
+        blackboardFrame.toFront();
+        System.out.println("[DEBUG] BlackboardFrame is now visible");
     }
 
     // =========================================================
@@ -1016,11 +1028,18 @@ public class MainDashboard extends JFrame {
                         homeTab.handleLocketCommentCreateSuccess(packet.payload);
                     }
                 } else if ("LOCKET_COMMENT_DELETE_SUCCESS".equals(packet.action)) {
-                    if (homeTab != null) {
+                    if (homeTab != null && packet.payload != null) {
                         try {
-                            long commentId = Long.parseLong(packet.payload);
-                            homeTab.handleLocketCommentDeleteSuccess(commentId);
-                        } catch(Exception e) { e.printStackTrace(); }
+                            com.google.gson.JsonObject obj = com.google.gson.JsonParser.parseString(packet.payload).getAsJsonObject();
+                            long commentId = obj.get("commentId").getAsLong();
+                            long postId = obj.has("postId") ? obj.get("postId").getAsLong() : -1;
+                            homeTab.handleLocketCommentDeleteSuccess(commentId, postId);
+                        } catch (Exception ex) {
+                            try {
+                                long commentId = Long.parseLong(packet.payload);
+                                homeTab.handleLocketCommentDeleteSuccess(commentId, -1);
+                            } catch(Exception e) {}
+                        }
                     }
                 }
                 

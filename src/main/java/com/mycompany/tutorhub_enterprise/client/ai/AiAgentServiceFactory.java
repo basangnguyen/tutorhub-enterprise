@@ -16,6 +16,12 @@ public final class AiAgentServiceFactory {
                     effectiveConfig.getOllamaBaseUrl(),
                     effectiveConfig.getOllamaModel());
         }
+        if (effectiveConfig.isOpenAiCompatible()) {
+            return new OpenAiCompatibleAiAgentService(
+                    effectiveConfig.getOpenAiBaseUrl(),
+                    effectiveConfig.getOpenAiModel(),
+                    effectiveConfig.getOpenAiApiKey());
+        }
         return new LavieAiService();
     }
 
@@ -24,7 +30,10 @@ public final class AiAgentServiceFactory {
         return AiAgentProviderConfig.of(
                 readConfig("tutorhub.ai.provider", "TUTORHUB_AI_PROVIDER", savedConfig.getProvider()),
                 readConfig("tutorhub.ai.ollama.baseUrl", "TUTORHUB_OLLAMA_BASE_URL", savedConfig.getOllamaBaseUrl()),
-                readConfig("tutorhub.ai.ollama.model", "TUTORHUB_OLLAMA_MODEL", savedConfig.getOllamaModel()));
+                readConfig("tutorhub.ai.ollama.model", "TUTORHUB_OLLAMA_MODEL", savedConfig.getOllamaModel()),
+                readConfig("tutorhub.ai.openai.baseUrl", "TUTORHUB_OPENAI_BASE_URL", savedConfig.getOpenAiBaseUrl()),
+                readConfig("tutorhub.ai.openai.model", "TUTORHUB_OPENAI_MODEL", savedConfig.getOpenAiModel()),
+                readConfig("tutorhub.ai.openai.apiKey", "TUTORHUB_OPENAI_API_KEY", ""));
     }
 
     private static String readConfig(String propertyName, String envName, String defaultValue) {

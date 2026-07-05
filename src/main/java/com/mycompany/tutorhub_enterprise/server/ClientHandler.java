@@ -2088,9 +2088,23 @@ public class ClientHandler {
                 }
                 case AuthProtocol.LOCKET_COMMENT_DELETE: {
                     long commentId = payload.get("commentId").getAsLong();
+                    
+                    // Get postId before deleting
+                    long postId = -1;
+                    try (java.sql.Connection conn = com.mycompany.tutorhub_enterprise.server.DatabaseManager.getConnection(); 
+                         java.sql.PreparedStatement pstmt = conn.prepareStatement("SELECT post_id FROM locket_comments WHERE id = ?")) {
+                        pstmt.setLong(1, commentId);
+                        try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                            if (rs.next()) postId = rs.getLong("post_id");
+                        }
+                    } catch (Exception e) {}
+                    
                     boolean success = com.mycompany.tutorhub_enterprise.server.services.LocketService.deleteComment(commentId, this.userId);
                     if (success) {
-                        sendPacket(new Packet(AuthProtocol.LOCKET_COMMENT_DELETE_SUCCESS, String.valueOf(commentId)));
+                        com.google.gson.JsonObject resp = new com.google.gson.JsonObject();
+                        resp.addProperty("commentId", commentId);
+                        resp.addProperty("postId", postId);
+                        sendPacket(new Packet(AuthProtocol.LOCKET_COMMENT_DELETE_SUCCESS, resp.toString()));
                     } else {
                         sendPacket(new Packet(AuthProtocol.LOCKET_ERROR, "Failed to delete comment"));
                     }

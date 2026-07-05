@@ -37,6 +37,8 @@ import java.util.Map;
 public class ChatTab extends JPanel {
 
     private static final int LAVIE_AI_CONVERSATION_ID = -999;
+    private static final int CHAT_LIST_WIDTH = 360;
+    private static final int CHAT_LIST_COMPACT_WIDTH = 92;
 
     // ===== THEME TUTORHUB ENTERPRISE =====
     private final Color PRIMARY       = Color.decode("#4F6EF7"); // TutorHub blue-purple
@@ -78,6 +80,9 @@ public class ChatTab extends JPanel {
 
     // ===== UI COMPONENTS =====
     private JPanel leftListPanel;
+    private JPanel conversationListColumn;
+    private JPanel conversationHeaderSection;
+    private JSplitPane mainChatSplitPane;
     private JPanel centerChatPanel;
     private JPanel messageArea;
     private JScrollPane chatScrollPane;
@@ -114,6 +119,7 @@ public class ChatTab extends JPanel {
     private java.util.function.Consumer<List<com.mycompany.tutorhub_enterprise.client.search.providers.ChatSearchProvider.ChatEntry>> onSearchDataUpdated;
     private CardLayout centerCardLayout;
     private JPanel activeChatContainer; // Container mới chứa giao diện nhắn tin
+    private boolean lavieExpanded = false;
 
    public ChatTab(int userId) {
         this.CURRENT_USER_ID = userId;
@@ -129,8 +135,8 @@ public class ChatTab extends JPanel {
         JPanel leftColumn = createConversationListColumn();
         JPanel centerColumn = createChatCenterColumn();
 
-        JSplitPane mainSplit = createBorderlessSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, centerColumn);
-        mainSplit.setResizeWeight(0.0); 
+        JSplitPane mainSplit = mainChatSplitPane = createBorderlessSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, centerColumn);
+        mainChatSplitPane.setResizeWeight(0.0);
         mainSplit.setDividerSize(1); // Mẹo: Bạn có thể đổi số 1 thành số 4 để có thể dùng chuột kéo qua lại nhé
 
         // ========================================================
@@ -484,7 +490,7 @@ public class ChatTab extends JPanel {
     // 1. CỘT TRÁI (DANH SÁCH CHAT) - ĐÃ TĂNG CHIỀU RỘNG
     // =========================================================================
     private JPanel createConversationListColumn() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = conversationListColumn = new JPanel(new BorderLayout());
         panel.setBackground(BG_LEFT);
         panel.setPreferredSize(new Dimension(360, 0));
         panel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, BORDER_COLOR));
@@ -514,7 +520,7 @@ public class ChatTab extends JPanel {
         headerSection.add(topBar);
         headerSection.add(filterWrap);
 
-        JPanel headerBorder = new JPanel(new BorderLayout());
+        JPanel headerBorder = conversationHeaderSection = new JPanel(new BorderLayout());
         headerBorder.setBackground(BG_LEFT);
         headerBorder.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
         headerBorder.add(headerSection, BorderLayout.CENTER);
@@ -634,13 +640,14 @@ public class ChatTab extends JPanel {
             }
         }
         leftListPanel.removeAll();
+        leftListPanel.setBorder(new EmptyBorder(lavieExpanded ? 14 : 0, 0, 0, 0));
         boolean hasItem = false;
 
         if (conversations != null) {
             for (ConversationInfo c : conversations) {
-                if (currentFilter.equals("UNREAD") && c.unreadCount == 0) continue;
-                if (currentFilter.equals("PRIORITY") && !c.isPriority) continue;
-                leftListPanel.add(createConversationItem(c));
+                if (!lavieExpanded && currentFilter.equals("UNREAD") && c.unreadCount == 0) continue;
+                if (!lavieExpanded && currentFilter.equals("PRIORITY") && !c.isPriority) continue;
+                leftListPanel.add(lavieExpanded ? createCompactConversationItem(c) : createConversationItem(c));
                 hasItem = true;
             }
         }
@@ -675,6 +682,70 @@ public class ChatTab extends JPanel {
         }
 
         leftListPanel.revalidate(); leftListPanel.repaint();
+    }
+
+    private JPanel createCompactConversationItem(ConversationInfo c) {
+        boolean isActive = activeConversation != null && activeConversation.conversationId == c.conversationId;
+        boolean hasUnread = c.unreadCount > 0;
+
+        JPanel p = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (isActive) {
+                    g2.setColor(Color.WHITE);
+                    g2.fillRoundRect(12, 4, getWidth() - 24, getHeight() - 8, 18, 18);
+                    g2.setColor(new Color(0xDCE7FF));
+                    g2.drawRoundRect(12, 4, getWidth() - 25, getHeight() - 9, 18, 18);
+                    g2.setColor(PRIMARY);
+                    g2.fillRoundRect(16, 16, 3, getHeight() - 32, 3, 3);
+                } else if (Boolean.TRUE.equals(getClientProperty("hovered"))) {
+                    g2.setColor(HOVER_BG);
+                    g2.fillRoundRect(12, 4, getWidth() - 24, getHeight() - 8, 18, 18);
+                }
+                if (hasUnread) {
+                    g2.setColor(BADGE_COLOR);
+                    g2.fillOval(getWidth() - 27, 13, 10, 10);
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(8, 0, 8, 0));
+        p.setPreferredSize(new Dimension(CHAT_LIST_COMPACT_WIDTH, 68));
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
+        p.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        p.setToolTipText(c.displayName);
+
+        JLayeredPane avatarPane = new JLayeredPane();
+        avatarPane.setPreferredSize(new Dimension(46, 46));
+        JLabel lblAvatar = new JLabel();
+        setAvatarIcon(lblAvatar, c.avatarUrl, 46);
+        lblAvatar.setBounds(0, 0, 46, 46);
+        avatarPane.add(lblAvatar, Integer.valueOf(0));
+        JPanel dot = new CircleDot(c.isOnline ? ONLINE_COLOR : OFFLINE_COLOR);
+        dot.setBounds(33, 33, 13, 13);
+        avatarPane.add(dot, Integer.valueOf(1));
+
+        JPanel avatarWrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        avatarWrap.setOpaque(false);
+        avatarWrap.add(avatarPane);
+        p.add(avatarWrap, BorderLayout.CENTER);
+
+        p.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) {
+                if (!isActive) { p.putClientProperty("hovered", true); p.repaint(); }
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                p.putClientProperty("hovered", false); p.repaint();
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                setActiveConversation(c);
+                refreshConversationList();
+            }
+        });
+        return p;
     }
 
    private JPanel createConversationItem(ConversationInfo c) {
@@ -766,7 +837,6 @@ public class ChatTab extends JPanel {
             badgeWrap.add(new PillBadge(badgeText, BADGE_COLOR, Color.WHITE));
             right.add(badgeWrap);
         }
-
         // ── ASSEMBLE ─────────────────────────────────────────────────────
         JPanel contentRow = new JPanel(new BorderLayout(0, 0));
         contentRow.setOpaque(false);
@@ -791,6 +861,39 @@ public class ChatTab extends JPanel {
         });
 
         return p;
+    }
+
+    private void setLavieExpanded(boolean expanded) {
+        lavieExpanded = expanded && isLavieAiConversation(activeConversation);
+        applyLavieExpandedLayout();
+        refreshConversationList();
+        if (aiChatPanel != null) {
+            aiChatPanel.setLavieExpandedState(lavieExpanded);
+        }
+        if (lavieExpanded && aiChatPanel != null) {
+            aiChatPanel.focusComposer();
+        }
+    }
+
+    private void applyLavieExpandedLayout() {
+        int width = lavieExpanded ? CHAT_LIST_COMPACT_WIDTH : CHAT_LIST_WIDTH;
+        if (conversationHeaderSection != null) {
+            conversationHeaderSection.setVisible(!lavieExpanded);
+        }
+        if (conversationListColumn != null) {
+            Dimension size = new Dimension(width, 0);
+            conversationListColumn.setPreferredSize(size);
+            conversationListColumn.setMinimumSize(size);
+            conversationListColumn.setBackground(lavieExpanded ? new Color(0xF8FAFC) : BG_LEFT);
+        }
+        if (leftListPanel != null) {
+            leftListPanel.setBackground(lavieExpanded ? new Color(0xF8FAFC) : BG_LEFT);
+        }
+        if (mainChatSplitPane != null) {
+            mainChatSplitPane.setDividerLocation(width);
+        }
+        revalidate();
+        repaint();
     }
 
     private void initSearchPopup() {
@@ -931,6 +1034,7 @@ public class ChatTab extends JPanel {
         activeChatContainer = new JPanel(new BorderLayout());
         activeChatContainer.setBackground(BG_MAIN);
         aiChatPanel = new AiChatPanel(String.valueOf(CURRENT_USER_ID), "lavie-chat");
+        aiChatPanel.setLavieExpandedListener(expanded -> setLavieExpanded(expanded));
 
         // Nạp 2 lá bài vào hệ thống (gắn tên để dễ gọi)
         centerChatPanel.add(welcomeWrapper, "WELCOME_CARD");
@@ -1899,6 +2003,13 @@ public class ChatTab extends JPanel {
 
     private void setActiveConversation(ConversationInfo c) { 
         activeConversation = c; 
+        if (!isLavieAiConversation(c) && lavieExpanded) {
+            lavieExpanded = false;
+        }
+        applyLavieExpandedLayout();
+        if (aiChatPanel != null) {
+            aiChatPanel.setLavieExpandedState(lavieExpanded);
+        }
         if (isLavieAiConversation(c)) {
             currentMessages = new ArrayList<>();
             renderActiveChatStructure();

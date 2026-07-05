@@ -25,11 +25,13 @@ class AgentPromptComposerTest {
 
         String prompt = AgentPromptComposer.compose("Continue", context, AgentConfig.defaults());
 
-        assertTrue(prompt.contains("Phase 9"));
+        assertTrue(prompt.contains("Phase 10"));
         assertTrue(prompt.contains("Project instructions from AGENTS.md"));
         assertTrue(prompt.contains("Use small scoped changes."));
         assertTrue(prompt.contains("Long-term memory"));
         assertTrue(prompt.contains("User prefers Vietnamese."));
         assertTrue(prompt.contains("Recent conversation context"));
+        assertTrue(prompt.contains("mcp_list_tools"));
+        assertTrue(prompt.contains("propose_mcp_tool_call"));
     }
 }

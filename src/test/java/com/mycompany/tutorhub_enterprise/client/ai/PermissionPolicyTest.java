@@ -37,4 +37,23 @@ class PermissionPolicyTest {
         assertEquals(PermissionDecision.ALLOW, policy.decide("propose_command", false));
         assertEquals(PermissionDecision.ASK, policy.decide("run_command", false));
     }
+
+    @Test
+    void phase10PolicyAllowsMcpDiscoveryOnly() {
+        PermissionPolicy policy = PermissionPolicy.phase10Defaults();
+
+        assertEquals(PermissionDecision.ALLOW, policy.decide("mcp_list_tools", false));
+        assertEquals(PermissionDecision.ASK, policy.decide("mcp_call_tool", false));
+        assertEquals(PermissionDecision.ALLOW, policy.decide("mcp_call_tool", true));
+    }
+
+    @Test
+    void phase101PolicyAllowsMcpProposalAndRequiresApprovalForRun() {
+        PermissionPolicy policy = PermissionPolicy.phase101Defaults();
+
+        assertEquals(PermissionDecision.ALLOW, policy.decide("mcp_list_tools", false));
+        assertEquals(PermissionDecision.ALLOW, policy.decide("propose_mcp_tool_call", false));
+        assertEquals(PermissionDecision.ASK, policy.decide("run_mcp_tool_call", false));
+        assertEquals(PermissionDecision.ALLOW, policy.decide("run_mcp_tool_call", true));
+    }
 }

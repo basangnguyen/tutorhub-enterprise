@@ -26,6 +26,11 @@ public class JcefManager {
                 // Tắt OSR để tránh kẹt Message Pump trên Windows (làm đơ nút bấm JFrame)
                 builder.getCefSettings().windowless_rendering_enabled = false;
                 
+                // Set unique cache path to avoid Error 32 (Lock file cannot be created)
+                File cacheDir = new File(System.getProperty("java.io.tmpdir"), "jcef_cache_" + System.currentTimeMillis());
+                builder.getCefSettings().root_cache_path = cacheDir.getAbsolutePath();
+                builder.getCefSettings().cache_path = cacheDir.getAbsolutePath();
+                
                 // Thông số cho Video Call & Lavie
                 builder.addJcefArgs("--enable-media-stream"); 
                 builder.addJcefArgs("--use-fake-ui-for-media-stream"); 
@@ -33,6 +38,13 @@ public class JcefManager {
                 builder.addJcefArgs("--auto-select-desktop-capture-source=Entire screen");
                 builder.addJcefArgs("--disable-web-security");
                 builder.addJcefArgs("--allow-file-access-from-files"); // Quan trọng cho Lavie
+                
+                // Bật Debug
+                builder.addJcefArgs("--remote-allow-origins=*");
+                builder.addJcefArgs("--remote-debugging-port=9222");
+                builder.addJcefArgs("--no-proxy-server");
+                builder.addJcefArgs("--enable-webgl");
+                builder.addJcefArgs("--ignore-gpu-blocklist");
 
                 cefApp = builder.build();
                 cefClient = cefApp.createClient();
@@ -41,5 +53,12 @@ public class JcefManager {
             }
         }
         return cefClient;
+    }
+
+    public static synchronized CefApp getCefApp() {
+        if (cefApp == null) {
+            getClient(); // Ensure initialization
+        }
+        return cefApp;
     }
 }
