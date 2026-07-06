@@ -7760,15 +7760,15 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
         <div class="zoom-bottom-divider"></div>
 
         <!-- Nhóm Công cụ TutorHub (Apps) -->
-    <div class="toolbar-btn" onclick="toggleCodeMode()">
-      <i class="fas fa-code"></i>
-      <span>Code</span>
-    </div>
+    <button id="code-toggle-btn" class="zoom-bottom-btn" data-tooltip="Môi trường Code (VSCode)" onclick="toggleCodeMode()">
+        <i class="fa-solid fa-code"></i>
+        <span>Code</span>
+    </button>
     <!-- Thêm nút Thí Nghiệm (PhET) -->
-    <div class="toolbar-btn" onclick="openPhetModal()">
-      <i class="fas fa-flask"></i>
-      <span>Thí nghiệm</span>
-    </div>
+    <button class="zoom-bottom-btn" data-tooltip="Phòng Thí Nghiệm Ảo (PhET)" onclick="openPhetModal()">
+        <i class="fa-solid fa-flask"></i>
+        <span>Thí nghiệm</span>
+    </button>
     <!-- Add Arena button -->
         <button id="arena-toggle-btn" class="zoom-bottom-btn" data-tooltip="Đấu trường (Chấm điểm)" onclick="toggleJudgePanel()">
             <i class="fa-solid fa-trophy"></i>
@@ -9024,7 +9024,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
             formData.append('file', blobOrFile, fileName);
             
             try {
-                const res = await fetch("https://hocba299-3-tutorhub-vscode.hf.space/upload-document", {
+                const res = await fetch("https://hocbatrolai293-tutorhub-vscode.hf.space/upload-document", {
                     method: 'POST',
                     body: formData
                 });
@@ -9052,7 +9052,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
             if (!window.tldrawAPI) return;
             
             try {
-                const proxyUrl = "https://hocba299-3-tutorhub-vscode.hf.space/proxy-image?url=" + encodeURIComponent(url);
+                const proxyUrl = "https://hocbatrolai293-tutorhub-vscode.hf.space/proxy-image?url=" + encodeURIComponent(url);
                 const response = await fetch(proxyUrl);
                 const blob = await response.blob();
                 
@@ -9117,7 +9117,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
         let isCodeMode = false;
 
         // Lưu đường link Hugging Face Space của Sếp ở đây!
-        let HUGGING_FACE_URL = "https://hocba299-3-tutorhub-vscode.hf.space";
+        let HUGGING_FACE_URL = "https://hocbatrolai293-tutorhub-vscode.hf.space";
 
         function toggleCodeMode() {
             isCodeMode = !isCodeMode;
@@ -9803,6 +9803,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
         }
     }, 1500);
     
-    </script>
+    </script>
+
 </body>
 </html>

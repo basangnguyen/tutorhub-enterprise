@@ -1537,7 +1537,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${t.do
 
             } catch (e) {
                 console.error("Lỗi bật camera:", e);
-                alert("Không thể bật Camera. Vui lòng cấp quyền! Lỗi chi tiết: " + e.message);
+                alert("Không thể bật Camera. Vui lòng cấp quyền! Lỗi chi tiết: " + e.name + " - " + e.message + "\nStack: " + e.stack);
                 document.getElementById('start-video-btn').style.display = 'flex';
             }
         }
@@ -1587,7 +1587,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${t.do
             formData.append('file', blobOrFile, fileName);
             
             try {
-                const res = await fetch("https://hocba299-3-tutorhub-vscode.hf.space/upload-document", {
+                const res = await fetch("https://hocbatrolai293-tutorhub-vscode.hf.space/upload-document", {
                     method: 'POST',
                     body: formData
                 });
@@ -1615,7 +1615,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${t.do
             if (!window.tldrawAPI) return;
             
             try {
-                const proxyUrl = "https://hocba299-3-tutorhub-vscode.hf.space/proxy-image?url=" + encodeURIComponent(url);
+                const proxyUrl = "https://hocbatrolai293-tutorhub-vscode.hf.space/proxy-image?url=" + encodeURIComponent(url);
                 const response = await fetch(proxyUrl);
                 const blob = await response.blob();
                 
@@ -1680,7 +1680,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${t.do
         let isCodeMode = false;
 
         // Lưu đường link Hugging Face Space của Sếp ở đây!
-        let HUGGING_FACE_URL = "https://hocba299-3-tutorhub-vscode.hf.space";
+        let HUGGING_FACE_URL = "https://hocbatrolai293-tutorhub-vscode.hf.space";
 
         function toggleCodeMode() {
             isCodeMode = !isCodeMode;
@@ -2032,6 +2032,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${t.do
     }
 
 
-    </script>
+    </script>
+
 </body>
 </html>

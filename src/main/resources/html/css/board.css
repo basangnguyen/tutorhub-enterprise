@@ -1,0 +1,225 @@
+/* Zoom Bottom Bar */
+        #zoom-bottom-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 64px;
+            background: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            z-index: 9999;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.4);
+            pointer-events: auto;
+        }
+
+        .zoom-bottom-btn {
+            background: transparent;
+            color: #ffffff;
+            border: none;
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .zoom-bottom-btn span {
+            font-size: 11px;
+            margin-top: 6px;
+            font-family: sans-serif;
+            color: #d1d5db;
+        }
+
+        .zoom-bottom-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .zoom-bottom-btn:active {
+            transform: translateY(1px);
+        }
+
+        .zoom-bottom-btn.active {
+            color: #10b981;
+        }
+        
+        .zoom-bottom-btn.danger {
+            color: #ef4444;
+        }
+        
+        .zoom-bottom-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .zoom-bottom-divider {
+            width: 1px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 10px;
+        }
+
+        /* Tooltip */
+        .zoom-bottom-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 65px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            color: #f8fafc;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            font-family: sans-serif;
+            font-weight: normal;
+            z-index: 10000;
+        }
+
+        .zoom-bottom-btn:hover::after {
+            opacity: 1;
+        }
+
+        /* Apps Popup Menu */
+        #apps-popup {
+            display: none;
+            position: absolute;
+            bottom: 72px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #252526;
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 10001;
+            box-shadow: 0 -8px 30px rgba(0,0,0,0.5);
+            min-width: 340px;
+        }
+        #apps-popup.show { display: block; }
+        
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+        
+        .apps-grid-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 10px 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            color: #d1d5db;
+            font-family: sans-serif;
+            transition: all 0.15s ease;
+        }
+        .apps-grid-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .apps-grid-item i {
+            font-size: 20px;
+        }
+        .apps-grid-item span {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        .apps-grid-item.active-app {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        /* Apps popup arrow */
+        #apps-popup::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #252526;
+        }
+
+        
+        /* Zoom Video Container (Top Horizontal) */
+        #video-sidebar {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            max-width: 90%;
+            height: auto;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 9000;
+            display: none;
+            flex-direction: row;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: 10px;
+        }
+
+        /* YouTube Fullscreen Mode */
+        .yt-fullscreen-mode {
+            top: 100px !important;
+            left: 20px !important;
+            right: 20px !important;
+            bottom: 80px !important;
+            width: calc(100% - 40px) !important;
+            height: calc(100% - 180px) !important;
+            border-radius: 12px !important;
+            transform: none !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important;
+        }
+        
+        .yt-fullscreen-mode #yt-player-container {
+            height: calc(100% - 30px) !important;
+        }
+        
+        .yt-fullscreen-mode #yt-overlay {
+            height: calc(100% - 30px) !important;
+        }
+
+        #lobby-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+            z-index: 10000; display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: white; font-family: sans-serif;
+        }
+        .emoji-bubble {
+            position: fixed; bottom: 80px; left: 50%;
+            font-size: 40px; pointer-events: none;
+            animation: emoji-float-up 3s ease-out forwards;
+            z-index: 9999;
+        }
+        @keyframes emoji-float-up {
+            0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+            20% { transform: translate(calc(-50% - 20px), -50px) scale(1.2); opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translate(calc(-50% + 20px), -200px) scale(1); opacity: 0; }
+        }

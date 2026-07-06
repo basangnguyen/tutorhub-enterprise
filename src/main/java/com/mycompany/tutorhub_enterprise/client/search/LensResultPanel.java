@@ -17,8 +17,8 @@ import java.nio.file.Files;
  *  - Right panel: AI streaming response + follow-up chat input
  *
  * Uses the same API endpoints as LavieChatWidget:
- *  - Vision: https://hocba299-3-tutorhub-ai.hf.space/api/chat/vision
- *  - Document: https://hocba299-3-tutorhub-ai.hf.space/api/chat/document
+ *  - Vision: https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/vision
+ *  - Document: https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/document
  */
 public class LensResultPanel extends JDialog {
 
@@ -464,8 +464,8 @@ public class LensResultPanel extends JDialog {
         boolean isDocument = name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc") || name.endsWith(".txt");
 
         String apiUrl = isDocument
-                ? "https://hocba299-3-tutorhub-ai.hf.space/api/chat/document"
-                : "https://hocba299-3-tutorhub-ai.hf.space/api/chat/vision";
+                ? "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/document"
+                : "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/vision";
         String fileField = "image";
         String fileType = isDocument ? "application/octet-stream" : "image/png";
         String message = isDocument
@@ -507,8 +507,8 @@ public class LensResultPanel extends JDialog {
         boolean isDocument = name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc") || name.endsWith(".txt");
 
         String apiUrl = isDocument
-                ? "https://hocba299-3-tutorhub-ai.hf.space/api/chat/document"
-                : "https://hocba299-3-tutorhub-ai.hf.space/api/chat/vision";
+                ? "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/document"
+                : "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/vision";
         String fileField = "image";
         String fileType = isDocument ? "application/octet-stream" : "image/png";
 

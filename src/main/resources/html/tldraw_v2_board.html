@@ -127,7 +127,7 @@
                 // Khởi tạo Real-time Sync
                 if (ws) ws.close();
                 if (boardId) {
-                    ws = new WebSocket('ws://localhost:1234/?roomId=' + boardId);
+                    ws = new WebSocket('wss://hocba299-3-tutorhub-sync.hf.space/board-sync/?roomId=' + boardId);
                     
                     ws.onopen = () => {
                         console.log('Connected to Sync Server for room ' + boardId);

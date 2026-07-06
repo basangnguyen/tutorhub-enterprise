@@ -4,6 +4,7 @@ const cors = require('cors');
 const http = require('http');
 const WebSocket = require('ws');
 const { AccessToken } = require('livekit-server-sdk');
+const { setupWSConnection } = require('y-websocket/bin/utils');
 
 const port = process.env.PORT || 1234;
 const app = express();
@@ -41,6 +42,14 @@ app.get('/update.jar', (req, res) => {
 
 app.get('/livekit/token', async (req, res) => {
   try {
+    const expectedApiKey = process.env.TUTORHUB_API_KEY;
+    if (expectedApiKey) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || authHeader !== `Bearer ${expectedApiKey}`) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
+      }
+    }
+
     if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
       return res.status(503).json({ error: 'LiveKit credentials are not configured.' });
     }
@@ -184,39 +193,35 @@ app.get('/proxy-image', async (req, res) => {
 
 const server = http.createServer(app);
 
-// Giữ lại WebSocket Broadcaster cũ cho chức năng đồng bộ Nét vẽ
-const wss = new WebSocket.Server({ server });
-const rooms = new Map();
+// Giữ lại WebSocket Server nhưng sử dụng y-websocket để đồng bộ CRDT
+const wss = new WebSocket.Server({ noServer: true });
+
+server.on('upgrade', (request, socket, head) => {
+  // Bỏ qua các kết nối không phải WebSocket hợp lệ
+  if (request.url === '/livekit/token') return;
+  
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
 
 wss.on('connection', (ws, req) => {
-  const urlParams = new URLSearchParams(req.url.split('?')[1]);
-  const roomId = urlParams.get('roomId') || 'default';
+  // URL format: /?roomId=...
+  // y-websocket parse roomId từ req.url (mặc định lấy phần pathname hoặc cần set docName)
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const roomId = url.searchParams.get('roomId') || url.pathname.slice(1) || 'default';
   
-  if (!rooms.has(roomId)) rooms.set(roomId, new Set());
-  rooms.get(roomId).add(ws);
+  // y-websocket expects the document name to be part of the request or passed to setupWSConnection
+  // We can pass the docName in setupWSConnection options (wait, setupWSConnection takes (conn, req, { docName }) in newer versions)
+  // Actually, y-websocket setupWSConnection extracts docName from req.url.slice(1).split('?')[0]
+  // Let's rewrite req.url so y-websocket uses roomId as docName
+  req.url = `/${roomId}`;
   
-  ws.on('message', (message) => {
-    const roomClients = rooms.get(roomId);
-    if (roomClients) {
-      roomClients.forEach(client => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(message.toString());
-        }
-      });
-    }
-  });
-
-  ws.on('close', () => {
-    const roomClients = rooms.get(roomId);
-    if (roomClients) {
-      roomClients.delete(ws);
-      if (roomClients.size === 0) rooms.delete(roomId);
-    }
-  });
+  setupWSConnection(ws, req);
 });
 
 server.listen(port, () => {
   console.log(`[TutorHub Sync] Node.js Server đang chạy tại cổng ${port}`);
-  console.log(`- WebSocket Broadcast: ws://localhost:${port}`);
+  console.log(`- WebSocket CRDT (Yjs): ws://localhost:${port}/?roomId=...`);
   console.log(`- LiveKit Token API: http://localhost:${port}/livekit/token`);
 });

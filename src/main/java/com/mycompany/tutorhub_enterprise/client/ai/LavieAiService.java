@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class LavieAiService implements AiAgentService {
 
     public static final String DEFAULT_STREAM_URL =
-            "https://hocba299-3-tutorhub-ai.hf.space/api/chat/stream";
+            "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/stream";
     private static final Gson GSON = new Gson();
 
     private final ExecutorService executor;

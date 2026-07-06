@@ -7,8 +7,8 @@ public final class AiAgentProviderConfig {
     public static final String PROVIDER_OPENAI_COMPATIBLE = "openai-compatible";
     public static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
     public static final String DEFAULT_OLLAMA_MODEL = "llama3.2";
-    public static final String DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
-    public static final String DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+    public static final String DEFAULT_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
+    public static final String DEFAULT_OPENAI_MODEL = "gemini-2.5-flash";
 
     private final String provider;
     private final String ollamaBaseUrl;

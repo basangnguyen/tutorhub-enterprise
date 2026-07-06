@@ -1818,8 +1818,43 @@
 
     .artifact-actions {
       display: flex;
+      align-items: center;
       gap: 8px;
       flex-shrink: 0;
+    }
+
+    .artifact-mode-toggle {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px;
+      gap: 2px;
+      border: 1px solid #ded8cf;
+      border-radius: 12px;
+      background: #f7f5f0;
+    }
+
+    .artifact-mode-toggle button {
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 64px;
+      padding: 6px 10px;
+      transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+    }
+
+    .artifact-mode-toggle button:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, .72);
+    }
+
+    .artifact-mode-toggle button.is-active {
+      color: #1d1a16;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(31, 26, 20, .10);
     }
 
     .artifact-body {
@@ -1830,11 +1865,13 @@
       line-height: 1.72;
     }
 
+    .artifact-panel[data-mode="source"] .artifact-body,
     .artifact-panel[data-kind="code"] .artifact-body {
       padding: 18px;
       background: #fbfaf7;
     }
 
+    .artifact-panel[data-mode="source"] .code-block,
     .artifact-panel[data-kind="code"] .code-block {
       margin: 0;
       border-color: #ded8cf;
@@ -1848,6 +1885,43 @@
 
     .artifact-body p {
       margin: 0 0 12px;
+    }
+
+    .artifact-preview-shell {
+      height: 100%;
+      min-height: 460px;
+      overflow: hidden;
+      border: 1px solid #e3ddd4;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .72);
+    }
+
+    .artifact-preview-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 460px;
+      border: 0;
+      background: #ffffff;
+    }
+
+    .artifact-preview-note {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border: 1px solid #d8e3ef;
+      border-radius: 13px;
+      background: #f4f8fc;
+      color: #37526d;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .artifact-panel[data-kind="html"] .artifact-body,
+    .artifact-panel[data-kind="svg"] .artifact-body,
+    .artifact-panel[data-kind="mermaid"] .artifact-body {
+      padding: 14px;
+      background: #fbfaf7;
     }
 
     [hidden] { display: none !important; }
@@ -2002,16 +2076,20 @@
         <span>Model</span>
         <input id="ollamaModel" type="text" spellcheck="false" placeholder="llama3.2">
       </label>
-      <label class="field openai-field">
-        <span>OpenAI Base URL</span>
-        <input id="openAiBaseUrl" type="text" spellcheck="false" placeholder="https://api.openai.com/v1">
+      <label class="field openai-field openai-base-field">
+        <span>Gemini Base URL</span>
+        <input id="openAiBaseUrl" type="text" spellcheck="false" placeholder="https://generativelanguage.googleapis.com/v1beta/openai/">
       </label>
       <label class="field openai-field">
-        <span>OpenAI Model</span>
-        <input id="openAiModel" type="text" spellcheck="false" placeholder="gpt-4o-mini">
+        <span>Gemini Model</span>
+        <select id="openAiModel">
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
+        </select>
       </label>
-      <label class="field openai-field">
-        <span>API key phiên này</span>
+      <label class="field openai-field openai-key-field">
+        <span>Gemini API key</span>
         <input id="openAiApiKey" type="password" spellcheck="false" placeholder="Để trống để dùng TUTORHUB_OPENAI_API_KEY">
       </label>
       <button type="button" id="checkProviderBtn" class="ghost-btn">Kiểm tra</button>
@@ -2124,6 +2202,10 @@
         <small id="artifactMeta">Markdown preview</small>
       </div>
       <div class="artifact-actions">
+        <div id="artifactModeToggle" class="artifact-mode-toggle" hidden>
+          <button type="button" id="artifactPreviewBtn" class="is-active">Preview</button>
+          <button type="button" id="artifactSourceBtn">Code</button>
+        </div>
         <button type="button" id="artifactCopyBtn" class="msg-action-btn">Copy</button>
         <button type="button" id="artifactCloseBtn" class="msg-action-btn">Đóng</button>
       </div>
@@ -2178,6 +2260,9 @@
     const artifactTitle = document.getElementById('artifactTitle');
     const artifactMeta = document.getElementById('artifactMeta');
     const artifactBody = document.getElementById('artifactBody');
+    const artifactModeToggle = document.getElementById('artifactModeToggle');
+    const artifactPreviewBtn = document.getElementById('artifactPreviewBtn');
+    const artifactSourceBtn = document.getElementById('artifactSourceBtn');
     const artifactCopyBtn = document.getElementById('artifactCopyBtn');
     const artifactCloseBtn = document.getElementById('artifactCloseBtn');
     let assistantBubble = null;
@@ -2188,6 +2273,8 @@
     let assistantRaw = '';
     let isGenerating = false;
     let currentArtifactRaw = '';
+    let currentArtifact = null;
+    let currentArtifactMode = 'preview';
     let activeActivity = null;
     let activityTimer = null;
     const ACTIVITY_STEPS = [
@@ -2203,8 +2290,8 @@
       providerName: 'Lavie / Hugging Face',
       ollamaBaseUrl: 'http://localhost:11434',
       ollamaModel: 'llama3.2',
-      openAiBaseUrl: 'https://api.openai.com/v1',
-      openAiModel: 'gpt-4o-mini',
+      openAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      openAiModel: 'gemini-2.5-flash',
       openAiApiKeyConfigured: false
     };
     let agentModeState = {
@@ -2564,8 +2651,15 @@
     }
 
     function shouldOpenInPanel(rawText) {
-      const text = String(rawText || '');
-      const lineCount = text ? text.split(/\r\n|\r|\n/).length : 0;
+      const text = String(rawText || '').trim();
+      if (!text) return false;
+      const lineCount = text.split(/\r\n|\r|\n/).length;
+      const codeBlock = extractPrimaryCodeBlock(text);
+      const source = artifactSourceCandidate(text, codeBlock);
+      const lang = normalizeLanguage(codeBlock?.language || '');
+      if (isHtmlArtifact(source, lang) || isSvgArtifact(source, lang) || isMermaidArtifact(source, lang)) {
+        return true;
+      }
       const longCode = /```[a-zA-Z0-9_+.#-]*\n?([\s\S]{180,}?)```/.test(text);
       return text.length >= 1500 || lineCount >= 22 || longCode || hasMarkdownTable(text);
     }
@@ -2575,41 +2669,179 @@
       return lines.some((_, index) => isMarkdownTableAt(lines, index));
     }
 
+    function extractPrimaryCodeBlock(rawText) {
+      const match = /```([a-zA-Z0-9_+.#-]*)\n?([\s\S]*?)```/.exec(String(rawText || ''));
+      if (!match) return null;
+      return {
+        language: normalizeLanguage(match[1] || ''),
+        code: String(match[2] || '').trim(),
+        fenced: match[0]
+      };
+    }
+
+    function artifactSourceCandidate(text, codeBlock) {
+      return String((codeBlock && codeBlock.code) || text || '').trim();
+    }
+
+    function isHtmlArtifact(source, language) {
+      const lang = normalizeLanguage(language);
+      const text = String(source || '').trim();
+      return /^(html|htm|xhtml)$/.test(lang)
+        || /^<!doctype\s+html/i.test(text)
+        || /^<html[\s>]/i.test(text)
+        || (/<(head|body|main|section|article|style|script|div|canvas)[\s>]/i.test(text) && /<\/[a-z][\w:-]*>/i.test(text));
+    }
+
+    function isSvgArtifact(source, language) {
+      const lang = normalizeLanguage(language);
+      const text = String(source || '').trim();
+      return /^(svg|image\/svg\+xml)$/.test(lang) || /^<svg[\s>][\s\S]*<\/svg>\s*$/i.test(text);
+    }
+
+    function isMermaidArtifact(source, language) {
+      const lang = normalizeLanguage(language);
+      const text = String(source || '').trim();
+      return /^(mermaid|mmd)$/.test(lang)
+        || /^\s*(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph)\b/m.test(text);
+    }
+
+    function detectCodeLanguage(source, fallback) {
+      const lang = normalizeLanguage(fallback || '');
+      const text = String(source || '');
+      if (lang) return lang;
+      if (isHtmlArtifact(text, '')) return 'html';
+      if (isSvgArtifact(text, '')) return 'svg';
+      if (isMermaidArtifact(text, '')) return 'mermaid';
+      if (/^\s*[\[{]/.test(text)) return 'json';
+      if (/\b(public\s+class|private\s+|protected\s+|System\.out)\b/.test(text)) return 'java';
+      if (/\b(def|import|from)\s+\w+/.test(text) && /:\s*(#.*)?$/m.test(text)) return 'python';
+      if (/\b(function|const|let|=>|document\.|window\.)\b/.test(text)) return 'javascript';
+      if (/[.#][\w-]+\s*\{[\s\S]*\}/.test(text)) return 'css';
+      return 'text';
+    }
+
     function classifyArtifact(rawText) {
       const text = String(rawText || '');
-      const codeMatch = /```([a-zA-Z0-9_+.#-]*)\n?([\s\S]*?)```/.exec(text);
-      if (codeMatch && (codeMatch[2] || '').trim().length > 120) {
-        return { kind: 'code', label: 'Code artifact', language: normalizeLanguage(codeMatch[1] || 'text') };
+      const codeBlock = extractPrimaryCodeBlock(text);
+      const source = artifactSourceCandidate(text, codeBlock);
+      const language = detectCodeLanguage(source, codeBlock?.language || '');
+      if (isHtmlArtifact(source, language)) {
+        return { kind: 'html', label: 'HTML artifact', language: 'html', content: source, previewable: true };
       }
-      const lines = text.replace(/\r\n/g, '\n').split('\n');
+      if (isSvgArtifact(source, language)) {
+        return { kind: 'svg', label: 'SVG artifact', language: 'svg', content: source, previewable: true };
+      }
+      if (isMermaidArtifact(source, language)) {
+        return { kind: 'mermaid', label: 'Mermaid artifact', language: 'mermaid', content: source, previewable: true };
+      }
+      if (codeBlock && source.length > 120) {
+        return { kind: 'code', label: 'Code artifact', language, content: source, previewable: false };
+      }
       if (hasMarkdownTable(text)) {
-        return { kind: 'table', label: 'Table artifact', language: 'markdown' };
+        return { kind: 'table', label: 'Table artifact', language: 'markdown', content: text, previewable: false };
       }
       if (text.length >= 1400 || /^#{1,3}\s+/m.test(text)) {
-        return { kind: 'document', label: 'Document artifact', language: 'markdown' };
+        return { kind: 'document', label: 'Document artifact', language: 'markdown', content: text, previewable: false };
       }
-      return { kind: 'text', label: 'Text artifact', language: 'markdown' };
+      return { kind: 'text', label: 'Text artifact', language: 'markdown', content: text, previewable: false };
     }
 
     function artifactStats(rawText, artifact) {
-      const text = String(rawText || '');
+      const text = String(artifact?.content || rawText || '');
       const lines = text ? text.split(/\r\n|\r|\n/).length : 0;
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      if (artifact.kind === 'code') {
-        return artifact.language + ' · ' + lines + ' dòng';
+      if (/^(code|html|svg|mermaid)$/.test(artifact.kind)) {
+        return artifact.language + ' - ' + lines + ' lines';
       }
-      return words + ' từ · ' + lines + ' dòng';
+      return words + ' words - ' + lines + ' lines';
+    }
+
+    function setArtifactMode(mode) {
+      if (!currentArtifact) return;
+      currentArtifactMode = mode === 'source' ? 'source' : 'preview';
+      renderArtifactPanel();
+    }
+
+    function renderArtifactPanel() {
+      if (!currentArtifact) return;
+      artifactPanel.dataset.kind = currentArtifact.kind;
+      artifactPanel.dataset.mode = currentArtifactMode;
+      if (artifactModeToggle) artifactModeToggle.hidden = !currentArtifact.previewable;
+      if (artifactPreviewBtn) artifactPreviewBtn.classList.toggle('is-active', currentArtifactMode === 'preview');
+      if (artifactSourceBtn) artifactSourceBtn.classList.toggle('is-active', currentArtifactMode === 'source');
+      if (currentArtifact.previewable && currentArtifactMode === 'preview') {
+        renderArtifactPreview(currentArtifact);
+      } else if (currentArtifact.kind === 'code' || currentArtifactMode === 'source') {
+        renderArtifactSource(currentArtifact);
+      } else {
+        artifactBody.innerHTML = renderMarkdown(currentArtifactRaw);
+        wireCopyButtons(artifactBody);
+      }
+    }
+
+    function renderArtifactSource(artifact) {
+      artifactBody.innerHTML = renderCodeBlock(artifact.language || 'text', artifact.content || currentArtifactRaw);
+      wireCopyButtons(artifactBody);
+    }
+
+    function renderArtifactPreview(artifact) {
+      artifactBody.innerHTML = '';
+      if (artifact.kind === 'html') {
+        createPreviewFrame(buildHtmlPreviewDocument(artifact.content), 'HTML Preview', 'allow-scripts');
+        return;
+      }
+      if (artifact.kind === 'svg') {
+        createPreviewFrame(buildSvgPreviewDocument(artifact.content), 'SVG Preview', '');
+        return;
+      }
+      if (artifact.kind === 'mermaid') {
+        artifactBody.innerHTML = '<div class="artifact-preview-note">Mermaid preview dang o che do an toan vi TutorHub khong tai CDN. Ma nguon diagram duoc hien thi ben duoi.</div>'
+          + renderCodeBlock('mermaid', artifact.content);
+        wireCopyButtons(artifactBody);
+        return;
+      }
+      artifactBody.innerHTML = renderMarkdown(artifact.content || currentArtifactRaw);
+      wireCopyButtons(artifactBody);
+    }
+
+    function createPreviewFrame(srcdoc, title, sandbox) {
+      const shell = document.createElement('div');
+      shell.className = 'artifact-preview-shell';
+      const frame = document.createElement('iframe');
+      frame.className = 'artifact-preview-frame';
+      frame.title = title || 'Artifact preview';
+      frame.setAttribute('sandbox', sandbox || '');
+      frame.setAttribute('referrerpolicy', 'no-referrer');
+      frame.srcdoc = srcdoc || '';
+      shell.appendChild(frame);
+      artifactBody.appendChild(shell);
+    }
+
+    function buildHtmlPreviewDocument(content) {
+      const text = String(content || '').trim();
+      if (/^<!doctype\s+html/i.test(text) || /^<html[\s>]/i.test(text)) {
+        return text;
+      }
+      return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        + '<style>body{margin:0;padding:24px;font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif;color:#191714;background:#fff}img,svg,video,canvas{max-width:100%;height:auto}</style>'
+        + '</head><body>' + text + '</body></html>';
+    }
+
+    function buildSvgPreviewDocument(content) {
+      return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        + '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;padding:24px}svg{max-width:100%;height:auto}</style>'
+        + '</head><body>' + String(content || '') + '</body></html>';
     }
 
     function openArtifactPanel(title, rawText, options = {}) {
       currentArtifactRaw = String(rawText || '');
-      const artifact = classifyArtifact(currentArtifactRaw);
-      artifactPanel.dataset.kind = artifact.kind;
+      currentArtifact = classifyArtifact(currentArtifactRaw);
+      currentArtifactMode = currentArtifact.previewable ? 'preview' : (currentArtifact.kind === 'code' ? 'source' : 'preview');
+      artifactPanel.dataset.kind = currentArtifact.kind;
       artifactPanel.dataset.auto = options.auto ? 'true' : 'false';
       artifactTitle.textContent = title || 'Nội dung từ Lavie';
-      artifactMeta.textContent = artifact.label + ' · ' + artifactStats(currentArtifactRaw, artifact);
-      artifactBody.innerHTML = renderMarkdown(currentArtifactRaw);
-      wireCopyButtons(artifactBody);
+      artifactMeta.textContent = currentArtifact.label + ' - ' + artifactStats(currentArtifactRaw, currentArtifact);
+      renderArtifactPanel();
       artifactPanel.hidden = false;
       document.body.classList.add('artifact-open');
     }
@@ -2624,7 +2856,10 @@
       artifactPanel.hidden = true;
       artifactPanel.dataset.kind = '';
       artifactPanel.dataset.auto = '';
+      artifactPanel.dataset.mode = '';
       currentArtifactRaw = '';
+      currentArtifact = null;
+      currentArtifactMode = 'preview';
       artifactBody.innerHTML = '';
       artifactMeta.textContent = 'Markdown preview';
       document.body.classList.remove('artifact-open');
@@ -2730,26 +2965,88 @@
       }
     }
 
+    function isLocalOpenAiEndpoint(url) {
+      const value = String(url || '').trim().toLowerCase();
+      return value.startsWith('http://localhost')
+        || value.startsWith('http://127.0.0.1')
+        || value.startsWith('http://[::1]');
+    }
+
+    function isGeminiOpenAiEndpoint(url) {
+      return String(url || '').trim().toLowerCase().startsWith('https://generativelanguage.googleapis.com/');
+    }
+
+    function providerInitialStatusText(config = providerConfig) {
+      const provider = String(config?.provider || 'lavie');
+      const display = config?.displayName || config?.providerName || 'AI Agent';
+      if (provider === 'langchain4j-ollama') {
+        return 'Cần kiểm tra - ' + display;
+      }
+      if (provider === 'openai-compatible') {
+        const hasKey = !!config?.openAiApiKeyConfigured || !!String(openAiApiKey?.value || '').trim();
+        return (hasKey || isLocalOpenAiEndpoint(config?.openAiBaseUrl))
+          ? 'Cần kiểm tra - ' + display
+          : 'Chưa cấu hình - ' + display;
+      }
+      return 'Sẵn sàng - ' + display;
+    }
+
+    function providerInitialHint(config = providerConfig) {
+      const provider = String(config?.provider || 'lavie');
+      if (provider === 'langchain4j-ollama') {
+        return {
+          status: 'checking',
+          message: 'Ollama chỉ hoạt động khi local server đang chạy tại ' + (config?.ollamaBaseUrl || 'http://localhost:11434') + ' và đã pull model ' + (config?.ollamaModel || 'llama3.2') + '.'
+        };
+      }
+      if (provider === 'openai-compatible') {
+        const hasKey = !!config?.openAiApiKeyConfigured || !!String(openAiApiKey?.value || '').trim();
+        if (!hasKey && !isLocalOpenAiEndpoint(config?.openAiBaseUrl)) {
+          return {
+            status: 'error',
+            message: 'OpenAI-compatible cần API key. Nhập key trong Cấu hình hoặc đặt biến môi trường TUTORHUB_OPENAI_API_KEY.'
+          };
+        }
+        return {
+          status: 'checking',
+          message: isGeminiOpenAiEndpoint(config?.openAiBaseUrl)
+            ? 'Gemini đã được cấu hình sẵn. Chỉ cần chọn model rồi bấm Kiểm tra hoặc gửi tin nhắn.'
+            : 'OpenAI-compatible cần kiểm tra endpoint /models trước khi dùng.'
+        };
+      }
+      return null;
+    }
+
     function applyProviderConfig(config) {
       providerConfig = Object.assign({}, providerConfig, config || {});
       providerSelect.value = providerConfig.provider || 'lavie';
       ollamaBaseUrl.value = providerConfig.ollamaBaseUrl || 'http://localhost:11434';
       ollamaModel.value = providerConfig.ollamaModel || 'llama3.2';
-      openAiBaseUrl.value = providerConfig.openAiBaseUrl || 'https://api.openai.com/v1';
-      openAiModel.value = providerConfig.openAiModel || 'gpt-4o-mini';
+      openAiBaseUrl.value = providerConfig.openAiBaseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+      openAiModel.value = providerConfig.openAiModel || 'gemini-2.5-flash';
       const isOllama = providerSelect.value === 'langchain4j-ollama';
       const isOpenAi = providerSelect.value === 'openai-compatible';
+      const isGemini = isOpenAi && isGeminiOpenAiEndpoint(openAiBaseUrl.value);
+      const hasOpenAiKey = !!providerConfig.openAiApiKeyConfigured || !!String(openAiApiKey?.value || '').trim();
       document.querySelectorAll('.ollama-field').forEach(node => node.hidden = !isOllama);
       document.querySelectorAll('.openai-field').forEach(node => node.hidden = !isOpenAi);
+      document.querySelectorAll('.openai-base-field').forEach(node => node.hidden = !isOpenAi || isGemini);
+      document.querySelectorAll('.openai-key-field').forEach(node => node.hidden = !isOpenAi || (isGemini && hasOpenAiKey));
       providerSubtitle.textContent = isOllama
         ? 'LangChain4j Ollama · ' + ollamaModel.value + ' · ' + ollamaBaseUrl.value
         : (isOpenAi
-          ? 'OpenAI-compatible · ' + openAiModel.value + ' · ' + openAiBaseUrl.value
+          ? (isGemini ? 'Gemini · ' + openAiModel.value : 'OpenAI-compatible · ' + openAiModel.value + ' · ' + openAiBaseUrl.value)
           : 'Lavie / Hugging Face · streaming server');
       openAiApiKey.placeholder = isOpenAi && providerConfig.openAiApiKeyConfigured && !openAiApiKey.value
-        ? 'Đã có API key trong phiên/env. Nhập mới để thay đổi.'
+        ? 'Đã có Gemini API key trong env. Nhập mới để thay đổi.'
         : 'Để trống để dùng TUTORHUB_OPENAI_API_KEY';
-      statusText.textContent = 'Sẵn sàng - ' + (providerConfig.displayName || providerConfig.providerName || 'AI Agent');
+      statusText.textContent = providerInitialStatusText(providerConfig);
+      const hint = providerInitialHint(providerConfig);
+      if (hint) {
+        setProviderCheckResult(hint.status, hint.message);
+      } else {
+        setProviderCheckResult('', '');
+      }
     }
 
     async function refreshProviderConfig() {
@@ -3598,7 +3895,20 @@
     });
 
     providerSelect.addEventListener('change', () => {
-      applyProviderConfig(Object.assign({}, providerConfig, { provider: providerSelect.value }));
+      const nextConfig = Object.assign({}, providerConfig, { provider: providerSelect.value });
+      if (providerSelect.value === 'openai-compatible') {
+        nextConfig.openAiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        nextConfig.openAiModel = openAiModel.value || 'gemini-2.5-flash';
+      }
+      applyProviderConfig(nextConfig);
+    });
+
+    openAiModel.addEventListener('change', () => {
+      applyProviderConfig(Object.assign({}, providerConfig, {
+        provider: 'openai-compatible',
+        openAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+        openAiModel: openAiModel.value || 'gemini-2.5-flash'
+      }));
     });
 
     applyProviderBtn.addEventListener('click', async () => {
@@ -3704,8 +4014,12 @@
     });
 
     artifactCopyBtn.addEventListener('click', () => {
-      copyText(currentArtifactRaw, artifactCopyBtn);
+      copyText(currentArtifact?.content || currentArtifactRaw, artifactCopyBtn);
     });
+
+    artifactPreviewBtn?.addEventListener('click', () => setArtifactMode('preview'));
+
+    artifactSourceBtn?.addEventListener('click', () => setArtifactMode('source'));
 
     artifactCloseBtn.addEventListener('click', closeArtifactPanel);
 

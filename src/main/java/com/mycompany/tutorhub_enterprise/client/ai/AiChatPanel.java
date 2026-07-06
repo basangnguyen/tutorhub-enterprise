@@ -217,7 +217,7 @@ public class AiChatPanel extends JPanel {
                 executeAgentJs("setAgentModeState", buildAgentModeStateJson());
                 executeAgentJs("setAgentContextState", buildAgentContextJson());
                 setLavieExpandedState(lavieExpanded);
-                executeAgentJs("setStatus", "Sẵn sàng - " + providerConfig.getDisplayName());
+                executeAgentJs("setStatus", providerInitialStatusLabel(providerConfig));
                 break;
             case "TOGGLE_LAVIE_EXPANDED":
                 lavieExpanded = !lavieExpanded;
@@ -373,6 +373,23 @@ public class AiChatPanel extends JPanel {
                 ? "langchain4j-ollama"
                 : (config.isOpenAiCompatible() ? "openai-compatible" : "lavie-hf"));
         return json;
+    }
+
+    private String providerInitialStatusLabel(AiAgentProviderConfig config) {
+        AiAgentProviderConfig effectiveConfig = config == null
+                ? AiAgentProviderConfig.defaults()
+                : config;
+        if (effectiveConfig.isOllama()) {
+            return "Cần kiểm tra - " + effectiveConfig.getDisplayName();
+        }
+        if (effectiveConfig.isOpenAiCompatible()) {
+            boolean hasKey = effectiveConfig.getOpenAiApiKey() != null && !effectiveConfig.getOpenAiApiKey().isBlank();
+            if (!hasKey && !isLocalHttpEndpoint(effectiveConfig.getOpenAiBaseUrl())) {
+                return "Chưa cấu hình - " + effectiveConfig.getDisplayName();
+            }
+            return "Cần kiểm tra - " + effectiveConfig.getDisplayName();
+        }
+        return "Sẵn sàng - " + effectiveConfig.getDisplayName();
     }
 
     private JsonObject buildMemoryStateJson() {
@@ -694,7 +711,7 @@ public class AiChatPanel extends JPanel {
         AiAgentSettingsStore.save(nextConfig);
         aiService = AiAgentServiceFactory.create(nextConfig);
         executeAgentJs("applyProviderConfig", buildProviderConfigJson());
-        executeAgentJs("setStatus", "Sẵn sàng - " + nextConfig.getDisplayName());
+        executeAgentJs("setStatus", providerInitialStatusLabel(nextConfig));
         executeAgentJs("setProviderCheckResult", "ok", "Da luu cau hinh AI provider cho lan mo app sau.");
         executeAgentJs("showError", "");
     }
@@ -706,7 +723,7 @@ public class AiChatPanel extends JPanel {
         providerConfig = defaultConfig;
         aiService = AiAgentServiceFactory.create(defaultConfig);
         executeAgentJs("applyProviderConfig", buildProviderConfigJson());
-        executeAgentJs("setStatus", "San sang - " + defaultConfig.getDisplayName());
+        executeAgentJs("setStatus", providerInitialStatusLabel(defaultConfig));
         executeAgentJs("setProviderCheckResult", "ok", "Da khoi phuc cau hinh AI provider mac dinh.");
         executeAgentJs("showError", "");
     }
@@ -896,7 +913,7 @@ public class AiChatPanel extends JPanel {
                         + "Lỗi kỹ thuật: " + safeErrorMessage(ex);
                 executeAgentJs("appendAssistantDelta", message);
                 executeAgentJs("finishAssistantMessage");
-                executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
+                executeAgentJs("setStatus", providerInitialStatusLabel(config));
                 executeAgentJs("showError", "Agent Mode lỗi: " + ex.getMessage());
             });
         }
@@ -1024,7 +1041,7 @@ public class AiChatPanel extends JPanel {
                         }
                         executeAgentJs("appendAssistantDelta", message);
                         executeAgentJs("finishAssistantMessage");
-                        executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
+                        executeAgentJs("setStatus", providerInitialStatusLabel(config));
                         executeAgentJs("showError", "Không kết nối được "
                                 + (config == null ? "AI Agent" : config.getDisplayName())
                                 + ". Đã dùng phản hồi fallback cục bộ.");
@@ -1043,6 +1060,24 @@ public class AiChatPanel extends JPanel {
                     + "- Ollama đang chạy tại `" + config.getOllamaBaseUrl() + "`.\n"
                     + "- Model `" + config.getOllamaModel() + "` đã được pull về máy.\n"
                     + "- Có thể chạy `ollama serve` và `ollama pull " + config.getOllamaModel() + "` trước khi thử lại.\n\n"
+                    + "Lỗi kỹ thuật: " + (detail.isEmpty() ? "không có mô tả chi tiết." : detail);
+        }
+        if (config != null && config.isOpenAiCompatible()) {
+            String normalizedDetail = detail.toLowerCase();
+            String overloadedHint = detail.contains("HTTP 503")
+                    || normalizedDetail.contains("high demand")
+                    || normalizedDetail.contains("unavailable")
+                    ? "\n\nGợi ý: Gemini đang quá tải tạm thời. Hãy thử gửi lại sau vài phút hoặc đổi model sang `gemini-2.5-flash-lite` trong Cấu hình."
+                    : "";
+            String providerName = config.getOpenAiBaseUrl().toLowerCase().contains("generativelanguage.googleapis.com")
+                    ? "Gemini"
+                    : "OpenAI-compatible";
+            return "Mình chưa kết nối được " + providerName + " cho tin nhắn: \"" + clean + "\".\n\n"
+                    + "Cấu hình hiện tại:\n"
+                    + "- Endpoint: `" + config.getOpenAiBaseUrl() + "`.\n"
+                    + "- Model: `" + config.getOpenAiModel() + "`.\n"
+                    + "- API key: " + ((config.getOpenAiApiKey() == null || config.getOpenAiApiKey().isBlank()) ? "chưa có" : "đã cấu hình") + "."
+                    + overloadedHint + "\n\n"
                     + "Lỗi kỹ thuật: " + (detail.isEmpty() ? "không có mô tả chi tiết." : detail);
         }
         return "Mình chưa kết nối được Lavie server cho tin nhắn: \"" + clean + "\".\n\n"

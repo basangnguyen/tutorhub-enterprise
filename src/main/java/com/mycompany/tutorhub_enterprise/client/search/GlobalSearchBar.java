@@ -879,7 +879,7 @@ public class GlobalSearchBar extends JPanel {
     }
 
     private void sendVoiceToAPI(File wavFile) {
-        String urlString = "https://hocba299-3-tutorhub-ai.hf.space/api/chat/voice";
+        String urlString = "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/voice";
         String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();

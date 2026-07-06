@@ -156,7 +156,7 @@
                 // Real-time Sync WebSocket
                 if (ws) ws.close();
                 if (boardId) {
-                    ws = new WebSocket('ws://localhost:1234/?roomId=' + boardId);
+                    ws = new WebSocket('wss://hocba299-3-tutorhub-sync.hf.space/board-sync/?roomId=' + boardId);
                     
                     ws.onopen = () => console.log('Connected to Sync Server for room ' + boardId);
                     
@@ -212,7 +212,7 @@
             
             try {
                 const currentRoomId = window.currentBoardId || 'default-room';
-                const res = await fetch(`http://localhost:1234/livekit/token?room=${currentRoomId}&username=Gia+Su`);
+                const res = await fetch(`https://hocba299-3-tutorhub-sync.hf.space/livekit/token?room=${currentRoomId}&username=Gia+Su`);
                 const data = await res.json();
                 
                 if (!data.token) {
@@ -524,7 +524,7 @@
             formData.append('file', blobOrFile, fileName);
             
             try {
-                const res = await fetch("http://localhost:1234/upload-document", {
+                const res = await fetch("https://hocba299-3-tutorhub-sync.hf.space/upload-document", {
                     method: 'POST',
                     body: formData
                 });
@@ -552,7 +552,7 @@
             if (!window.excalidrawAPI) return;
             
             try {
-                const proxyUrl = "http://localhost:1234/proxy-image?url=" + encodeURIComponent(url);
+                const proxyUrl = "https://hocba299-3-tutorhub-sync.hf.space/proxy-image?url=" + encodeURIComponent(url);
                 const response = await fetch(proxyUrl);
                 const blob = await response.blob();
                 
