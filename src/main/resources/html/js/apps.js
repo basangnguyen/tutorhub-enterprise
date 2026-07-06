@@ -84,18 +84,18 @@ function closeCodeModal() {
             }
         }
 
-        var isScreenSharing = false;
         async function toggleScreenShare() {
             if (!window.currentRoom) return;
             const btn = document.getElementById('share-screen-btn');
+            const isScreenSharing = window.roomState.get('isScreenSharing');
             try {
                 if (isScreenSharing) {
                     await window.currentRoom.localParticipant.setScreenShareEnabled(false);
-                    isScreenSharing = false;
+                    window.roomState.set('isScreenSharing', false);
                     btn.classList.remove('active');
                 } else {
                     await window.currentRoom.localParticipant.setScreenShareEnabled(true);
-                    isScreenSharing = true;
+                    window.roomState.set('isScreenSharing', true);
                     btn.classList.add('active');
                 }
             } catch (e) {
@@ -109,7 +109,7 @@ function closeCodeModal() {
             
             try {
                 // Parse current metadata
-                let currentMeta = { role: window.currentUserRole, displayName: window.currentUserName, isHandRaised: false, handRaisedAt: null };
+                let currentMeta = { role: window.roomState.get('userRole'), displayName: window.roomState.get('userName'), isHandRaised: false, handRaisedAt: null };
                 if (window.currentRoom.localParticipant.metadata) {
                     currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata);
                 }
@@ -155,11 +155,10 @@ function closeCodeModal() {
 
         let mediaRecorder;
         let recordedChunks = [];
-        let isRecording = false;
         
         async function toggleRecording() {
             const btn = document.getElementById('record-btn');
-            if (!isRecording) {
+            if (!window.roomState.get('isRecording')) {
                 try {
                     const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -197,11 +196,11 @@ function closeCodeModal() {
                         // Reset stream tracks
                         stream.getTracks().forEach(t => t.stop());
                         btn.classList.remove('active');
-                        isRecording = false;
+                        window.roomState.set('isRecording', false);
                     };
                     
                     mediaRecorder.start();
-                    isRecording = true;
+                    window.roomState.set('isRecording', true);
                     btn.classList.add('active');
                     showToast("Bắt đầu ghi hình lớp học!", 3000);
                     

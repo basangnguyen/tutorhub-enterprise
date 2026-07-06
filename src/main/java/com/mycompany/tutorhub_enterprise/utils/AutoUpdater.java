@@ -9,9 +9,11 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Scanner;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
+
 public class AutoUpdater {
 
-    private static final String VERSION_URL = "https://hocba299-3-tutorhub-sync.hf.space/version.json";
+    private static final String VERSION_URL = AppConfig.SYNC_SERVER_URL + "/version.json";
     private static final int CONNECT_TIMEOUT_MS = 15_000;
     private static final int READ_TIMEOUT_MS = 120_000;
     private static final int MAX_DOWNLOAD_ATTEMPTS = 3;

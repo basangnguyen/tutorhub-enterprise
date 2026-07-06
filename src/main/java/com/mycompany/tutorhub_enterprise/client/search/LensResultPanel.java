@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client.search;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -464,8 +465,8 @@ public class LensResultPanel extends JDialog {
         boolean isDocument = name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc") || name.endsWith(".txt");
 
         String apiUrl = isDocument
-                ? "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/document"
-                : "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/vision";
+                ? com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/document"
+                : com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/vision";
         String fileField = "image";
         String fileType = isDocument ? "application/octet-stream" : "image/png";
         String message = isDocument
@@ -507,8 +508,8 @@ public class LensResultPanel extends JDialog {
         boolean isDocument = name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc") || name.endsWith(".txt");
 
         String apiUrl = isDocument
-                ? "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/document"
-                : "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/vision";
+                ? com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/document"
+                : com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/vision";
         String fileField = "image";
         String fileType = isDocument ? "application/octet-stream" : "image/png";
 

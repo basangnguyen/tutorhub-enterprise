@@ -9,8 +9,40 @@ const { setupWSConnection } = require('y-websocket/bin/utils');
 const port = process.env.PORT || 1234;
 const app = express();
 
-app.use(cors());
+const rateLimit = require('express-rate-limit');
+
+const allowedOrigins = [
+  'http://localhost:1234',
+  'http://127.0.0.1:1234',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080'
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // Allow non-browser clients or file://
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.hf.space')) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: Access from this origin is not allowed.'));
+    }
+  }
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+const tokenLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 min
+  max: 10,
+  message: { error: 'Quá nhiều yêu cầu cấp token. Vui lòng thử lại sau 1 phút.' }
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 min
+  max: 20,
+  message: { error: 'Quá nhiều yêu cầu upload. Vui lòng thử lại sau 1 phút.' }
+});
 
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
@@ -40,7 +72,7 @@ app.get('/update.jar', (req, res) => {
   res.download(jarPath, 'update.jar');
 });
 
-app.get('/livekit/token', async (req, res) => {
+app.get('/livekit/token', tokenLimiter, async (req, res) => {
   try {
     const expectedApiKey = process.env.TUTORHUB_API_KEY;
     if (expectedApiKey) {
@@ -98,7 +130,7 @@ const s3 = new S3Client({
 });
 
 // API Upload Video Ghi hình
-app.post('/upload-record', upload.single('video'), async (req, res) => {
+app.post('/upload-record', uploadLimiter, upload.single('video'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Không tìm thấy file video' });
     
@@ -135,7 +167,7 @@ app.post('/upload-record', upload.single('video'), async (req, res) => {
 });
 
 // API Upload Tài liệu (PDF/Image)
-app.post('/upload-document', upload.single('file'), async (req, res) => {
+app.post('/upload-document', uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Không tìm thấy file' });
     

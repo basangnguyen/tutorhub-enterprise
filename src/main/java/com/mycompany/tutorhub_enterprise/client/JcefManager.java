@@ -46,6 +46,10 @@ public class JcefManager {
                 builder.addJcefArgs("--enable-webgl");
                 builder.addJcefArgs("--ignore-gpu-blocklist");
 
+                // RAM & CPU Optimizations (C6)
+                builder.addJcefArgs("--disable-gpu-compositing");
+                builder.addJcefArgs("--js-flags=\"--max-old-space-size=256\"");
+
                 cefApp = builder.build();
                 cefClient = cefApp.createClient();
             } catch (Exception e) {

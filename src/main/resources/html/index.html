@@ -8176,7 +8176,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
             
             try {
                 // Parse current metadata
-                let currentMeta = { role: window.currentUserRole, displayName: window.currentUserName, isHandRaised: false, handRaisedAt: null };
+                let currentMeta = { role: window.roomState.get('userRole'), displayName: window.roomState.get('userName'), isHandRaised: false, handRaisedAt: null };
                 if (window.currentRoom.localParticipant.metadata) {
                     currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata);
                 }
@@ -8759,7 +8759,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
                                 triggerCloseBoard();
                             }
                         } else if (data.type === 'roster_mute_all') {
-                            if (window.currentRoom && window.currentRoom.localParticipant && window.currentUserRole !== 'teacher') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && window.roomState.get('userRole') !== 'teacher') {
                                 window.currentRoom.localParticipant.setMicrophoneEnabled(false).catch(e => console.error(e));
                                 showToast("Giáo viên đã tắt Mic của bạn để giữ trật tự!", 5000);
                             }
@@ -8808,7 +8808,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
                                 if (typeof renderRoster === 'function') renderRoster();
                             }
                         } else if (data.type === 'roster_admit_all') {
-                            if (window.currentRoom && window.currentRoom.localParticipant && window.currentUserRole === 'student') {
+                            if (window.currentRoom && window.currentRoom.localParticipant && window.roomState.get('userRole') === 'student') {
                                 const currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata, window.currentRoom.localParticipant.identity);
                                 if (!currentMeta.isAdmitted) {
                                     currentMeta.isAdmitted = true;
@@ -8887,11 +8887,11 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
                 
                 // Cập nhật Metadata cho Roster
                 const initMetadata = JSON.stringify({
-                    role: window.currentUserRole,
-                    displayName: window.currentUserName,
+                    role: window.roomState.get('userRole'),
+                    displayName: window.roomState.get('userName'),
                     isHandRaised: false,
                     handRaisedAt: null,
-                    isAdmitted: window.currentUserRole === 'teacher' ? true : false // Teacher always admitted, student depends on lobby
+                    isAdmitted: window.roomState.get('userRole') === 'teacher' ? true : false // Teacher always admitted, student depends on lobby
                 });
                 
                 if (!window.rosterMetadataCache) window.rosterMetadataCache = {};
@@ -9503,7 +9503,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
         if (isHidden) {
             sidebar.style.display = 'flex';
             sidebar.style.transform = 'translateX(0)';
-            if (window.currentUserRole === 'teacher') {
+            if (window.roomState.get('userRole') === 'teacher') {
                 document.getElementById('roster-host-controls').style.display = 'flex';
             }
             renderRoster();
@@ -9622,7 +9622,7 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
 
             // Hover Menu for Teachers
             let hoverMenu = '';
-            if (!p.isLocal && window.currentUserRole === 'teacher') {
+            if (!p.isLocal && window.roomState.get('userRole') === 'teacher') {
                 if (!p.meta.isAdmitted) {
                     hoverMenu = `
                     <div class="roster-actions" style="display: none; gap: 5px;">

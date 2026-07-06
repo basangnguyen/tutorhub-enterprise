@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import com.mycompany.tutorhub_enterprise.client.services.MessageSyncService;
 import com.mycompany.tutorhub_enterprise.client.ai.AiChatPanel;
 import com.mycompany.tutorhub_enterprise.client.search.GlobalSearchBar;
@@ -2547,7 +2548,7 @@ public class ChatTab extends JPanel {
     }
 
     private void sendChatVoiceToAPI(File wavFile) {
-        String urlString = "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/voice";
+        String urlString = com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/voice";
         String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();

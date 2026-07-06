@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import com.mycompany.tutorhub_enterprise.models.Packet;
 import com.mycompany.tutorhub_enterprise.models.auth.AuthResponse;
 import com.mycompany.tutorhub_enterprise.utils.SerializationUtils;
@@ -52,7 +53,7 @@ public class NetworkManager {
     }
 
     // Production can override this with -Dtutorhub.websocket.url=... or TUTORHUB_WS_URL.
-    private static final String CLOUD_WEBSOCKET_URL = "wss://hocba299-3-tutorhub-core.hf.space";
+    private static final String CLOUD_WEBSOCKET_URL = com.mycompany.tutorhub_enterprise.config.AppConfig.CORE_WS_URL;
     private static final String WS_URL_PROPERTY = "tutorhub.websocket.url";
     private static final String WS_URL_ENV = "TUTORHUB_WS_URL";
 
@@ -92,7 +93,7 @@ public class NetworkManager {
             }
         }
         if (configuredUrl == null || configuredUrl.trim().isEmpty()) {
-            configuredUrl = "wss://hocba299-3-tutorhub-sync.hf.space";
+            configuredUrl = com.mycompany.tutorhub_enterprise.config.AppConfig.SYNC_SERVER_URL;
         }
         System.out.println("[CLIENT CONFIG] WebSocket URL resolved = " + configuredUrl);
         return toWebSocketUri(configuredUrl.trim(), 7860);

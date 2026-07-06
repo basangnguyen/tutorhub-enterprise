@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import javazoom.jl.player.Player;
 
 import javax.sound.sampled.*;
@@ -1134,7 +1135,7 @@ public class LavieChatWidget extends JDialog {
                 String pfx = fileName.endsWith(".pdf") ? "📄" : "📝";
                 appendMessage("Bạn", pfx + " [Tài liệu] " + file.getName() + (message.isEmpty() ? "" : "<br>" + message));
                 new Thread(() -> {
-                    sendMultipartStream("https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/document", file, "image", "application/octet-stream", message);
+                    sendMultipartStream(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/document", file, "image", "application/octet-stream", message);
                 }).start();
                 return;
             }
@@ -1168,7 +1169,7 @@ public class LavieChatWidget extends JDialog {
             }
             
             new Thread(() -> {
-                sendMultipart("https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/vision", file, "image", "image/png", message);
+                sendMultipart(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/vision", file, "image", "image/png", message);
             }).start();
             return;
         }
@@ -1178,7 +1179,7 @@ public class LavieChatWidget extends JDialog {
         
         new Thread(() -> {
             try {
-                URL url = new URL("https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/stream");
+                URL url = new URL(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/stream");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -1237,7 +1238,7 @@ public class LavieChatWidget extends JDialog {
                         
                         String audioUrl = extractJsonValue(data, "audio_url");
                         if (audioUrl != null) {
-                            playAudioWithLipSync("https://hocbatrolai293-tutorhub-ai.hf.space" + audioUrl.replace("\\/", "/"));
+                            playAudioWithLipSync(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "" + audioUrl.replace("\\/", "/"));
                         }
                     }
                 }
@@ -1304,7 +1305,7 @@ public class LavieChatWidget extends JDialog {
                 appendMessage("Bạn", "🎤 [Ghi âm]");
                 
                 // Send multipart form data
-                sendMultipart("https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/voice", wavFile, "audio", "audio/wav", null);
+                sendMultipart(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/voice", wavFile, "audio", "audio/wav", null);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -1418,7 +1419,7 @@ public class LavieChatWidget extends JDialog {
                     
                     String audioUrl = extractJsonValue(data, "audio_url");
                     if (audioUrl != null && !audioUrl.isEmpty()) {
-                        playAudioWithLipSync("https://hocbatrolai293-tutorhub-ai.hf.space" + audioUrl.replace("\\/", "/"));
+                        playAudioWithLipSync(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "" + audioUrl.replace("\\/", "/"));
                     }
                     
                     if (chunkText != null) {
@@ -1490,7 +1491,7 @@ public class LavieChatWidget extends JDialog {
         }
         
         if (audioUrl != null && !audioUrl.isEmpty()) {
-            playAudioWithLipSync("https://hocbatrolai293-tutorhub-ai.hf.space" + audioUrl.replace("\\/", "/"));
+            playAudioWithLipSync(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "" + audioUrl.replace("\\/", "/"));
         }
     }
     
@@ -1639,7 +1640,7 @@ public class LavieChatWidget extends JDialog {
         final String textToSpeak = prompt;
         new Thread(() -> {
             try {
-                URL url = new URL("https://hocbatrolai293-tutorhub-ai.hf.space/api/tts");
+                URL url = new URL(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/tts");
                 java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -1660,7 +1661,7 @@ public class LavieChatWidget extends JDialog {
                 String res = response.toString();
                 String audioUrl = extractJsonValue(res, "audio_url");
                 if (audioUrl != null && !audioUrl.isEmpty()) {
-                    playAudioWithLipSync("https://hocbatrolai293-tutorhub-ai.hf.space" + audioUrl.replace("\\/", "/"));
+                    playAudioWithLipSync(com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "" + audioUrl.replace("\\/", "/"));
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();

@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client.ai;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class LavieAiService implements AiAgentService {
 
     public static final String DEFAULT_STREAM_URL =
-            "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/stream";
+            com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/stream";
     private static final Gson GSON = new Gson();
 
     private final ExecutorService executor;

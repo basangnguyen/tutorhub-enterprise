@@ -8,7 +8,42 @@ const { AccessToken } = require('livekit-server-sdk');
 const port = process.env.PORT || 1234;
 const app = express();
 
-app.use(cors());
+const rateLimit = require('express-rate-limit');
+
+// 1. Cấu hình CORS linh hoạt
+const allowedOrigins = [
+  'http://localhost', 'https://localhost',
+  'http://127.0.0.1', 'https://127.0.0.1',
+  'https://tutorhub.net', 'https://www.tutorhub.net'
+];
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Cho phép origin null (khi chạy từ JCEF file://) hoặc origin nằm trong whitelist
+    if (!origin || origin === 'null' || allowedOrigins.some(o => origin.startsWith(o))) {
+      callback(null, true);
+    } else {
+      console.warn("Bị chặn bởi CORS:", origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+app.use(cors(corsOptions));
+
+// 2. Cấu hình Rate Limit (Giới hạn request)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 200, // Giới hạn 200 request mỗi IP
+  message: { error: "Quá nhiều request, vui lòng thử lại sau 15 phút." }
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 20, // Tải file giới hạn khắt khe hơn: 20 request
+  message: { error: "Quá nhiều request tải file, vui lòng thử lại sau 15 phút." }
+});
+
+// Áp dụng Rate Limit chung cho các API có prefix /livekit
+app.use('/livekit', apiLimiter);
 app.use(express.json());
 
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
@@ -85,7 +120,7 @@ const s3 = new S3Client({
 });
 
 // API Upload Video Ghi hình
-app.post('/upload-record', upload.single('video'), async (req, res) => {
+app.post('/upload-record', uploadLimiter, upload.single('video'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Không tìm thấy file video' });
     
@@ -122,7 +157,7 @@ app.post('/upload-record', upload.single('video'), async (req, res) => {
 });
 
 // API Upload Tài liệu (PDF/Image)
-app.post('/upload-document', upload.single('file'), async (req, res) => {
+app.post('/upload-document', uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Không tìm thấy file' });
     
@@ -181,7 +216,8 @@ app.get('/proxy-image', async (req, res) => {
 const server = http.createServer(app);
 
 // Giữ lại WebSocket Broadcaster cũ cho chức năng đồng bộ Nét vẽ
-const wss = new WebSocket.Server({ server });
+// Thêm maxPayload 1MB để tránh DoS qua WebSocket
+const wss = new WebSocket.Server({ server, maxPayload: 1048576 });
 const rooms = new Map();
 const QUIZHUB_PROTOCOL = 'quizhub.live.v1';
 const quizHubRooms = new Map();

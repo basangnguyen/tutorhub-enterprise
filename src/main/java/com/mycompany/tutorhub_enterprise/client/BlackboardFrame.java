@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import com.mycompany.tutorhub_enterprise.models.Packet;
 import com.mycompany.tutorhub_enterprise.utils.JcefHelper;
 import org.cef.CefApp;
@@ -93,7 +94,7 @@ public class BlackboardFrame extends JFrame {
                         return true;
                     } else if (request.equals("OPEN_REEL_COWATCH")) {
                         if (dashboard != null) {
-                            BlackboardFrame.this.setVisible(false); // Ẩn frame bảng vẽ
+                            BlackboardFrame.this.dispose(); // C6: Giải phóng browser
                             dashboard.switchToCard("Class_Locket");
                         }
                         callback.success("");
@@ -107,7 +108,7 @@ public class BlackboardFrame extends JFrame {
                                 try {
                                     java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
                                     java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                                        .uri(java.net.URI.create("https://hocba299-3-tutorhub-sync.hf.space/livekit/token?room=" + roomId + "&username=" + safeName))
+                                        .uri(java.net.URI.create(com.mycompany.tutorhub_enterprise.config.AppConfig.SYNC_SERVER_URL + "/livekit/token?room=" + roomId + "&username=" + safeName))
                                         .header("Authorization", "Bearer TUTORHUB_SECRET_2026")
                                         .GET()
                                         .build();
@@ -127,9 +128,10 @@ public class BlackboardFrame extends JFrame {
                             if (JOptionPane.showConfirmDialog(BlackboardFrame.this,
                                     "Bạn có muốn đóng phiên bảng đen này?", "Xác nhận",
                                     JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                                BlackboardFrame.this.setVisible(false); // Ẩn Frame đi
-                                if (dashboard != null)
-                                    dashboard.switchToCard("Blackboard");
+                                BlackboardFrame.this.dispose(); // C6: Giải phóng browser
+                                if (dashboard != null) {
+                                    dashboard.switchToCard("Home");
+                                }
                             }
                         });
                         callback.success("");
@@ -456,5 +458,14 @@ public class BlackboardFrame extends JFrame {
                     });
             dialog.setVisible(true);
         });
+    }
+
+    @Override
+    public void dispose() {
+        if (cefBrowser != null) {
+            System.out.println("[DEBUG] Disposing CEF browser to free up RAM (C6)");
+            cefBrowser.close(true);
+        }
+        super.dispose();
     }
 }

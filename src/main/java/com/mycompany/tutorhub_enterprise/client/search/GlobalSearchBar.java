@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client.search;
 
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
@@ -879,7 +880,7 @@ public class GlobalSearchBar extends JPanel {
     }
 
     private void sendVoiceToAPI(File wavFile) {
-        String urlString = "https://hocbatrolai293-tutorhub-ai.hf.space/api/chat/voice";
+        String urlString = com.mycompany.tutorhub_enterprise.config.AppConfig.AI_SERVER_URL + "/api/chat/voice";
         String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();
