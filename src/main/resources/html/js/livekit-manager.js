@@ -1,6 +1,5 @@
         let livekitRoom = null;
-        let isAudioEnabled = false;
-        let isVideoEnabled = false;
+        // isAudioEnabled and isVideoEnabled are now managed by media-device-manager.js
         async function connectToLiveKit() {
             if (window.roomState.get('livekitRoom')) return; // Đã kết nối
 
@@ -61,6 +60,9 @@
                 const room = new LivekitClient.Room({
                     adaptiveStream: true,
                     dynacast: true,
+                    publishDefaults: {
+                        simulcast: true
+                    }
                 });
                 window.roomState.set('livekitRoom', room);
                 window.currentRoom = room; // Backwards compatibility
@@ -187,9 +189,10 @@
                 room.on(LivekitClient.RoomEvent.TrackUnmuted, () => { if (typeof renderRoster === 'function') renderRoster(); });
                 room.on(LivekitClient.RoomEvent.ParticipantMetadataChanged, () => { if (typeof renderRoster === 'function') renderRoster(); });
                 room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, (speakers) => { 
+                    window.activeSpeakers = speakers.map(s => s.identity);
                     if (typeof renderRoster === 'function') renderRoster(); 
                     if (window.videoLayoutManager) {
-                        window.videoLayoutManager.setActiveSpeaker(speakers.map(s => s.identity));
+                        window.videoLayoutManager.setActiveSpeaker(window.activeSpeakers);
                     }
                 });
 
@@ -395,7 +398,7 @@
                 if (window._lobbyMicEnabled) {
                     try {
                         await room.localParticipant.setMicrophoneEnabled(true);
-                        isAudioEnabled = true;
+                        window.isAudioEnabled = true;
                         const micBtn = document.getElementById('toggle-mic-btn');
                         if (micBtn) {
                             micBtn.classList.add('active');
@@ -418,7 +421,7 @@
                             camBtn.querySelector('i').className = 'fa-solid fa-video';
                             camBtn.querySelector('i').style.color = '';
                         }
-                        isVideoEnabled = true;
+                        window.isVideoEnabled = true;
                     } catch (e) { console.error('Failed to enable cam:', e); }
                 }
                 
@@ -464,111 +467,5 @@
             }
         }
 
-        async function toggleMic() {
-            if (!window.roomState.get('livekitRoom')) {
-                alert("Đang kết nối tới phòng học, vui lòng thử lại sau vài giây...");
-                return;
-            }
-            
-            const btn = document.getElementById('toggle-mic-btn') || document.getElementById('mute-all-btn');
-            let icon = null;
-            if (btn) icon = btn.querySelector('i');
-            
-            try {
-                if (isAudioEnabled) {
-                    // Tắt Mic
-                    await window.roomState.get('livekitRoom').localParticipant.setMicrophoneEnabled(false);
-                    isAudioEnabled = false;
-                    
-                    if (btn) btn.classList.remove('active');
-                    if (icon) {
-                        icon.className = 'fa-solid fa-microphone-slash';
-                        icon.style.color = '#ef4444';
-                    }
-                } else {
-                    // Bật Mic
-                    await window.roomState.get('livekitRoom').localParticipant.setMicrophoneEnabled(true);
-                    isAudioEnabled = true;
-                    
-                    if (btn) btn.classList.add('active');
-                    if (icon) {
-                        icon.className = 'fa-solid fa-microphone';
-                        icon.style.color = '';
-                    }
-                }
-            } catch (e) {
-                console.error("Lỗi toggle mic:", e);
-                alert("Không thể thao tác Mic. Lỗi chi tiết: " + e.message);
-                
-                // Trả về trạng thái cũ nếu lỗi
-                if (isAudioEnabled) {
-                    isAudioEnabled = false;
-                    if (btn) btn.classList.remove('active');
-                    if (icon) {
-                        icon.className = 'fa-solid fa-microphone-slash';
-                        icon.style.color = '#ef4444';
-                    }
-                }
-            }
-        }
-
-        async function startVideoCall() {
-            if (!window.roomState.get('livekitRoom')) {
-                alert("Đang kết nối tới phòng học, vui lòng thử lại sau vài giây...");
-                return;
-            }
-            
-            const btn = document.getElementById('start-video-btn');
-            const icon = btn.querySelector('i');
-            
-            try {
-                if (isVideoEnabled) {
-                    // Tắt Camera
-                    if (window._lobbyProcessedTrack) {
-                        await window.roomState.get('livekitRoom').localParticipant.unpublishTrack(window._lobbyProcessedTrack, true);
-                    } else {
-                        await window.roomState.get('livekitRoom').localParticipant.setCameraEnabled(false);
-                    }
-                    isVideoEnabled = false;
-                    
-                    // Cập nhật UI nút
-                    btn.classList.remove('active');
-                    if (icon) {
-                        icon.className = 'fa-solid fa-video-slash';
-                        icon.style.color = '#ef4444';
-                    }
-                    // Layout is handled by LocalTrackUnpublished
-                } else {
-                    // Bật Camera
-                    if (window._lobbyProcessedTrack) {
-                        await window.roomState.get('livekitRoom').localParticipant.publishTrack(window._lobbyProcessedTrack, { source: LivekitClient.Track.Source.Camera });
-                    } else {
-                        await window.roomState.get('livekitRoom').localParticipant.setCameraEnabled(true);
-                    }
-                    isVideoEnabled = true;
-                    
-                    // Cập nhật UI nút
-                    btn.classList.add('active');
-                    if (icon) {
-                        icon.className = 'fa-solid fa-video';
-                        icon.style.color = '';
-                    }
-                    // Layout is handled by LocalTrackPublished
-                }
-
-            } catch (e) {
-                console.error("Lỗi toggle camera:", e);
-                alert("Không thể thao tác Camera. Lỗi chi tiết: " + e.message);
-                
-                // Trả về trạng thái cũ nếu lỗi
-                if (isVideoEnabled) {
-                    isVideoEnabled = false;
-                    btn.classList.remove('active');
-                    if (icon) {
-                        icon.className = 'fa-solid fa-video-slash';
-                        icon.style.color = '#ef4444';
-                    }
-                }
-            }
-        }
+        // toggleMic and startVideoCall have been moved to media-device-manager.js
         

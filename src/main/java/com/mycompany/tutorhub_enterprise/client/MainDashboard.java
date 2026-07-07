@@ -210,7 +210,14 @@ public class MainDashboard extends JFrame {
         if (blackboardFrame != null) {
             blackboardFrame.dispose();
         }
-        blackboardFrame = new BlackboardFrame(this, "CLASS_DEFAULT", "teacher");
+        String boardName = javax.swing.JOptionPane.showInputDialog(this, "Nhập tên bảng vẽ mới:", "Bảng vẽ mới", javax.swing.JOptionPane.PLAIN_MESSAGE);
+        if (boardName == null) {
+            return; // Người dùng bấm Cancel
+        }
+        if (boardName.trim().isEmpty()) {
+            boardName = "Bảng vẽ không tên";
+        }
+        blackboardFrame = new BlackboardFrame(this, "CLASS_DEFAULT", "teacher", false, boardName.trim());
         blackboardFrame.resetCanvas(); 
         blackboardFrame.setVisible(true);
     }
@@ -306,8 +313,45 @@ public class MainDashboard extends JFrame {
             if (logoUrl != null) {
                 java.awt.Image img = javax.imageio.ImageIO.read(logoUrl);
                 if (img != null) {
-                    lblLogoIcon.setIcon(new javax.swing.ImageIcon(img.getScaledInstance(32, 32, java.awt.Image.SCALE_SMOOTH)));
-                    this.setIconImage(img);
+                    // Phóng to ảnh gấp 2 lần (64x64) để bật chế độ Retina Super-sampling (SSAA)
+                    // Sử dụng BufferedImage để scale ngay lập tức (tránh delay của getScaledInstance)
+                    java.awt.image.BufferedImage retinaImg = new java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                    Graphics2D gImg = retinaImg.createGraphics();
+                    gImg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    gImg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    gImg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    gImg.drawImage(img, 0, 0, 64, 64, null);
+                    gImg.dispose();
+                    
+                    javax.swing.Icon retinaIcon = new javax.swing.Icon() {
+                        @Override
+                        public void paintIcon(Component c, Graphics g, int x, int y) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.drawImage(retinaImg, x, y, 32, 32, null);
+                            g2.dispose();
+                        }
+                        @Override public int getIconWidth() { return 32; }
+                        @Override public int getIconHeight() { return 32; }
+                    };
+                    lblLogoIcon.setIcon(retinaIcon);
+                    
+                    // Cung cấp nhiều kích thước cho Window Icon giống LoginFrame
+                    java.util.List<java.awt.Image> icons = new java.util.ArrayList<>();
+                    int[] sizes = {16, 24, 32, 48, 64, 128};
+                    for (int size : sizes) {
+                        java.awt.image.BufferedImage winImg = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                        Graphics2D gw = winImg.createGraphics();
+                        gw.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                        gw.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                        gw.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        gw.drawImage(img, 0, 0, size, size, null);
+                        gw.dispose();
+                        icons.add(winImg);
+                    }
+                    this.setIconImages(icons);
                 }
             }
         } catch (Exception ex) {

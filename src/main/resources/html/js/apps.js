@@ -84,74 +84,7 @@ function toggleChatbox() {
     }
 }
 
-var isScreenSharing = false;
-async function toggleScreenShare() {
-    if (!window.currentRoom) return;
-    const btn = document.getElementById('share-screen-btn');
-    try {
-        if (isScreenSharing) {
-            await window.currentRoom.localParticipant.setScreenShareEnabled(false);
-            isScreenSharing = false;
-            btn.classList.remove('active');
-        } else {
-            await window.currentRoom.localParticipant.setScreenShareEnabled(true);
-            isScreenSharing = true;
-            btn.classList.add('active');
-        }
-    } catch (e) {
-        console.info("SCREEN_SHARE_ERROR: " + e.message + " | Name: " + e.name);
-    }
-}
-
-async function toggleRaiseHand() {
-    if (!window.currentRoom) return;
-    const btn = document.getElementById('raise-hand-btn');
-
-    try {
-        // Parse current metadata
-        let currentMeta = { role: window.currentUserRole, displayName: window.currentUserName, isHandRaised: false, handRaisedAt: null };
-        if (window.currentRoom.localParticipant.metadata) {
-            currentMeta = parseMetadata(window.currentRoom.localParticipant.metadata);
-        }
-
-        // Toggle state
-        currentMeta.isHandRaised = !currentMeta.isHandRaised;
-        currentMeta.handRaisedAt = currentMeta.isHandRaised ? Date.now() : null;
-
-        await window.currentRoom.localParticipant.setMetadata(JSON.stringify(currentMeta));
-
-        if (currentMeta.isHandRaised) {
-            showToast("Bạn đã giơ tay phát biểu ✋", 3000);
-            btn.classList.add('active');
-        } else {
-            showToast("Bạn đã hạ tay xuống.", 3000);
-            btn.classList.remove('active');
-        }
-
-        // Fallback broadcast if server drops metadata
-        const metaPayload = JSON.stringify({ type: 'roster_sync_metadata', sender: window.currentUserName, metadata: JSON.stringify(currentMeta) });
-        window.currentRoom.localParticipant.publishData(new TextEncoder().encode(metaPayload), { reliable: true });
-
-        if (typeof renderRoster === 'function') renderRoster();
-
-    } catch (e) {
-        console.info("RAISE_HAND_ERROR: " + e.message);
-    }
-}
-
-async function muteAllStudents() {
-    if (!window.currentRoom) return;
-    try {
-        // Send a mute_all signal to all users
-        const payload = JSON.stringify({ type: 'mute_all', sender: window.currentRoom.localParticipant.identity });
-        const encoder = new TextEncoder();
-        await window.currentRoom.localParticipant.publishData(encoder.encode(payload), { reliable: true });
-
-        showToast("Đã gửi lệnh tắt Mic toàn lớp!", 3000);
-    } catch (e) {
-        console.error("MUTE_ALL_ERROR: ", e);
-    }
-}
+// toggleScreenShare and toggleRaiseHand and muteAllStudents have been moved to room-roster-manager.js
 
 let mediaRecorder;
 let recordedChunks = [];

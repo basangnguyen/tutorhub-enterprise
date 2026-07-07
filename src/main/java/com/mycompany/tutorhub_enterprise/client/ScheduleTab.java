@@ -565,13 +565,10 @@ extends JPanel {
         HBox headerBox = new HBox(10.0);
         headerBox.setAlignment(Pos.CENTER_LEFT);
         TextField txtTitle = new TextField();
-        txtTitle.setPromptText("Th\u00EAm ti\u00EAu \u0111\u1EC1 s\u1EF1 ki\u1EC7n");
-        txtTitle.setStyle("-fx-font-size: 18px; -fx-border-color: #7C3AED; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-background-color: transparent; -fx-padding: 12px; -fx-prompt-text-fill: #9CA3AF;");
+        txtTitle.setPromptText("Thêm tiêu đề sự kiện");
+        txtTitle.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-border-width: 0 0 1 0; -fx-border-color: #D1D5DB; -fx-background-color: transparent; -fx-padding: 8px 4px; -fx-prompt-text-fill: #9CA3AF;");
         HBox.setHgrow((Node)txtTitle, (Priority)Priority.ALWAYS);
-        Button btnClose = new Button("\u2715");
-        btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-font-size: 20px; -fx-font-weight: bold; -fx-cursor: hand;");
-        btnClose.setOnAction(e -> eventStage.close());
-        headerBox.getChildren().addAll(new Node[]{txtTitle, btnClose});
+        headerBox.getChildren().add(txtTitle);
         HBox tabContainer = new HBox(5.0);
         tabContainer.setStyle("-fx-background-color: #F3F4F6; -fx-background-radius: 8px; -fx-padding: 4px;");
         Button btnEventTab = new Button("S\u1EF1 ki\u1EC7n", (Node)this.getWebIcon("https://img.icons8.com/fluency/48/calendar.png", 18.0));

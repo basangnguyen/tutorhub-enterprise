@@ -21,12 +21,12 @@ import java.util.Date;
 import java.util.List;
 
 public class BlackboardManagerTab extends JPanel {
-    private final Color bg = Color.WHITE;
+    private final Color bg = Color.decode("#F3F4F6");
     private final Color primary = Color.decode("#7C3AED");
     private final Color primaryBlue = Color.decode("#2563EB");
     private final Color textDark = Color.decode("#111827");
     private final Color textMuted = Color.decode("#6B7280");
-    private final Color border = Color.decode("#E5E7EB");
+    private final Color border = Color.decode("#D1D5DB");
 
     private final MainDashboard dashboard;
     private final List<BoardMeta> originalBoards = new ArrayList<>();
@@ -64,33 +64,60 @@ public class BlackboardManagerTab extends JPanel {
     }
 
     private void initUI() {
-        JPanel main = new JPanel();
-        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+        JPanel main = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.dispose();
+            }
+        };
         main.setOpaque(false);
+        main.setBorder(new EmptyBorder(25, 25, 25, 25));
 
-        main.add(Box.createVerticalStrut(10));
-        main.add(createHeader());
-        main.add(Box.createVerticalStrut(18));
-        main.add(createBoardActionStrip());
-        main.add(Box.createVerticalStrut(22));
-        main.add(createFilterBar());
-        main.add(Box.createVerticalStrut(15));
-        main.add(createListHeader());
-        main.add(Box.createVerticalStrut(10));
+        JPanel topSection = new JPanel();
+        topSection.setLayout(new BoxLayout(topSection, BoxLayout.Y_AXIS));
+        topSection.setOpaque(false);
+        topSection.add(createHeader());
+        topSection.add(Box.createVerticalStrut(22));
+        topSection.add(createFilterBar());
+        topSection.add(Box.createVerticalStrut(15));
+        main.add(topSection, BorderLayout.NORTH);
 
-        listPanel = new JPanel();
-        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 20)) {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                Container parent = getParent();
+                if (parent != null) {
+                    d.width = parent.getWidth();
+                    int cols = Math.max(1, (d.width - 20) / (250 + 20));
+                    int rows = (int) Math.ceil((double) getComponentCount() / cols);
+                    d.height = rows * (220 + 20) + 20;
+                }
+                return d;
+            }
+        };
         listPanel.setOpaque(false);
 
         JScrollPane scrollPane = new JScrollPane(listPanel);
         scrollPane.setBorder(null);
         scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
+        scrollPane.getViewport().setOpaque(true);
+        scrollPane.getViewport().setBackground(Color.WHITE);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        main.add(scrollPane);
+        scrollPane.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                listPanel.revalidate();
+            }
+        });
+        main.add(scrollPane, BorderLayout.CENTER);
 
         paginationPanel = createPaginationFooter();
-        main.add(paginationPanel);
+        main.add(paginationPanel, BorderLayout.SOUTH);
 
         add(main, BorderLayout.CENTER);
     }
@@ -114,13 +141,39 @@ public class BlackboardManagerTab extends JPanel {
         titleBox.add(Box.createVerticalStrut(4));
         titleBox.add(subtitle);
 
-        JButton create = new JButton("+ Tạo bảng vẽ");
+        JButton create = new JButton("Tạo bảng vẽ") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(254, 202, 202));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(254, 226, 226)); 
+                } else {
+                    g2.setColor(Color.WHITE);
+                }
+                g2.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 16, 16);
+                g2.setColor(new Color(252, 165, 165)); 
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 16, 16);
+                super.paintComponent(g); 
+                g2.dispose();
+            }
+        };
         create.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        create.setForeground(Color.WHITE);
-        create.setBackground(primary);
+        create.setForeground(Color.decode("#DC2626")); 
+        create.setContentAreaFilled(false); 
+        create.setBorderPainted(false);
+        create.setBorder(new EmptyBorder(8, 20, 8, 20));
         create.setFocusPainted(false);
-        create.setBorder(new EmptyBorder(9, 16, 9, 16));
         create.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        try {
+            com.formdev.flatlaf.extras.FlatSVGIcon icon = new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/lucide-palette.svg", 20, 20);
+            icon.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(color -> Color.decode("#DC2626")));
+            create.setIcon(icon);
+            create.setIconTextGap(8);
+        } catch (Exception ignored) {}
+        
         create.addActionListener(e -> {
             if (dashboard != null) dashboard.openNewBlackboard();
         });
@@ -261,9 +314,14 @@ public class BlackboardManagerTab extends JPanel {
         box.setOpaque(false);
         box.setBorder(new EmptyBorder(5, 10, 5, 10));
         box.setPreferredSize(new Dimension(250, 36));
-        JLabel icon = new JLabel("⌕");
-        icon.setFont(new Font("Segoe UI", Font.BOLD, 17));
-        icon.setForeground(textMuted);
+        JLabel icon = new JLabel("");
+        try {
+            icon.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/search-slate.svg", 16, 16));
+        } catch (Exception ignored) {
+            icon.setText("⌕");
+            icon.setFont(new Font("Segoe UI", Font.BOLD, 17));
+            icon.setForeground(textMuted);
+        }
 
         searchField = new JTextField();
         searchField.setBorder(BorderFactory.createEmptyBorder());
@@ -377,37 +435,14 @@ public class BlackboardManagerTab extends JPanel {
         renderBoardList();
     }
 
-    private JPanel createListHeader() {
-        JPanel header = new JPanel();
-        header.setLayout(new BoxLayout(header, BoxLayout.X_AXIS));
-        header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 20, 0, 20));
-        header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        header.add(createHeaderLabel("Tên bảng vẽ", 420));
-        header.add(createHeaderLabel("Sửa lần cuối", 200));
-        header.add(createHeaderLabel("Kích thước", 150));
-        header.add(createHeaderLabel("Thao tác", 150));
-        return header;
-    }
-
-    private JLabel createHeaderLabel(String text, int width) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        label.setForeground(textDark);
-        setFixedSize(label, width, 20);
-        return label;
-    }
-
     private void renderBoardList() {
         listPanel.removeAll();
-        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         if (currentBoards.isEmpty()) {
             showEmptyState();
             paginationPanel.setVisible(false);
         } else {
             for (BoardMeta board : currentBoards) {
-                listPanel.add(createBoardRow(board));
-                listPanel.add(Box.createVerticalStrut(12));
+                listPanel.add(createBoardCard(board));
             }
             paginationPanel.setVisible(true);
             updatePaginationText();
@@ -435,89 +470,102 @@ public class BlackboardManagerTab extends JPanel {
         listPanel.add(empty);
     }
 
-    private JPanel createBoardRow(BoardMeta board) {
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setOpaque(false);
-        wrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-
-        JPanel row = new JPanel() {
+    private JPanel createBoardCard(BoardMeta board) {
+        JPanel card = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(Color.WHITE);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                
+                if (Boolean.TRUE.equals(getClientProperty("hover"))) {
+                    g2.setColor(new Color(0, 0, 0, 10)); 
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                }
+                g2.dispose();
+            }
+            @Override
+            protected void paintChildren(Graphics g) {
+                super.paintChildren(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(border);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                
+                // Separator line under thumbnail
+                if (getComponentCount() > 0) {
+                    Component north = ((BorderLayout)getLayout()).getLayoutComponent(BorderLayout.NORTH);
+                    if (north != null) {
+                        g2.drawLine(0, north.getHeight(), getWidth(), north.getHeight());
+                    }
+                }
                 g2.dispose();
             }
         };
-        row.setLayout(new BoxLayout(row, BoxLayout.X_AXIS));
-        row.setOpaque(false);
-        row.setBorder(new EmptyBorder(15, 20, 15, 20));
+        card.setPreferredSize(new Dimension(250, 220));
+        card.setOpaque(false);
+        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JPanel col1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
-        col1.setOpaque(false);
-        setFixedSize(col1, 420, 70);
-        col1.add(createThumbnail(board));
+        JPanel thumbWrap = new JPanel(new BorderLayout());
+        thumbWrap.setOpaque(false);
+        thumbWrap.setBorder(new EmptyBorder(1, 1, 0, 1)); 
+        JPanel thumb = createThumbnail(board);
+        thumb.setPreferredSize(new Dimension(248, 140)); 
+        thumbWrap.add(thumb, BorderLayout.CENTER);
+        card.add(thumbWrap, BorderLayout.NORTH);
 
-        JPanel titleBox = new JPanel();
-        titleBox.setOpaque(false);
-        titleBox.setLayout(new BoxLayout(titleBox, BoxLayout.Y_AXIS));
+        JPanel info = new JPanel(new BorderLayout());
+        info.setOpaque(false);
+        info.setBorder(new EmptyBorder(12, 12, 12, 12));
+
+        JPanel textWrap = new JPanel();
+        textWrap.setLayout(new BoxLayout(textWrap, BoxLayout.Y_AXIS));
+        textWrap.setOpaque(false);
+
         JLabel title = new JLabel(safe(board.title));
         title.setFont(new Font("Segoe UI", Font.BOLD, 14));
         title.setForeground(textDark);
-        JLabel pages = new JLabel(board.totalPages + " trang" + (board.isCurrent ? "  ·  Hiện tại" : ""));
-        pages.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        pages.setForeground(textMuted);
-        titleBox.add(Box.createVerticalStrut(8));
-        titleBox.add(title);
-        titleBox.add(Box.createVerticalStrut(8));
-        titleBox.add(pages);
-        col1.add(titleBox);
-
-        JPanel col2 = new JPanel();
-        col2.setOpaque(false);
-        col2.setLayout(new BoxLayout(col2, BoxLayout.Y_AXIS));
-        setFixedSize(col2, 200, 70);
+        
         String[] dateTime = splitDateTime(board.lastModified);
-        col2.add(Box.createVerticalStrut(8));
-        col2.add(createPlainLabel(dateTime[0], textDark));
-        col2.add(Box.createVerticalStrut(8));
-        col2.add(createPlainLabel(dateTime[1], textMuted));
+        JLabel subtitle = new JLabel(dateTime[0] + " • " + safe(board.sizeMB) + " MB");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitle.setForeground(textMuted);
 
-        JPanel col3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 22));
-        col3.setOpaque(false);
-        setFixedSize(col3, 150, 70);
-        col3.add(createPlainLabel(safe(board.sizeMB) + " MB", textDark));
+        textWrap.add(title);
+        textWrap.add(Box.createVerticalStrut(4));
+        textWrap.add(subtitle);
 
-        JPanel col4 = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 12));
-        col4.setOpaque(false);
-        setFixedSize(col4, 150, 70);
-        JButton open = new JButton("Mở lại");
-        open.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        open.setForeground(primaryBlue);
-        open.setBackground(Color.WHITE);
-        open.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.decode("#BFDBFE")), new EmptyBorder(6, 18, 6, 18)));
-        open.setFocusPainted(false);
-        open.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        open.addActionListener(e -> {
-            if (dashboard != null) dashboard.openExistingBlackboard(board);
-        });
-        JLabel more = new JLabel("...", SwingConstants.CENTER);
-        more.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        more.setForeground(textMuted);
+        JLabel more = new JLabel("", SwingConstants.CENTER); 
+        try {
+            more.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("images/icon/kebab-menu.svg", 20, 20));
+        } catch (Exception ignored) {
+            more.setText("...");
+            more.setFont(new Font("Segoe UI", Font.BOLD, 22));
+            more.setForeground(textMuted);
+        }
+        more.setPreferredSize(new Dimension(32, 32));
         more.setCursor(new Cursor(Cursor.HAND_CURSOR));
         setupRowMenu(more, board);
-        col4.add(open);
-        col4.add(more);
+        
+        more.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { e.consume(); } // Prevent card hover highlight glitch
+        });
 
-        row.add(col1);
-        row.add(col2);
-        row.add(col3);
-        row.add(col4);
-        wrapper.add(row, BorderLayout.CENTER);
-        return wrapper;
+        info.add(textWrap, BorderLayout.CENTER);
+        info.add(more, BorderLayout.EAST);
+
+        card.add(info, BorderLayout.CENTER);
+
+        card.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { card.putClientProperty("hover", true); card.repaint(); }
+            @Override public void mouseExited(MouseEvent e) { card.putClientProperty("hover", false); card.repaint(); }
+            @Override public void mouseClicked(MouseEvent e) {
+                if (dashboard != null) dashboard.openExistingBlackboard(board);
+            }
+        });
+
+        return card;
     }
 
     private JPanel createThumbnail(BoardMeta board) {
@@ -541,7 +589,6 @@ public class BlackboardManagerTab extends JPanel {
                 g2.dispose();
             }
         };
-        thumb.setPreferredSize(new Dimension(100, 60));
         thumb.setOpaque(false);
         return thumb;
     }

@@ -17,6 +17,16 @@ class VideoLayoutManager {
                 }
             });
         }
+        
+        // ResizeObserver for dynamic gallery layout
+        this.resizeObserver = new ResizeObserver(() => {
+            if (this.currentMode === 'gallery') {
+                this.updateLayout();
+            }
+        });
+        if (this.container) {
+            this.resizeObserver.observe(this.container);
+        }
     }
 
     setMode(mode) {
@@ -156,12 +166,57 @@ class VideoLayoutManager {
         }
 
         if (this.currentMode === 'top-bar') {
-            // Không làm gì thêm, CSS grid/flex lo
+            // Reset inline styles for flex/grid fallbacks
+            this.videos.forEach((item) => {
+                item.wrapperEl.style.width = '';
+                item.wrapperEl.style.height = '';
+            });
         } else if (this.currentMode === 'gallery') {
-            // Grid tự cân đối dựa trên số lượng participant (CSS lo)
             const count = this.videos.size;
             this.container.setAttribute('data-count', count);
+            
+            // Jitsi's Dynamic Grid Algorithm
+            if (count > 0 && this.container) {
+                const rect = this.container.getBoundingClientRect();
+                const containerWidth = rect.width;
+                const containerHeight = rect.height;
+                
+                // Aspect ratio is 16:9
+                const TARGET_RATIO = 16 / 9;
+                
+                // Base grid dimensions (perfect square bias)
+                let columns = Math.ceil(Math.sqrt(count));
+                let rows = Math.ceil(count / columns);
+                
+                // Calculate item dimensions based on container width
+                let itemWidth = Math.floor(containerWidth / columns) - 8; // -8px for gap/margins
+                let itemHeight = Math.floor(itemWidth / TARGET_RATIO);
+                
+                // If it overflows vertically, recalculate based on container height
+                if ((itemHeight * rows) > containerHeight) {
+                    itemHeight = Math.floor(containerHeight / rows) - 8;
+                    itemWidth = Math.floor(itemHeight * TARGET_RATIO);
+                }
+                
+                // Apply explicit dimensions for perfect gallery layout
+                this.videos.forEach((item) => {
+                    item.wrapperEl.style.width = itemWidth + 'px';
+                    item.wrapperEl.style.height = itemHeight + 'px';
+                });
+                
+                // Ensure container is flex and centered to hold the grid
+                this.container.style.display = 'flex';
+                this.container.style.flexWrap = 'wrap';
+                this.container.style.justifyContent = 'center';
+                this.container.style.alignContent = 'center';
+                this.container.style.gap = '8px';
+            }
         } else if (this.currentMode === 'speaker') {
+            // Reset inline styles
+            this.videos.forEach((item) => {
+                item.wrapperEl.style.width = '';
+                item.wrapperEl.style.height = '';
+            });
             // Determine who is the main speaker
             let mainId = this.pinnedParticipant || this.activeSpeaker;
             

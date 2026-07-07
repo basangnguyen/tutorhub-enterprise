@@ -21,7 +21,6 @@ import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 
 public class HomeSocialWebPanel extends JPanel {
-
     private static final int PREFERRED_HEIGHT = 480;
     private final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     private final JFXPanel fxPanel;

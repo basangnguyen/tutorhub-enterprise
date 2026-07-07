@@ -41,6 +41,7 @@
         const isHidden = sidebar.style.display === 'none';
         
         if (isHidden) {
+            injectRosterStyles();
             sidebar.style.display = 'flex';
             sidebar.style.transform = 'translateX(0)';
             if (window.roomState.get('userRole') === 'teacher') {
@@ -52,6 +53,86 @@
             setTimeout(() => sidebar.style.display = 'none', 300);
         }
     }
+
+    // CSS injection for new roster styles
+    function injectRosterStyles() {
+        if (document.getElementById('roster-dynamic-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'roster-dynamic-styles';
+        style.innerHTML = `
+            .roster-kebab-menu {
+                position: relative;
+                display: inline-block;
+            }
+            .roster-kebab-btn {
+                background: transparent;
+                border: none;
+                color: #fff;
+                padding: 4px 8px;
+                border-radius: 4px;
+                cursor: pointer;
+                opacity: 0;
+                transition: opacity 0.2s, background 0.2s;
+            }
+            .roster-row:hover .roster-kebab-btn {
+                opacity: 1;
+            }
+            .roster-kebab-btn:hover {
+                background: #444;
+            }
+            .roster-dropdown-content {
+                display: none;
+                position: absolute;
+                right: 0;
+                top: 100%;
+                background-color: #2a2a2a;
+                min-width: 180px;
+                box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
+                z-index: 9999;
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .roster-dropdown-content button {
+                color: white;
+                padding: 10px 12px;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+                border: none;
+                background: transparent;
+                text-align: left;
+                cursor: pointer;
+                font-family: inherit;
+                font-size: 13px;
+            }
+            .roster-dropdown-content button:hover {
+                background-color: #3b82f6;
+            }
+            .roster-kebab-menu.show .roster-dropdown-content {
+                display: block;
+            }
+            .audio-indicator {
+                position: relative;
+            }
+            .audio-indicator::after {
+                content: '';
+                position: absolute;
+                top: -3px; left: -3px; right: -3px; bottom: -3px;
+                border: 2px solid #10b981;
+                border-radius: 50%;
+                animation: roster-pulse 1s infinite alternate;
+                display: block;
+            }
+            @keyframes roster-pulse {
+                0% { transform: scale(0.9); opacity: 0.7; }
+                100% { transform: scale(1.2); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
 
     function parseMetadata(str, identity) {
         let meta = null;
@@ -140,6 +221,13 @@
                 return (a.meta.handRaisedAt || 0) - (b.meta.handRaisedAt || 0);
             }
             
+            // Add Active Speaker sort
+            const speakers = window.activeSpeakers || [];
+            const aIsSpeaker = speakers.includes(a.id);
+            const bIsSpeaker = speakers.includes(b.id);
+            if (aIsSpeaker && !bIsSpeaker) return -1;
+            if (!aIsSpeaker && bIsSpeaker) return 1;
+            
             return a.id.localeCompare(b.id);
         });
 
@@ -166,36 +254,52 @@
             const camColor = isCamOn ? '#10b981' : '#ef4444';
             const camIcon = isCamOn ? 'fa-video' : 'fa-video-slash';
 
+            const isSpeaking = (window.activeSpeakers || []).includes(p.id);
+            const avatarClass = isSpeaking ? "audio-indicator" : "";
+            
             // Hover Menu for Teachers
             let hoverMenu = '';
             if (!p.isLocal && window.roomState.get('userRole') === 'teacher') {
                 if (!p.meta.isAdmitted) {
                     hoverMenu = `
-                    <div class="roster-actions" style="display: none; gap: 5px;">
+                    <div class="roster-actions" style="display: flex; gap: 5px; opacity: 0; transition: opacity 0.2s;">
                         <button onclick="handleAdmit('${p.id}')" title="Duyệt vào lớp" style="background: #10b981; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-check"></i></button>
                         <button onclick="handleKick('${p.id}')" title="Từ chối" style="background: #ef4444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     `;
                 } else {
+                    const muteBtn = !isMuted ? `<button onclick="handleForceMute('${p.id}')"><i class="fa-solid fa-microphone-slash"></i> Tắt Mic</button>` 
+                                             : `<button onclick="handleAskUnmute('${p.id}')"><i class="fa-solid fa-microphone"></i> Yêu cầu bật Mic</button>`;
+                    const lowerHandBtn = p.meta.isHandRaised ? `<button onclick="handleLowerHand('${p.id}')"><i class="fa-solid fa-hand-holding-hand"></i> Hạ tay</button>` : '';
+                    
+                    const directMute = (!isMuted && isSpeaking) 
+                        ? `<button class="roster-kebab-btn" onclick="handleForceMute('${p.id}')" title="Tắt Mic ngay" style="color: #ef4444; font-size: 16px; margin-right: 5px;"><i class="fa-solid fa-microphone-slash"></i></button>`
+                        : '';
+
                     hoverMenu = `
-                    <div class="roster-actions" style="display: none; gap: 5px;">
-                        <button onclick="handleSendLobby('${p.id}')" title="Đưa ra phòng chờ" style="background: #eab308; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-person-walking-arrow-right"></i></button>
-                        ${!isMuted ? `<button onclick="handleForceMute('${p.id}')" title="Tắt Mic" style="background: #444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-microphone-slash"></i></button>` 
-                                   : `<button onclick="handleAskUnmute('${p.id}')" title="Yêu cầu bật Mic" style="background: #3b82f6; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-microphone"></i></button>`}
-                        ${p.meta.isHandRaised ? `<button onclick="handleLowerHand('${p.id}')" title="Hạ tay" style="background: #444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-hand-holding-hand"></i></button>` : ''}
-                        <button onclick="handleKick('${p.id}')" title="Đuổi" style="background: #ef4444; border: none; color: white; padding: 4px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-ban"></i></button>
+                    <div style="display: flex; align-items: center;">
+                        ${directMute}
+                        <div class="roster-kebab-menu" onclick="event.stopPropagation(); this.classList.toggle('show');">
+                            <button class="roster-kebab-btn"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                            <div class="roster-dropdown-content">
+                                ${muteBtn}
+                                ${lowerHandBtn}
+                                <button onclick="handleSendLobby('${p.id}')"><i class="fa-solid fa-person-walking-arrow-right"></i> Đưa ra phòng chờ</button>
+                                <button onclick="handleKick('${p.id}')" style="color: #ef4444;"><i class="fa-solid fa-ban"></i> Đuổi khỏi lớp</button>
+                            </div>
+                        </div>
                     </div>
                     `;
                 }
             }
 
             html += `
-            <div onmouseover="this.querySelector('.roster-actions') && (this.querySelector('.roster-actions').style.display='flex'); this.style.background='#333'" 
-                 onmouseout="this.querySelector('.roster-actions') && (this.querySelector('.roster-actions').style.display='none'); this.style.background='transparent'" 
-                 style="padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2a2a; transition: background 0.2s;">
+            <div class="roster-row" style="padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a2a2a; transition: background 0.2s;" 
+                 onmouseover="this.style.background='#333'; const acts=this.querySelector('.roster-actions'); if(acts) acts.style.opacity=1;" 
+                 onmouseout="this.style.background='transparent'; const acts=this.querySelector('.roster-actions'); if(acts) acts.style.opacity=0; const kebab=this.querySelector('.roster-kebab-menu'); if(kebab) kebab.classList.remove('show');">
                 
                 <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #4b5563; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 14px;">
+                    <div class="${avatarClass}" style="width: 32px; height: 32px; border-radius: 50%; background: #4b5563; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 14px; position: relative;">
                         ${(p.meta.displayName || p.id).charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -205,7 +309,7 @@
 
                 <div style="display: flex; align-items: center; gap: 12px;">
                     ${hoverMenu}
-                    <div style="display: flex; gap: 10px; color: #888;">
+                    <div style="display: flex; gap: 10px; color: #888; width: 40px; justify-content: flex-end;">
                         <i class="fa-solid ${micIcon}" style="color: ${micColor}; font-size: 13px;"></i>
                         <i class="fa-solid ${camIcon}" style="color: ${camColor}; font-size: 13px;"></i>
                     </div>

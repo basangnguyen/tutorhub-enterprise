@@ -47,7 +47,21 @@ public class LoginFrame extends JFrame {
             java.net.URL iconURL = getClass().getResource("/images/logomoi.png");
             if (iconURL != null) {
                 Image appIcon = new ImageIcon(iconURL).getImage();
-                this.setIconImage(appIcon);
+                
+                // Cung cấp nhiều kích thước để Windows tự chọn độ phân giải nét nhất cho từng vị trí (Taskbar, Title bar)
+                List<Image> icons = new ArrayList<>();
+                int[] sizes = {16, 24, 32, 48, 64, 128};
+                for (int size : sizes) {
+                    java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                    Graphics2D g2 = img.createGraphics();
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.drawImage(appIcon, 0, 0, size, size, null);
+                    g2.dispose();
+                    icons.add(img);
+                }
+                this.setIconImages(icons);
             }
         } catch (Exception e) {
             System.err.println("Lỗi load icon cho Taskbar: " + e.getMessage());
@@ -73,9 +87,7 @@ public class LoginFrame extends JFrame {
         badgeBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         badgeBtn.setForeground(PRIMARY_GREEN);
         badgeBtn.putClientProperty("JButton.buttonType", "roundRect");
-        // Thêm icon nhỏ vào trước nút Badge
-        setLocalIcon(badgeBtn, "/images/logomoi.png", 16, 16); 
-        badgeBtn.setIconTextGap(8); // Khoảng cách giữa icon và chữ
+        // Đã xóa icon nhỏ phía trước để chữ không bị bôi đen
         badgeBtn.setEnabled(false); 
         leftPanel.add(badgeBtn);
 
@@ -417,17 +429,36 @@ public class LoginFrame extends JFrame {
             URL url = getClass().getResource(path);
             if (url != null) {
                 Image srcImg = new ImageIcon(url).getImage();
-                java.awt.image.BufferedImage resizedImg = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-                Graphics2D g2 = resizedImg.createGraphics();
-                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.drawImage(srcImg, 0, 0, width, height, null);
-                g2.dispose();
+                // Phóng to ảnh gấp 2 lần (Retina/High-DPI Super-sampling) để nét hết cỡ
+                int retinaWidth = width * 2;
+                int retinaHeight = height * 2;
                 
-                ImageIcon scaled = new ImageIcon(resizedImg);
-                if (comp instanceof JLabel) ((JLabel) comp).setIcon(scaled);
-                else if (comp instanceof JButton) ((JButton) comp).setIcon(scaled);
+                // Sử dụng BufferedImage để scale ngay lập tức (không bị delay tải ảnh chậm như getScaledInstance)
+                java.awt.image.BufferedImage retinaImg = new java.awt.image.BufferedImage(retinaWidth, retinaHeight, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                Graphics2D gImg = retinaImg.createGraphics();
+                gImg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                gImg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                gImg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                gImg.drawImage(srcImg, 0, 0, retinaWidth, retinaHeight, null);
+                gImg.dispose();
+                
+                // Tạo một icon ảo để đánh lừa Swing: Cầm ảnh to nhưng vẽ vào khung nhỏ
+                Icon retinaIcon = new Icon() {
+                    @Override
+                    public void paintIcon(Component c, Graphics g, int x, int y) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.drawImage(retinaImg, x, y, width, height, null);
+                        g2.dispose();
+                    }
+                    @Override public int getIconWidth() { return width; }
+                    @Override public int getIconHeight() { return height; }
+                };
+                
+                if (comp instanceof JLabel) ((JLabel) comp).setIcon(retinaIcon);
+                else if (comp instanceof JButton) ((JButton) comp).setIcon(retinaIcon);
             } else {
                 System.err.println("Lỗi: Không tìm thấy icon tại " + path);
             }

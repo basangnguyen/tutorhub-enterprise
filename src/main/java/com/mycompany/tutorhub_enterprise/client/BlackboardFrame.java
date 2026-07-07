@@ -44,14 +44,19 @@ public class BlackboardFrame extends JFrame {
     private CefMessageRouterHandlerAdapter routerHandler;
 
     public BlackboardFrame(MainDashboard dashboard, String classId, String role) {
-        this(dashboard, classId, role, false);
+        this(dashboard, classId, role, false, null);
     }
 
     public BlackboardFrame(MainDashboard dashboard, String classId, String role, boolean allowStudentDraw) {
+        this(dashboard, classId, role, allowStudentDraw, null);
+    }
+
+    public BlackboardFrame(MainDashboard dashboard, String classId, String role, boolean allowStudentDraw, String currentBoardTitle) {
         this.dashboard = dashboard;
         this.classId = classId;
         this.role = role;
         this.allowStudentDraw = allowStudentDraw;
+        this.currentBoardTitle = currentBoardTitle;
         setTitle("Bảng vẽ TutorHub - Toàn Màn Hình");
         setUndecorated(true); // Ẩn thanh viền cửa sổ
         setExtendedState(JFrame.MAXIMIZED_BOTH); // Phóng to toàn màn hình
