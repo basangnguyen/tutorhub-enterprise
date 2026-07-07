@@ -686,9 +686,9 @@ TOOL_MAP = {t.name: t for t in ALL_TOOLS}
 
 llm = ChatGroq(
 
-    temperature=0.5,
+    temperature=0.2,
 
-    model_name="llama-3.1-8b-instant",
+    model_name="llama-3.3-70b-versatile",
 
     groq_api_key=GROQ_KEY
 
