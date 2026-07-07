@@ -1840,7 +1840,10 @@ public class AiChatPanel extends JPanel {
             String context = conversationMemory.buildContext();
             AiLongTermMemoryStore.MemorySnapshot longTermSnapshot = longTermMemoryStore.snapshot();
             StringBuilder assistantBuffer = new StringBuilder();
-            String remoteServerContext = LavieRemoteContextProvider.shared().contextFor(LAVIE_SERVER_USER_ID);
+            String remoteServerContext = "";
+            if (config != null) {
+                remoteServerContext = LavieRemoteContextProvider.shared().contextFor(LAVIE_SERVER_USER_ID);
+            }
             AiAgentRequest request = AiAgentRequest.builder()
                     .message(userMessage)
                     .userId(requestUserIdForProvider(config))
@@ -1990,7 +1993,8 @@ public class AiChatPanel extends JPanel {
             executeAgentJs("setStatus", "Đang kết nối Lavie");
 
             AtomicBoolean hasDelta = new AtomicBoolean(false);
-            String remoteServerContext = LavieRemoteContextProvider.shared().contextFor(LAVIE_SERVER_USER_ID);
+            String remoteServerContext = ""; // Lavie already has its own context
+
             AiAgentRequest request = AiAgentRequest.builder()
                     .message(userMessage)
                     .userId(LAVIE_SERVER_USER_ID)
