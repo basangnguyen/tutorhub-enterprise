@@ -28,6 +28,34 @@
 
     * { box-sizing: border-box; }
 
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(89, 82, 72, .36) transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: rgba(89, 82, 72, .30);
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background-clip: padding-box;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(89, 82, 72, .46);
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+
     html, body {
       width: 100%;
       height: 100%;
@@ -39,31 +67,50 @@
 
     body {
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
+      grid-template-rows: auto minmax(0, 1fr) auto; /* A1: bỏ row thừa, dùng minmax để scroll đúng */
       background: var(--bg);
     }
 
     body.artifact-open {
-      grid-template-columns: minmax(520px, 1fr) minmax(420px, 46vw);
+      grid-template-columns: minmax(0, 1fr) clamp(430px, 42vw, 660px);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+    body.artifact-open.artifact-wide {
+      grid-template-columns: minmax(300px, .74fr) minmax(560px, 1.26fr);
     }
     body.artifact-open .topbar,
-    body.artifact-open .settings-panel,
-    body.artifact-open .transcript,
+    body.artifact-open .settings-panel {
+      grid-column: 1;
+      min-width: 0;
+    }
+    body.artifact-open .topbar {
+      grid-row: 1;
+    }
+    body.artifact-open .transcript {
+      grid-column: 1;
+      grid-row: 2;
+      min-width: 0;
+    }
     body.artifact-open .composer-shell {
       grid-column: 1;
+      grid-row: 3;
+      min-width: 0;
+      align-self: end;
     }
     body.artifact-open .thread {
-      width: min(820px, 100%);
+      width: min(760px, 100%);
     }
     body.artifact-open .composer {
-      width: min(780px, 100%);
+      width: min(740px, 100%);
     }
     body.artifact-open .artifact-panel {
       position: relative;
       grid-column: 2;
       grid-row: 1 / -1;
       margin: 0;
-      height: 100vh;
+      height: 100%;        /* A2: dùng 100% thay 100vh để đúng trên JCEF */
+      align-self: stretch; /* A2: đảm bảo stretch đủ chiều grid row */
+      min-width: 0;
       box-shadow: none;
       border-radius: 0;
       border-top: 0;
@@ -75,6 +122,12 @@
     @keyframes panelSlide {
       from { opacity: 0; transform: translateX(20px); }
       to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* A2: animation đóng artifact panel */
+    @keyframes panelSlideOut {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(20px); }
     }
 
     button, select, input, textarea {
@@ -178,6 +231,7 @@
       color: var(--blue);
     }
 
+    /* B1: icon layout-toggle — inline SVG bằng CSS mask thay URL remote */
     .layout-toggle-btn {
       width: 38px;
       height: 36px;
@@ -200,6 +254,7 @@
       transform: translateY(1px) scale(.98);
     }
 
+    /* B1: SVG icon dưới dạng inline được render qua CSS, không dùng URL remote */
     .layout-toggle-icon {
       width: 18px;
       height: 18px;
@@ -208,18 +263,144 @@
     }
 
     .settings-panel {
-      background: rgba(255, 255, 255, .96);
-      border-bottom: 1px solid var(--line);
-      padding: 14px 22px 16px;
+      position: fixed;
+      top: 76px;
+      right: 18px;
+      bottom: 18px;
+      width: min(560px, calc(100vw - 36px));
+      z-index: 60;
+      display: block;
+      padding: 0;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .settings-card {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      border: 1px solid #ded8cf;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 26px 90px rgba(36, 29, 22, .18);
+      overflow: hidden;
+      pointer-events: auto;
+      animation: drawerIn .22s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .settings-head {
+      min-height: 72px;
+      padding: 16px 18px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid #ebe5dc;
+      background: linear-gradient(180deg, #ffffff, #fbfaf7);
+    }
+
+    .settings-title {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .settings-title strong {
+      color: #191714;
+      font-size: 17px;
+      font-weight: 760;
+    }
+
+    .settings-title span {
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+
+    .settings-close-btn {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: #344054;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      transition: background .16s ease, border-color .16s ease, transform .16s ease;
+    }
+
+    .settings-close-btn:hover {
+      background: var(--surface-soft);
+      border-color: var(--line-strong);
+    }
+
+    .settings-close-btn:active {
+      transform: translateY(1px) scale(.98);
+    }
+
+    .settings-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 14px;
+      border-bottom: 1px solid #ebe5dc;
+      background: #f8f6f1;
+    }
+
+    .settings-tab {
+      min-width: 0;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      padding: 11px 12px 9px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 680;
+      transition: color .16s ease, border-color .16s ease, background .16s ease;
+    }
+
+    .settings-tab:hover {
+      color: #2f2a24;
+      background: rgba(255, 255, 255, .58);
+    }
+
+    .settings-tab.is-active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+    }
+
+    .settings-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px 18px 20px;
+    }
+
+    .settings-tab-panel {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+      min-height: 0;
     }
 
     .settings-inner {
-      width: min(980px, 100%);
-      margin: 0 auto;
+      width: 100%;
+      margin: 0;
       display: grid;
-      grid-template-columns: 220px minmax(180px, 1fr) minmax(160px, 220px) auto auto auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       align-items: end;
+    }
+
+    .settings-inner .openai-base-field,
+    .settings-inner .openai-key-field {
+      grid-column: span 2;
+    }
+
+    .settings-inner > .primary-btn {
+      grid-column: span 2;
     }
 
     .field {
@@ -267,8 +448,8 @@
     }
 
     .check-result {
-      width: min(980px, 100%);
-      margin: 9px auto 0;
+      width: 100%;
+      margin: 12px 0 0;
       color: var(--muted);
       font-size: 12px;
     }
@@ -278,8 +459,8 @@
     .check-result.checking { color: var(--amber); }
 
     .memory-row {
-      width: min(980px, 100%);
-      margin: 10px auto 0;
+      width: 100%;
+      margin: 10px 0 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -294,8 +475,8 @@
     }
 
     .long-memory-panel {
-      width: min(980px, 100%);
-      margin: 12px auto 0;
+      width: 100%;
+      margin: 12px 0 0;
       display: grid;
       gap: 9px;
       border-top: 1px solid var(--line);
@@ -341,8 +522,8 @@
     }
 
     .agent-mode-panel {
-      width: min(980px, 100%);
-      margin: 12px auto 0;
+      width: 100%;
+      margin: 12px 0 0;
       display: grid;
       gap: 10px;
       border-top: 1px solid var(--line);
@@ -1104,8 +1285,13 @@
     .transcript {
       min-height: 0;
       overflow-y: auto;
-      padding: 34px 34px 132px;
+      overflow-x: hidden;
+      padding: 34px 34px 24px; /* A3: padding-bottom cứng → JS ResizeObserver sẽ tự điều chỉnh */
       scroll-behavior: smooth;
+    }
+
+    body.artifact-open .transcript {
+      padding: 28px 24px 24px; /* A3: idem */
     }
 
     .thread {
@@ -1148,6 +1334,11 @@
       margin-top: 18px;
     }
 
+    /* A4: thu về 2 cột khi artifact panel mở để tránh bị bó */
+    body.artifact-open .quick-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .quick {
       border: 1px solid #ded7cc;
       background: rgba(255, 255, 255, .64);
@@ -1177,6 +1368,16 @@
       animation: enter .24s cubic-bezier(.2, .8, .2, 1) both;
     }
 
+    .message.assistant {
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .message.assistant .bubble-wrap {
+      grid-column: 2;
+      min-width: 0;
+    }
+
     .message.user {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -1192,7 +1393,6 @@
     }
 
     .mini-avatar {
-      display: none;
       width: 38px;
       height: 38px;
       border-radius: 12px;
@@ -1240,9 +1440,9 @@
       background: transparent;
       padding: 0;
       line-height: 1.72;
-      font-size: 16.5px;
-      font-weight: 450;
-      color: var(--text);
+      font-size: 15.5px;
+      font-weight: 420;
+      color: #1a1714;
       box-shadow: none;
       overflow-wrap: anywhere;
     }
@@ -1274,6 +1474,7 @@
       opacity: 0;
       transform: translateY(-2px);
       transition: opacity .16s ease, transform .16s ease;
+      flex-wrap: wrap;
     }
 
     .message.assistant .bubble-wrap:hover .message-actions,
@@ -1442,10 +1643,18 @@
       margin: 0;
       padding: 16px;
       overflow: auto;
+      max-width: 100%;
       color: #24201b;
       font-family: "Cascadia Code", Consolas, monospace;
       font-size: 13px;
       line-height: 1.55;
+    }
+
+    pre code {
+      display: block;
+      min-width: 0;
+      width: max-content;
+      max-width: none;
     }
 
     .syntax-keyword { color: #8b3a2b; font-weight: 650; }
@@ -1499,9 +1708,9 @@
       max-width: min(700px, 100%);
       margin: 0 0 6px;
       border: 1px solid #e3ddd4;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, .62);
-      box-shadow: none;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .72);
+      box-shadow: 0 10px 28px rgba(36, 29, 22, .045);
       overflow: hidden;
     }
 
@@ -1511,12 +1720,17 @@
       background: transparent;
       padding: 10px 12px;
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       align-items: center;
       gap: 10px;
       color: #2b313b;
       cursor: pointer;
       text-align: left;
+      transition: background .16s ease;
+    }
+
+    .activity-summary:hover {
+      background: rgba(247, 245, 240, .84);
     }
 
     .activity-icon {
@@ -1560,6 +1774,25 @@
       color: var(--faint);
       font-size: 12px;
       font-weight: 650;
+    }
+
+    .activity-toggle {
+      width: 22px;
+      height: 22px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #7d7469;
+      font-size: 14px;
+      transition: transform .16s ease, background .16s ease;
+    }
+
+    .activity-summary:hover .activity-toggle {
+      background: #ffffff;
+    }
+
+    .activity-panel.collapsed .activity-toggle {
+      transform: rotate(-90deg);
     }
 
     .activity-steps {
@@ -1621,38 +1854,141 @@
       background: linear-gradient(180deg, rgba(251, 250, 247, 0), rgba(251, 250, 247, .92) 38%, #fbfaf7);
       border-top: 0;
       padding: 8px 28px 18px;
-    }
-
-    .composer {
-      width: min(940px, 100%);
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      background: rgba(255, 255, 255, .96);
-      border: 1px solid #ded8cf;
-      border-radius: 24px;
-      box-shadow: var(--composer-shadow);
-      transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
-    }
-
-    .composer:focus-within {
-      border-color: #c9beae;
-      box-shadow: 0 22px 76px rgba(31, 26, 20, .18);
-    }
-
-    .composer-row {
-      display: grid;
-      grid-template-columns: 1fr;
       min-width: 0;
     }
 
-    .composer-toolbar {
-      display: contents;
+    body.artifact-open .composer-shell {
+      padding: 8px 20px 16px;
+    }
+
+    /* C1 & Phase D: Composer 2-row layout giống hệt chat người-người
+       Row 1: textarea
+       Row 2: left tools + right tools */
+    .composer {
+      width: min(940px, 100%);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 6px 10px 4px 10px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+      min-width: 0;
+    }
+
+    .composer:focus-within {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px #3b82f6;
+    }
+
+    .attachment-tray {
+      display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 9px;
+      gap: 7px;
+      padding: 2px 2px 6px;
+      border-bottom: 1px solid rgba(222, 216, 207, .72);
+    }
+
+    .attachment-tray[hidden] {
+      display: none;
+    }
+
+    .attachment-chip {
+      max-width: 230px;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 9px;
+      border: 1px solid #ded8cf;
+      border-radius: 11px;
+      background: #faf8f4;
+      color: #2d2924;
+      box-shadow: 0 3px 10px rgba(31, 26, 20, .05);
+    }
+
+    .attachment-chip svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      color: #1f5b99;
+    }
+
+    .attachment-chip-main {
+      display: grid;
+      min-width: 0;
+      gap: 1px;
+    }
+
+    .attachment-chip strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 700;
+      color: #24201b;
+    }
+
+    .attachment-chip span {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #756d63;
+    }
+
+    .attachment-clear-btn {
+      height: 30px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 0 8px;
+      background: transparent;
+      color: #756d63;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .attachment-clear-btn:hover {
+      background: #fff1f0;
+      color: #b42318;
+      border-color: #f5c6c2;
+    }
+
+    /* Row 1 — full width input */
+    .composer-input-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-width: 0;
+      padding: 4px 4px 0 4px;
+    }
+
+    /* Row 2 — tools */
+    .composer-action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+      padding-top: 4px;
+    }
+
+    .composer-toolbar-left, .composer-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .composer-row {
+      flex: 1;
       min-width: 0;
     }
 
@@ -1664,12 +2000,26 @@
     .model-chip {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       color: #514b44;
-      font-size: 14px;
-      font-weight: 560;
+      font-size: 13px;
+      font-weight: 580;
       white-space: nowrap;
-      padding: 0 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      cursor: default;
+      user-select: none;
+    }
+
+    .model-chip .model-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 99px;
+      background: var(--green);
+      box-shadow: 0 0 0 3px rgba(15,159,110,.14);
+      flex: 0 0 auto;
     }
 
     .model-chip span {
@@ -1677,54 +2027,67 @@
     }
 
     .tool-btn, .send-btn {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       border: 0;
-      border-radius: 14px;
+      border-radius: 50%;
       display: grid;
       place-items: center;
       cursor: pointer;
-      transition: transform .16s ease, background .16s ease, color .16s ease;
-      font-size: 16px;
+      transition: background .16s ease, color .16s ease;
     }
 
     .tool-btn {
       background: transparent;
-      color: var(--muted);
-      border: 1px solid transparent;
+      color: #64748B;
     }
 
     .tool-btn:hover {
-      background: var(--surface-soft);
-      color: var(--text);
-      border-color: var(--line);
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .tool-btn.is-active {
+      background: #fff1f0;
+      color: #b42318;
+      box-shadow: inset 0 0 0 1px #fca5a5;
+    }
+
+    .tool-btn svg, .send-btn svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .send-btn {
-      background: #1f5b99;
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 18px;
+      background: transparent;
+      color: #3b82f6; /* blue plane */
     }
 
     .send-btn:hover {
-      background: var(--blue-strong);
-      transform: translateY(-1px);
+      background: #eff6ff;
     }
 
     .composer.generating {
       border-color: rgba(42, 35, 26, .28);
-      box-shadow: 0 22px 76px rgba(31, 26, 20, .18);
     }
 
+    /* C3: Stop button nổi bật hơn — viền đỏ, nền trắng */
     .send-btn.is-stop {
-      background: #344054;
-      color: #ffffff;
-      font-size: 14px;
+      background: #fff1f0;
+      color: #b42318;
+      border: 1.5px solid #fca5a5;
+      font-size: 15px;
+      font-weight: 700;
     }
 
     .send-btn.is-stop:hover {
-      background: #1f2937;
+      background: #ffe4e3;
+      border-color: #f87171;
     }
 
     .send-btn:active, .tool-btn:active, .primary-btn:active, .ghost-btn:active {
@@ -1768,17 +2131,41 @@
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       overflow: hidden;
-      background: #ffffff;
+      min-width: 0;
+      background: #fbfaf7;
       border: 1px solid #ded8cf;
       z-index: 40;
     }
+
+    /* B2: type chip hiển thị loại artifact với màu sắc riêng */
+    .artifact-type-chip {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .artifact-type-chip[data-kind="html"]     { color: #92400e; background: #fef3c7; border-color: #fde68a; }
+    .artifact-type-chip[data-kind="svg"]      { color: #5b21b6; background: #f5f3ff; border-color: #ddd6fe; }
+    .artifact-type-chip[data-kind="mermaid"]  { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+    .artifact-type-chip[data-kind="code"]     { color: #1d5f95; background: var(--blue-soft); border-color: #bfdbfe; }
+    .artifact-type-chip[data-kind="table"]    { color: #0f9f6e; background: #ecfdf3; border-color: #b8e8cf; }
+    .artifact-type-chip[data-kind="document"] { color: #625c54; background: var(--surface-soft); border-color: var(--line); }
+    .artifact-type-chip[data-kind="text"]     { color: #625c54; background: var(--surface-soft); border-color: var(--line); }
 
     .artifact-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 13px 16px;
+      min-width: 0;
+      padding: 14px 16px;
       border-bottom: 1px solid #e7e1d8;
       background: rgba(255, 255, 255, .96);
       backdrop-filter: blur(14px);
@@ -1796,6 +2183,7 @@
       font-weight: 650;
       letter-spacing: 0;
       text-transform: none;
+      display: none; /* B2: ẩn label cũ "Lavie panel", thay bằng artifact-type-chip */
     }
 
     .artifact-title strong {
@@ -1821,6 +2209,45 @@
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
+      min-width: 0;
+    }
+
+    /* B1: icon bút trừb artifact dùng inline SVG, không dùng URL remote */
+    .artifact-icon-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #ded8cf;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #ffffff;
+      color: #3c352d;
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+    }
+
+    .artifact-icon-btn:hover {
+      background: #f7f5f0;
+      border-color: #c9beae;
+      box-shadow: 0 5px 14px rgba(31, 26, 20, .08);
+      transform: translateY(-1px);
+    }
+
+    .artifact-icon-btn:active {
+      transform: translateY(1px) scale(.98);
+    }
+
+    /* B3: SVG icon sử dụng khói được rendered sẵn */
+    .artifact-icon-btn svg {
+      width: 17px;
+      height: 17px;
+      display: block;
+      opacity: .82;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .artifact-mode-toggle {
@@ -1858,8 +2285,10 @@
     }
 
     .artifact-body {
-      overflow: auto;
-      padding: 22px 24px 28px;
+      min-width: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 18px;
       color: var(--text);
       font-size: 15.5px;
       line-height: 1.72;
@@ -1867,8 +2296,8 @@
 
     .artifact-panel[data-mode="source"] .artifact-body,
     .artifact-panel[data-kind="code"] .artifact-body {
-      padding: 18px;
-      background: #fbfaf7;
+      padding: 14px;
+      background: #f6f2ec;
     }
 
     .artifact-panel[data-mode="source"] .code-block,
@@ -1876,6 +2305,7 @@
       margin: 0;
       border-color: #ded8cf;
       box-shadow: none;
+      max-width: 100%;
     }
 
     .artifact-panel[data-kind="table"] .artifact-body {
@@ -1889,21 +2319,23 @@
 
     .artifact-preview-shell {
       height: 100%;
-      min-height: 460px;
+      min-height: 0;
       overflow: hidden;
       border: 1px solid #e3ddd4;
-      border-radius: 16px;
+      border-radius: 18px;
       background: #ffffff;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, .72);
     }
 
+    /* B3: Fix iframe border-radius — clip nội dung trong preview shell */
     .artifact-preview-frame {
       display: block;
       width: 100%;
       height: 100%;
-      min-height: 460px;
+      min-height: 0;
       border: 0;
       background: #ffffff;
+      border-radius: inherit; /* B3: kế thừa border-radius của shell, clip đúng góc */
     }
 
     .artifact-preview-note {
@@ -1933,6 +2365,16 @@
 
     @keyframes panelIn {
       from { opacity: 0; transform: translateX(14px) scale(.98); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes panelFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes drawerIn {
+      from { opacity: 0; transform: translateX(24px) scale(.98); }
       to { opacity: 1; transform: translateX(0) scale(1); }
     }
 
@@ -1969,6 +2411,10 @@
       }
       body.artifact-open {
         grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+      body.artifact-open.artifact-wide {
+        grid-template-columns: 1fr;
       }
       body.artifact-open .artifact-panel {
         position: fixed;
@@ -1991,8 +2437,36 @@
       .topbar { padding: 10px 14px; }
       .top-actions { gap: 6px; }
       .status-pill { display: none; }
-      .settings-panel { padding: 12px 14px; }
+      .settings-panel {
+        top: 66px;
+        right: 10px;
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        padding: 0;
+      }
+      .settings-card {
+        width: 100%;
+        height: 100%;
+        border-radius: 18px;
+      }
+      .settings-tabs {
+        padding: 0 10px;
+        overflow-x: auto;
+      }
+      .settings-tab {
+        flex: 1 0 auto;
+      }
+      .settings-scroll {
+        padding: 14px;
+      }
       .settings-inner { grid-template-columns: 1fr; }
+      .settings-inner .openai-base-field,
+      .settings-inner .openai-key-field {
+        grid-column: span 1;
+      }
+      .settings-inner > .primary-btn {
+        grid-column: span 1;
+      }
       .context-grid { grid-template-columns: 1fr; }
       .long-memory-form { grid-template-columns: 1fr; }
       .patch-actions {
@@ -2049,17 +2523,36 @@
     </div>
     <div class="top-actions">
       <div class="status-pill"><span class="status-dot"></span><span id="statusText">Bridge đang khởi tạo</span></div>
-      <button type="button" id="settingsBtn" class="ghost-btn">Cấu hình</button>
+      <button type="button" id="settingsBtn" class="ghost-btn" aria-controls="settingsPanel" aria-expanded="false">Cấu hình</button>
+      <!-- B1: icon layout-toggle — inline SVG, không dùng URL remote để hoạt động offline -->
       <button type="button" id="layoutToggleBtn" class="layout-toggle-btn" title="Mở rộng Lavie">
-        <img id="layoutToggleIcon" class="layout-toggle-icon"
-             src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/panel-left-close.svg"
-             alt="Mở rộng">
+        <svg id="layoutToggleIcon" class="layout-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <!-- panel-left-close icon — rendered inline, không cần internet -->
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+          <polyline points="15 9 11 12 15 15"/>
+        </svg>
       </button>
     </div>
   </header>
 
   <section id="settingsPanel" class="settings-panel" hidden>
-    <div class="settings-inner">
+    <div class="settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-head">
+        <div class="settings-title">
+          <strong id="settingsTitle">Cấu hình Lavie</strong>
+          <span>Provider, bộ nhớ và Agent Mode được gom trong panel riêng để không che nội dung chat.</span>
+        </div>
+        <button type="button" id="settingsCloseBtn" class="settings-close-btn" aria-label="Đóng cấu hình">×</button>
+      </div>
+      <div class="settings-tabs" role="tablist" aria-label="Nhóm cấu hình Lavie">
+        <button type="button" class="settings-tab is-active" data-settings-tab="provider" role="tab" aria-selected="true">Provider</button>
+        <button type="button" class="settings-tab" data-settings-tab="memory" role="tab" aria-selected="false">Bộ nhớ</button>
+        <button type="button" class="settings-tab" data-settings-tab="agent" role="tab" aria-selected="false">Agent Mode</button>
+      </div>
+      <div class="settings-scroll">
+        <section class="settings-tab-panel is-active" data-settings-panel="provider">
+        <div class="settings-inner">
       <label class="field">
         <span>Provider</span>
         <select id="providerSelect">
@@ -2095,25 +2588,29 @@
       <button type="button" id="checkProviderBtn" class="ghost-btn">Kiểm tra</button>
       <button type="button" id="resetProviderBtn" class="ghost-btn">Mặc định</button>
       <button type="button" id="applyProviderBtn" class="primary-btn">Áp dụng</button>
-    </div>
-    <div id="providerCheckText" class="check-result">Chưa kiểm tra kết nối provider.</div>
-    <div class="memory-row">
-      <span id="memoryText"><strong>Bộ nhớ phiên:</strong> chưa có ngữ cảnh</span>
-      <button type="button" id="clearMemoryBtn" class="ghost-btn">Xóa nhớ</button>
-    </div>
-    <div class="long-memory-panel">
-      <div class="memory-row">
-        <span id="longMemoryText"><strong>Bộ nhớ lâu dài:</strong> chưa có ghi chú</span>
-        <button type="button" id="clearLongMemoryBtn" class="ghost-btn">Xóa lâu dài</button>
-      </div>
-      <div class="long-memory-form">
-        <input id="longMemoryInput" type="text" maxlength="700" spellcheck="true" placeholder="Ghi chú Lavie cần nhớ lâu dài...">
-        <button type="button" id="saveLongMemoryBtn" class="primary-btn">Ghi nhớ</button>
-        <button type="button" id="cancelEditMemoryBtn" class="ghost-btn" hidden>Hủy sửa</button>
-      </div>
-      <div id="longMemoryList" class="memory-list"></div>
-    </div>
-    <div class="agent-mode-panel">
+        </div>
+        <div id="providerCheckText" class="check-result">Chưa kiểm tra kết nối provider.</div>
+        </section>
+        <section class="settings-tab-panel" data-settings-panel="memory" hidden>
+        <div class="memory-row">
+          <span id="memoryText"><strong>Bộ nhớ phiên:</strong> chưa có ngữ cảnh</span>
+          <button type="button" id="clearMemoryBtn" class="ghost-btn">Xóa nhớ</button>
+        </div>
+        <div class="long-memory-panel">
+          <div class="memory-row">
+            <span id="longMemoryText"><strong>Bộ nhớ lâu dài:</strong> chưa có ghi chú</span>
+            <button type="button" id="clearLongMemoryBtn" class="ghost-btn">Xóa lâu dài</button>
+          </div>
+          <div class="long-memory-form">
+            <input id="longMemoryInput" type="text" maxlength="700" spellcheck="true" placeholder="Ghi chú Lavie cần nhớ lâu dài...">
+            <button type="button" id="saveLongMemoryBtn" class="primary-btn">Ghi nhớ</button>
+            <button type="button" id="cancelEditMemoryBtn" class="ghost-btn" hidden>Hủy sửa</button>
+          </div>
+          <div id="longMemoryList" class="memory-list"></div>
+        </div>
+        </section>
+        <section class="settings-tab-panel" data-settings-panel="agent" hidden>
+        <div class="agent-mode-panel">
       <div class="agent-mode-head">
         <label class="agent-mode-toggle">
           <input id="agentModeToggle" type="checkbox">
@@ -2154,6 +2651,9 @@
           </section>
         </div>
       </div>
+        </div>
+        </section>
+      </div>
     </div>
   </section>
 
@@ -2179,15 +2679,40 @@
 
   <footer class="composer-shell">
     <form id="composer" class="composer">
-      <button type="button" id="attachBtn" class="tool-btn" title="Đính kèm">+</button>
-      <div class="composer-row">
-        <textarea id="input" rows="1" aria-label="Nhập tin nhắn cho Lavie" placeholder="Nhập tin nhắn cho Lavie..."></textarea>
+      <!-- Row 1: input -->
+      <div class="composer-input-row">
+        <div class="composer-row">
+          <textarea id="input" rows="1" aria-label="Nhập tin nhắn cho Lavie" placeholder="Nhập tin nhắn cho Lavie..."></textarea>
+        </div>
       </div>
-      <div class="composer-toolbar">
-        <div class="model-chip">Lavie <span>·</span> Agent</div>
-        <button type="button" class="tool-btn" title="Giọng nói">♩</button>
-        <button type="button" class="tool-btn" title="Công cụ">≋</button>
-        <button type="submit" id="sendBtn" class="send-btn" title="Gửi">→</button>
+      <!-- Row 2: tools -->
+      <div class="composer-action-row">
+        <div class="composer-toolbar-left">
+          <button type="button" id="attachBtn" class="tool-btn" title="Đính kèm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <button type="button" class="tool-btn" title="Hình ảnh">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </button>
+          <button type="button" class="tool-btn" title="Tài liệu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+          </button>
+          <div id="modelChip" class="model-chip" style="margin-left: 4px;">
+            <span class="model-dot"></span>
+            <span id="modelChipLabel">Lavie</span>
+          </div>
+        </div>
+        <div class="composer-toolbar-right">
+          <button type="button" id="voiceBtn" class="tool-btn" title="Giọng nói" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </button>
+          <button type="button" id="contextBtn" class="tool-btn" title="Công cụ">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          </button>
+          <button type="submit" id="sendBtn" class="send-btn" title="Gửi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
       </div>
     </form>
     <div id="errorText" class="error" hidden></div>
@@ -2197,7 +2722,8 @@
   <aside id="artifactPanel" class="artifact-panel" hidden aria-label="Lavie content panel">
     <div class="artifact-head">
       <div class="artifact-title">
-        <span>Lavie panel</span>
+        <!-- B2: artifact type chip thay thế label củ -->
+        <span id="artifactTypeChip" class="artifact-type-chip" data-kind="text">Text</span>
         <strong id="artifactTitle">Nội dung từ Lavie</strong>
         <small id="artifactMeta">Markdown preview</small>
       </div>
@@ -2206,6 +2732,16 @@
           <button type="button" id="artifactPreviewBtn" class="is-active">Preview</button>
           <button type="button" id="artifactSourceBtn">Code</button>
         </div>
+        <!-- B1: artifact expand icon — inline SVG, không dùng URL remote -->
+        <button type="button" id="artifactExpandBtn" class="artifact-icon-btn" title="Mở rộng panel" aria-label="Mở rộng panel" aria-pressed="false">
+          <svg id="artifactExpandIcon" viewBox="0 0 24 24" aria-hidden="true">
+            <!-- maximize-2 icon -->
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
         <button type="button" id="artifactCopyBtn" class="msg-action-btn">Copy</button>
         <button type="button" id="artifactCloseBtn" class="msg-action-btn">Đóng</button>
       </div>
@@ -2224,10 +2760,16 @@
     const statusText = document.getElementById('statusText');
     const providerSubtitle = document.getElementById('providerSubtitle');
     const attachBtn = document.getElementById('attachBtn');
+    const attachmentTray = document.getElementById('attachmentTray');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const contextBtn = document.getElementById('contextBtn');
     const settingsBtn = document.getElementById('settingsBtn');
+    const settingsCloseBtn = document.getElementById('settingsCloseBtn');
     const layoutToggleBtn = document.getElementById('layoutToggleBtn');
     const layoutToggleIcon = document.getElementById('layoutToggleIcon');
     const settingsPanel = document.getElementById('settingsPanel');
+    const settingsTabs = Array.from(document.querySelectorAll('[data-settings-tab]'));
+    const settingsTabPanels = Array.from(document.querySelectorAll('[data-settings-panel]'));
     const providerSelect = document.getElementById('providerSelect');
     const ollamaBaseUrl = document.getElementById('ollamaBaseUrl');
     const ollamaModel = document.getElementById('ollamaModel');
@@ -2263,6 +2805,8 @@
     const artifactModeToggle = document.getElementById('artifactModeToggle');
     const artifactPreviewBtn = document.getElementById('artifactPreviewBtn');
     const artifactSourceBtn = document.getElementById('artifactSourceBtn');
+    const artifactExpandBtn = document.getElementById('artifactExpandBtn');
+    const artifactExpandIcon = document.getElementById('artifactExpandIcon');
     const artifactCopyBtn = document.getElementById('artifactCopyBtn');
     const artifactCloseBtn = document.getElementById('artifactCloseBtn');
     let assistantBubble = null;
@@ -2272,11 +2816,16 @@
     let assistantMcpList = null;
     let assistantRaw = '';
     let isGenerating = false;
+    let lastUserPrompt = '';
     let currentArtifactRaw = '';
     let currentArtifact = null;
     let currentArtifactMode = 'preview';
+    let artifactPanelWide = false;
     let activeActivity = null;
     let activityTimer = null;
+    let pendingAttachments = [];
+    let speechRecognition = null;
+    let voiceListening = false;
     const ACTIVITY_STEPS = [
       { label: 'Hiểu yêu cầu', detail: 'Đang đọc nội dung bạn vừa gửi' },
       { label: 'Tìm ngữ cảnh', detail: 'Đang kiểm tra bộ nhớ và hội thoại liên quan' },
@@ -2302,6 +2851,15 @@
     };
     let editingMemoryId = '';
 
+    /* A3: \u0110\u1ed3ng b\u1ed9 padding-bottom c\u1ee7a transcript v\u1edbi chi\u1ec1u cao th\u1ef1c c\u1ee7a composer shell
+       \u0110\u1ea3m b\u1ea3o n\u1ed9i dung tin nh\u1eafn cu\u1ed1i kh\u00f4ng b\u1ecb che b\u1edfi composer khi textarea m\u1edf r\u1ed9ng */
+    function syncTranscriptPadding() {
+      const shell = document.querySelector('.composer-shell');
+      if (!shell || !transcript) return;
+      const shellH = shell.offsetHeight;
+      transcript.style.paddingBottom = (shellH + 20) + 'px';
+    }
+
     function escapeHtml(value) {
       return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -2309,6 +2867,155 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function formatBytes(bytes) {
+      const value = Number(bytes || 0);
+      if (value < 1024) return value + ' B';
+      if (value < 1024 * 1024) return (value / 1024).toFixed(1).replace('.0', '') + ' KB';
+      return (value / (1024 * 1024)).toFixed(1).replace('.0', '') + ' MB';
+    }
+
+    function attachmentKindLabel(kind) {
+      const labels = {
+        image: 'Ảnh',
+        pdf: 'PDF',
+        document: 'Tài liệu',
+        spreadsheet: 'Bảng tính',
+        code: 'Mã nguồn',
+        text: 'Văn bản',
+        file: 'Tệp'
+      };
+      return labels[String(kind || 'file')] || 'Tệp';
+    }
+
+    function attachmentIconSvg(kind) {
+      if (kind === 'image') {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-5-5L5 19"/></svg>';
+      }
+      if (kind === 'code') {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-4 3 4 3"/><path d="m16 9 4 3-4 3"/><path d="m14 5-4 14"/></svg>';
+      }
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>';
+    }
+
+    function renderAttachmentTray() {
+      if (!attachmentTray) return;
+      if (!pendingAttachments.length) {
+        attachmentTray.hidden = true;
+        attachmentTray.innerHTML = '';
+        syncTranscriptPadding();
+        return;
+      }
+      const chips = pendingAttachments.map(item => {
+        const kind = attachmentKindLabel(item.kind);
+        const size = formatBytes(item.size);
+        const textHint = item.hasTextPreview ? ' · có nội dung đọc được' : '';
+        return '<div class="attachment-chip" title="' + escapeHtml(item.path || item.name || '') + '">'
+          + attachmentIconSvg(item.kind)
+          + '<div class="attachment-chip-main">'
+          + '<strong>' + escapeHtml(item.name || 'Tệp đính kèm') + '</strong>'
+          + '<span>' + escapeHtml(kind + ' · ' + size + textHint) + '</span>'
+          + '</div></div>';
+      }).join('');
+      attachmentTray.hidden = false;
+      attachmentTray.innerHTML = chips
+        + '<button type="button" class="attachment-clear-btn" data-action="clear-attachments">Xóa tệp</button>';
+      syncTranscriptPadding();
+    }
+
+    function addAttachmentPreview(item) {
+      const safeItem = item || {};
+      if (!safeItem.id) safeItem.id = 'attachment-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+      pendingAttachments = pendingAttachments.filter(existing => existing.id !== safeItem.id);
+      pendingAttachments.push(safeItem);
+      renderAttachmentTray();
+      hideError();
+    }
+
+    function clearAttachments() {
+      pendingAttachments = [];
+      renderAttachmentTray();
+    }
+
+    async function clearAttachmentBridge() {
+      clearAttachments();
+      try {
+        await postBridge('CLEAR_ATTACHMENTS', {});
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function userMessageWithAttachments(text) {
+      const clean = String(text || '').trim();
+      if (!pendingAttachments.length) {
+        return clean;
+      }
+      const names = pendingAttachments.map(item => item.name || 'tệp').join(', ');
+      return (clean || 'Phân tích tệp/ảnh đã đính kèm') + '\n\nĐính kèm: ' + names;
+    }
+
+    function setVoiceListening(active) {
+      voiceListening = !!active;
+      if (!voiceBtn) return;
+      voiceBtn.classList.toggle('is-active', voiceListening);
+      voiceBtn.setAttribute('aria-pressed', String(voiceListening));
+      voiceBtn.title = voiceListening ? 'Dừng nhận giọng nói' : 'Giọng nói';
+    }
+
+    async function toggleVoiceInput() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        try {
+          await postBridge('VOICE_START', {});
+        } catch (_) {
+          // Bridge fallback is optional; the visible message below is enough for users.
+        }
+        showError('WebView hiện tại chưa hỗ trợ nhận giọng nói trực tiếp. Cần bật STT native ở bước sau.');
+        return;
+      }
+      if (voiceListening && speechRecognition) {
+        speechRecognition.stop();
+        return;
+      }
+      speechRecognition = new SpeechRecognition();
+      speechRecognition.lang = 'vi-VN';
+      speechRecognition.interimResults = true;
+      speechRecognition.continuous = false;
+      let baseText = input.value;
+      speechRecognition.onstart = () => {
+        setVoiceListening(true);
+        hideError();
+      };
+      speechRecognition.onresult = event => {
+        let finalText = '';
+        let interimText = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const transcriptText = result[0]?.transcript || '';
+          if (result.isFinal) finalText += transcriptText;
+          else interimText += transcriptText;
+        }
+        const next = (baseText + ' ' + finalText + interimText).replace(/\s+/g, ' ').trimStart();
+        input.value = next;
+        resizeInput();
+      };
+      speechRecognition.onerror = event => {
+        showError('Không nhận được giọng nói: ' + (event.error || 'unknown'));
+      };
+      speechRecognition.onend = () => {
+        setVoiceListening(false);
+        speechRecognition = null;
+        input.focus();
+      };
+      try {
+        speechRecognition.start();
+      } catch (err) {
+        setVoiceListening(false);
+        speechRecognition = null;
+        showError('Không thể bật nhận giọng nói: ' + (err?.message || err));
+      }
     }
 
     function cssEscape(value) {
@@ -2510,6 +3217,7 @@
         + '<span class="activity-icon">·</span>'
         + '<span class="activity-copy"><span class="activity-title"></span><span class="activity-subtitle"></span></span>'
         + '<span class="activity-time">0 giây</span>'
+        + '<span class="activity-toggle">⌄</span>'
         + '</button>'
         + '<div class="activity-steps"></div>';
       const bubble = wrap.querySelector('.bubble');
@@ -2568,7 +3276,7 @@
           : 'Hoàn tất các bước xử lý cấp cao';
         icon.textContent = activeActivity.stopped ? '!' : '✓';
       } else {
-        title.textContent = currentStep.label;
+        title.textContent = 'Đang suy nghĩ...';
         subtitle.textContent = currentStep.detail;
         icon.textContent = '·';
       }
@@ -2762,6 +3470,30 @@
       renderArtifactPanel();
     }
 
+    function setArtifactPanelWide(wide) {
+      artifactPanelWide = !!wide;
+      document.body.classList.toggle('artifact-wide', artifactPanelWide);
+      if (artifactExpandBtn) {
+        artifactExpandBtn.setAttribute('aria-pressed', String(artifactPanelWide));
+        artifactExpandBtn.title = artifactPanelWide ? 'Thu gọn panel' : 'Mở rộng panel';
+        artifactExpandBtn.setAttribute('aria-label', artifactPanelWide ? 'Thu gọn panel' : 'Mở rộng panel');
+      }
+      /* B1: đổi SVG path inline thay vì đổi .src URL */
+      const expandSvg = document.getElementById('artifactExpandIcon');
+      if (expandSvg) {
+        if (artifactPanelWide) {
+          /* minimize-2 — thu gọn */
+          expandSvg.innerHTML = '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>';
+        } else {
+          /* maximize-2 — mở rộng */
+          expandSvg.innerHTML = '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>';
+        }
+      }
+      requestAnimationFrame(() => {
+        transcript.scrollTop = transcript.scrollHeight;
+      });
+    }
+
     function renderArtifactPanel() {
       if (!currentArtifact) return;
       artifactPanel.dataset.kind = currentArtifact.kind;
@@ -2819,17 +3551,30 @@
 
     function buildHtmlPreviewDocument(content) {
       const text = String(content || '').trim();
+      const previewStyle = '<style id="tutorhub-preview-chrome">'
+        + '*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(75,70,62,.38) transparent}'
+        + '*::-webkit-scrollbar{width:8px;height:8px}'
+        + '*::-webkit-scrollbar-track{background:transparent}'
+        + '*::-webkit-scrollbar-thumb{background:rgba(75,70,62,.30);border:2px solid transparent;border-radius:999px;background-clip:padding-box}'
+        + 'html,body{max-width:100%;overflow-x:hidden}'
+        + 'img,svg,video,canvas,iframe,table{max-width:100%}'
+        + 'pre,code{max-width:100%;overflow:auto}'
+        + '</style>';
       if (/^<!doctype\s+html/i.test(text) || /^<html[\s>]/i.test(text)) {
-        return text;
+        if (/<\/head>/i.test(text)) {
+          return text.replace(/<\/head>/i, previewStyle + '</head>');
+        }
+        return text.replace(/<body/i, '<head><meta charset="utf-8">' + previewStyle + '</head><body');
       }
       return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-        + '<style>body{margin:0;padding:24px;font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif;color:#191714;background:#fff}img,svg,video,canvas{max-width:100%;height:auto}</style>'
+        + previewStyle
+        + '<style>body{margin:0;padding:24px;font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif;color:#191714;background:#fff}img,svg,video,canvas{height:auto}</style>'
         + '</head><body>' + text + '</body></html>';
     }
 
     function buildSvgPreviewDocument(content) {
       return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-        + '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;padding:24px}svg{max-width:100%;height:auto}</style>'
+        + '<style>*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(75,70,62,.38) transparent}*::-webkit-scrollbar{width:8px;height:8px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:rgba(75,70,62,.30);border:2px solid transparent;border-radius:999px;background-clip:padding-box}html,body{max-width:100%;overflow-x:hidden}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;padding:24px}svg{max-width:100%;height:auto}</style>'
         + '</head><body>' + String(content || '') + '</body></html>';
     }
 
@@ -2841,9 +3586,24 @@
       artifactPanel.dataset.auto = options.auto ? 'true' : 'false';
       artifactTitle.textContent = title || 'Nội dung từ Lavie';
       artifactMeta.textContent = currentArtifact.label + ' - ' + artifactStats(currentArtifactRaw, currentArtifact);
+      /* B2: cập nhật type chip theo loại artifact */
+      const typeChip = document.getElementById('artifactTypeChip');
+      if (typeChip) {
+        const kindLabels = {
+          html: 'HTML', svg: 'SVG', mermaid: 'Diagram',
+          code: 'Code', table: 'Table', document: 'Document', text: 'Text'
+        };
+        typeChip.dataset.kind = currentArtifact.kind;
+        typeChip.textContent = kindLabels[currentArtifact.kind] || currentArtifact.kind.toUpperCase();
+      }
       renderArtifactPanel();
       artifactPanel.hidden = false;
       document.body.classList.add('artifact-open');
+      setArtifactPanelWide(artifactPanelWide);
+      syncTranscriptPadding(); /* A3: cập nhật padding sau khi mở panel */
+      requestAnimationFrame(() => {
+        transcript.scrollTop = transcript.scrollHeight;
+      });
     }
 
     function maybeOpenArtifactFromAssistant(rawText) {
@@ -2853,16 +3613,22 @@
     }
 
     function closeArtifactPanel() {
-      artifactPanel.hidden = true;
-      artifactPanel.dataset.kind = '';
-      artifactPanel.dataset.auto = '';
-      artifactPanel.dataset.mode = '';
-      currentArtifactRaw = '';
-      currentArtifact = null;
-      currentArtifactMode = 'preview';
-      artifactBody.innerHTML = '';
-      artifactMeta.textContent = 'Markdown preview';
-      document.body.classList.remove('artifact-open');
+      /* A2: animation đóng trước khi ẩn panel */
+      artifactPanel.style.animation = 'panelSlideOut .2s cubic-bezier(0.4, 0, 1, 1) both';
+      setTimeout(() => {
+        artifactPanel.hidden = true;
+        artifactPanel.style.animation = '';
+        artifactPanel.dataset.kind = '';
+        artifactPanel.dataset.auto = '';
+        artifactPanel.dataset.mode = '';
+        currentArtifactRaw = '';
+        currentArtifact = null;
+        currentArtifactMode = 'preview';
+        artifactBody.innerHTML = '';
+        artifactMeta.textContent = 'Markdown preview';
+        document.body.classList.remove('artifact-open');
+        syncTranscriptPadding(); /* A3: cập nhật lại padding */
+      }, 200);
     }
 
     function refreshMessageActions(wrap, bubble, rawText) {
@@ -2874,8 +3640,10 @@
       actions.hidden = !raw.trim();
       const copyBtn = actions.querySelector('.copy-message');
       const openBtn = actions.querySelector('.open-panel');
+      const retryBtn = actions.querySelector('.retry-message');
       if (copyBtn) copyBtn.disabled = !raw.trim();
       if (openBtn) openBtn.hidden = !shouldOpenInPanel(raw);
+      if (retryBtn) retryBtn.disabled = !lastUserPrompt.trim() || isGenerating;
     }
 
     function createMessageActions(wrap, bubble) {
@@ -2900,8 +3668,16 @@
         openArtifactPanel('Phản hồi từ Lavie', wrap.dataset.raw || bubble.innerText || '');
       });
 
+      const retryBtn = document.createElement('button');
+      retryBtn.type = 'button';
+      retryBtn.className = 'msg-action-btn retry-message';
+      retryBtn.textContent = 'Thử lại';
+      retryBtn.title = 'Gửi lại yêu cầu gần nhất';
+      retryBtn.addEventListener('click', () => retryLastPrompt());
+
       actions.appendChild(copyBtn);
       actions.appendChild(openBtn);
+      actions.appendChild(retryBtn);
       return actions;
     }
 
@@ -3047,6 +3823,15 @@
       } else {
         setProviderCheckResult('', '');
       }
+      /* C2: cập nhật model chip label theo provider hiện tại */
+      const chipLabel = document.getElementById('modelChipLabel');
+      if (chipLabel) {
+        chipLabel.textContent = isOllama
+          ? (ollamaModel.value || 'Ollama')
+          : (isOpenAi
+            ? (isGemini ? 'Gemini ' + openAiModel.value : openAiModel.value)
+            : 'Lavie');
+      }
     }
 
     async function refreshProviderConfig() {
@@ -3085,10 +3870,17 @@
     function setLavieLayoutState(state) {
       const expanded = !!state?.expanded;
       layoutToggleBtn.title = expanded ? 'Thu gọn cột trò chuyện' : 'Mở rộng Lavie';
-      layoutToggleIcon.alt = expanded ? 'Thu gọn' : 'Mở rộng';
-      layoutToggleIcon.src = expanded
-        ? 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/panel-left-open.svg'
-        : 'https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/panel-left-close.svg';
+      /* B1: đổi path của inline SVG thay vì đổi .src URL */
+      const icon = document.getElementById('layoutToggleIcon');
+      if (icon) {
+        if (expanded) {
+          /* panel-left-open: mũi tên trỏ sang phải */
+          icon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="13 9 17 12 13 15"/>';
+        } else {
+          /* panel-left-close: mũi tên trỏ sang trái */
+          icon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="15 9 11 12 15 15"/>';
+        }
+      }
       document.body.classList.toggle('lavie-expanded', expanded);
     }
 
@@ -3184,6 +3976,7 @@
         contextCard('Workspace', validText)
         + contextCard('AGENTS.md', String(Number(state?.projectInstructionCount || 0)) + ' file')
         + contextCard('Memory', String(Number(state?.longTermMemoryCount || 0)) + ' note')
+        + contextCard('Tệp chờ', String(Number(state?.pendingAttachmentCount || 0)))
         + contextCard('Context', String(Number(state?.conversationContextChars || 0)) + ' ký tự')
         + contextCard('Compaction', compacted)
         + contextCard('Patch chờ', String(Number(state?.pendingPatchCount || 0)))
@@ -3708,11 +4501,27 @@
 
     async function sendCurrent() {
       const text = input.value.trim();
-      if (!text) return;
+      if (!text && !pendingAttachments.length) return;
       hideError();
-      appendMessage('user', text);
+      const promptText = text || 'Hãy phân tích các tệp hoặc hình ảnh mình vừa đính kèm.';
+      lastUserPrompt = promptText;
+      appendMessage('user', userMessageWithAttachments(promptText));
       input.value = '';
       resizeInput();
+      setGeneratingState(true);
+      try {
+        await postBridge('SEND_MESSAGE', { text: promptText, agentMode: !!agentModeState.enabled });
+      } catch (err) {
+        setGeneratingState(false);
+        showError(err.message);
+      }
+    }
+
+    async function retryLastPrompt() {
+      const text = String(lastUserPrompt || '').trim();
+      if (!text || isGenerating) return;
+      hideError();
+      appendMessage('user', text);
       setGeneratingState(true);
       try {
         await postBridge('SEND_MESSAGE', { text, agentMode: !!agentModeState.enabled });
@@ -3792,6 +4601,8 @@
       setLongTermMemoryState,
       setAgentModeState,
       setAgentContextState,
+      addAttachmentPreview,
+      clearAttachments,
       appendToolLog,
       appendToolLogs,
       appendPatchProposal,
@@ -3882,8 +4693,69 @@
       }
     });
 
+    attachmentTray?.addEventListener('click', event => {
+      const action = event.target?.dataset?.action;
+      if (action === 'clear-attachments') {
+        clearAttachmentBridge();
+      }
+    });
+
+    voiceBtn?.addEventListener('click', () => {
+      toggleVoiceInput();
+    });
+
+    contextBtn?.addEventListener('click', async () => {
+      setSettingsOpen(true);
+      setSettingsTab('agent');
+      try {
+        await refreshAgentContext();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    function setSettingsOpen(open) {
+      const isOpen = !!open;
+      settingsPanel.hidden = !isOpen;
+      settingsBtn.setAttribute('aria-expanded', String(isOpen));
+      document.body.classList.toggle('settings-open', isOpen);
+    }
+
+    function setSettingsTab(name) {
+      const next = name || 'provider';
+      settingsTabs.forEach(tab => {
+        const active = tab.dataset.settingsTab === next;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
+      settingsTabPanels.forEach(panel => {
+        panel.hidden = panel.dataset.settingsPanel !== next;
+      });
+    }
+
     settingsBtn.addEventListener('click', () => {
-      settingsPanel.hidden = !settingsPanel.hidden;
+      setSettingsOpen(settingsPanel.hidden);
+    });
+
+    settingsTabs.forEach(tab => {
+      tab.addEventListener('click', () => setSettingsTab(tab.dataset.settingsTab));
+    });
+
+    settingsCloseBtn?.addEventListener('click', () => {
+      setSettingsOpen(false);
+    });
+
+    settingsPanel.addEventListener('click', event => {
+      if (event.target === settingsPanel) {
+        setSettingsOpen(false);
+      }
+    });
+
+    document.addEventListener('pointerdown', event => {
+      if (settingsPanel.hidden) return;
+      const target = event.target;
+      if (settingsPanel.contains(target) || settingsBtn.contains(target)) return;
+      setSettingsOpen(false);
     });
 
     layoutToggleBtn.addEventListener('click', async () => {
@@ -4021,10 +4893,19 @@
 
     artifactSourceBtn?.addEventListener('click', () => setArtifactMode('source'));
 
+    artifactExpandBtn?.addEventListener('click', () => setArtifactPanelWide(!artifactPanelWide));
+
     artifactCloseBtn.addEventListener('click', closeArtifactPanel);
 
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !artifactPanel.hidden) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (!settingsPanel.hidden) {
+        setSettingsOpen(false);
+        return;
+      }
+      if (!artifactPanel.hidden) {
         closeArtifactPanel();
       }
     });
@@ -4039,6 +4920,18 @@
 
     window.addEventListener('load', async () => {
       resizeInput();
+
+      /* A3: ResizeObserver — tự động cập nhật padding-bottom của transcript
+         theo chiều cao thực tế của composer shell, tránh tin nhắn cuối bị che */
+      const composerShellEl = document.querySelector('.composer-shell');
+      if (composerShellEl && typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(() => {
+          syncTranscriptPadding();
+        });
+        ro.observe(composerShellEl);
+      }
+      syncTranscriptPadding(); /* lần đầu */
+
       try {
         await postBridge('READY', {});
         await refreshProviderConfig();
@@ -4054,3 +4947,4 @@
   </script>
 </body>
 </html>
+
