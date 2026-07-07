@@ -2689,7 +2689,7 @@
       <!-- Row 2: tools -->
       <div class="composer-action-row">
         <div class="composer-toolbar-left">
-          <button type="button" class="tool-btn" title="Hình ảnh">
+          <button type="button" id="imageBtn" class="tool-btn" title="Hình ảnh">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
           </button>
           <button type="button" id="attachBtn" class="tool-btn" title="Tài liệu">
@@ -4686,6 +4686,15 @@
     attachBtn.addEventListener('click', async () => {
       try {
         await postBridge('ATTACH_FILE', {});
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    const imageBtn = document.getElementById('imageBtn');
+    imageBtn?.addEventListener('click', async () => {
+      try {
+        await postBridge('ATTACH_IMAGE', {});
       } catch (err) {
         showError(err.message);
       }

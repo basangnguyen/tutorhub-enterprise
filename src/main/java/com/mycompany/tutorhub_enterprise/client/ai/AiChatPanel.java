@@ -386,6 +386,10 @@ public class AiChatPanel extends JPanel {
                 callback.success("{\"ok\":true}");
                 chooseAttachmentAsync();
                 break;
+            case "ATTACH_IMAGE":
+                callback.success("{\"ok\":true}");
+                chooseImageAsync();
+                break;
             case "CLEAR_ATTACHMENTS":
                 clearPendingAttachments();
                 callback.success(GSON.toJson(buildAttachmentStateJson()));
@@ -451,6 +455,34 @@ public class AiChatPanel extends JPanel {
                 }
             } catch (Exception ignored) {
                 // File chooser can still open with the platform default directory.
+            }
+            int result = chooser.showOpenDialog(SwingUtilities.getWindowAncestor(this));
+            if (result != JFileChooser.APPROVE_OPTION) {
+                return;
+            }
+            for (java.io.File file : chooser.getSelectedFiles()) {
+                if (file != null) {
+                    attachmentExecutor.submit(() -> loadAttachment(file.toPath()));
+                }
+            }
+        });
+    }
+
+    private void chooseImageAsync() {
+        SwingUtilities.invokeLater(() -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Chọn hình ảnh gửi cho Lavie");
+            chooser.setMultiSelectionEnabled(true);
+            chooser.setAcceptAllFileFilterUsed(false);
+            chooser.addChoosableFileFilter(new FileNameExtensionFilter(
+                    "Hình ảnh",
+                    "png", "jpg", "jpeg", "webp", "gif", "bmp"));
+            try {
+                Path workspace = Paths.get(agentWorkspacePath == null ? "." : agentWorkspacePath);
+                if (Files.isDirectory(workspace)) {
+                    chooser.setCurrentDirectory(workspace.toFile());
+                }
+            } catch (Exception ignored) {
             }
             int result = chooser.showOpenDialog(SwingUtilities.getWindowAncestor(this));
             if (result != JFileChooser.APPROVE_OPTION) {
