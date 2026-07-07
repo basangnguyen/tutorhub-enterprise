@@ -141,8 +141,14 @@
                     if (typeof renderRoster === 'function') renderRoster();
                 });
 
-                room.on(LivekitClient.RoomEvent.ParticipantConnected, () => {
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
                     if (typeof renderRoster === 'function') renderRoster();
+                    // Teacher sends current lobby state to new participants
+                    if (window.roomState.get('userRole') === 'teacher' && window.roomState.get('livekitRoom') && window.roomState.get('livekitRoom').localParticipant) {
+                        const isLobbyEnabled = window.lobbyEnabled !== false; // default true
+                        const payload = JSON.stringify({ type: 'roster_lobby_status', enabled: isLobbyEnabled });
+                        window.roomState.get('livekitRoom').localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
+                    }
                 });
                 room.on(LivekitClient.RoomEvent.TrackMuted, () => { if (typeof renderRoster === 'function') renderRoster(); });
                 room.on(LivekitClient.RoomEvent.TrackUnmuted, () => { if (typeof renderRoster === 'function') renderRoster(); });
@@ -351,6 +357,36 @@
 
                 await room.connect(LIVEKIT_URL, data.token);
                 console.log("LiveKit connected successfully!");
+
+                // Apply mic/cam state from lobby
+                if (window._lobbyMicEnabled) {
+                    try {
+                        await room.localParticipant.setMicrophoneEnabled(true);
+                        const micBtn = document.getElementById('toggle-mic-btn');
+                        if (micBtn) {
+                            micBtn.classList.add('active');
+                            micBtn.querySelector('i').className = 'fa-solid fa-microphone';
+                            micBtn.querySelector('i').style.color = '';
+                        }
+                    } catch (e) { console.error('Failed to enable mic:', e); }
+                }
+
+                if (window._lobbyCamEnabled) {
+                    try {
+                        if (window._lobbyProcessedTrack) {
+                            await room.localParticipant.publishTrack(window._lobbyProcessedTrack, { source: LivekitClient.Track.Source.Camera });
+                        } else {
+                            await room.localParticipant.setCameraEnabled(true);
+                        }
+                        const camBtn = document.getElementById('start-video-btn');
+                        if (camBtn) {
+                            camBtn.classList.add('active');
+                            camBtn.querySelector('i').className = 'fa-solid fa-video';
+                            camBtn.querySelector('i').style.color = '';
+                        }
+                        isVideoEnabled = true;
+                    } catch (e) { console.error('Failed to enable cam:', e); }
+                }
                 
                 // Cập nhật Metadata cho Roster
                 const initMetadata = JSON.stringify({

@@ -112,9 +112,15 @@
         if (typeof window.lobbyEnabled === 'undefined') window.lobbyEnabled = true;
         
         if (localP && localP.meta.role === 'student' && window.lobbyEnabled && !localP.meta.isAdmitted) {
-            document.getElementById('lobby-overlay').style.display = 'flex';
+            const prejoin = document.getElementById('prejoin-lobby');
+            if (prejoin) prejoin.style.display = 'flex';
         } else {
-            document.getElementById('lobby-overlay').style.display = 'none';
+            if (typeof window.hideLobbyScreen === 'function') {
+                window.hideLobbyScreen();
+            } else {
+                const prejoin = document.getElementById('prejoin-lobby');
+                if (prejoin) prejoin.style.display = 'none';
+            }
         }
 
         // Sort Algorithm

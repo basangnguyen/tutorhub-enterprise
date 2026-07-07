@@ -7707,9 +7707,69 @@ import "https://esm.run/@cortex-js/compute-engine"`),`["Error", "compute-engine-
 </head>
 <body class="paper-notebook">
     <!-- Lobby Overlay -->
-    <div id="lobby-overlay">
-        <h2 style="margin-bottom: 10px;">Vui lòng đợi</h2>
-        <p style="color: #bbb;">Giáo viên sẽ sớm duyệt bạn vào lớp...</p>
+    <!-- Pre-join Lobby -->
+    <div id="prejoin-lobby">
+        <div class="lobby-container">
+            <!-- Left Side: Preview & Controls -->
+            <div class="lobby-left">
+                <div class="lobby-video-wrapper">
+                    <div id="lobby-bg-overlay"></div>
+                    <video id="lobby-video" autoplay muted playsinline></video>
+                    <div id="lobby-no-cam" class="lobby-no-cam">
+                        <div class="lobby-avatar-placeholder"><i class="fa-solid fa-user"></i></div>
+                        <span>Camera đang tắt</span>
+                    </div>
+                </div>
+
+                <div class="lobby-controls" id="lobby-controls">
+                    <button id="lobby-mic-btn" class="lobby-control-btn active" onclick="toggleLobbyMic()" title="Bật/Tắt Mic">
+                        <i class="fa-solid fa-microphone"></i>
+                        <div id="lobby-audio-ring"></div>
+                    </button>
+                    <button id="lobby-cam-btn" class="lobby-control-btn active" onclick="toggleLobbyCamera()" title="Bật/Tắt Camera">
+                        <i class="fa-solid fa-video"></i>
+                    </button>
+                    <button id="lobby-bg-btn" class="lobby-control-btn active" onclick="toggleBackgroundPanel()" title="Hiệu ứng nền">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </button>
+                </div>
+
+                <div class="lobby-audio-bar-wrapper">
+                    <div id="lobby-audio-bar"></div>
+                </div>
+
+                <div class="lobby-device-row" id="lobby-device-row">
+                    <select id="lobby-mic-select" onchange="handleLobbyMicChange(this.value)"></select>
+                    <select id="lobby-cam-select" onchange="handleLobbyCamChange(this.value)"></select>
+                    <button class="lobby-speaker-test" onclick="testLobbySpeaker()"><i class="fa-solid fa-volume-high"></i> Kiểm tra loa</button>
+                </div>
+            </div>
+
+            <!-- Right Side: Info & Join -->
+            <div class="lobby-right">
+                <div class="lobby-logo">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>TutorHub</span>
+                </div>
+                
+                <div class="lobby-class-info">
+                    <h2 id="lobby-class-name">Đang tải...</h2>
+                    <span id="lobby-role-badge" class="lobby-role-badge">Đang tải...</span>
+                </div>
+
+                <button id="lobby-join-btn" class="lobby-join-btn" onclick="joinClassroom()">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Tham gia ngay
+                </button>
+
+                <div id="lobby-waiting-state">
+                    <div class="lobby-spinner"></div>
+                    <p>Giáo viên sẽ sớm duyệt bạn vào lớp...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Background Panel -->
+        <div id="lobby-bg-panel"></div>
     </div>
 
     <!-- Reaction Menu Container -->

@@ -247,6 +247,11 @@ window.setInfiniteMode = (isInfinite) => {
                     window.requestSaveBoardAndThumbnail();
                 }, 300000);
             }
-            connectToLiveKit();
+            // Hiển thị lobby thay vì kết nối ngay
+            if (typeof window.initLobby === 'function') {
+                window.initLobby();
+            } else {
+                connectToLiveKit();
+            }
         };
 
