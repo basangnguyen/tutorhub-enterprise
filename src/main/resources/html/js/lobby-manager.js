@@ -323,10 +323,20 @@
             segmentationActive = false;
             canvas.style.display = 'none';
             video.style.display = 'block';
+            video.style.position = 'static';
+            video.style.opacity = '1';
+            video.style.width = '100%';
+            video.style.height = '100%';
             video.style.transform = 'scaleX(-1)';
         } else {
             // Start segmentation
-            video.style.display = 'none';
+            // Do not use display: none for video, otherwise Chrome pauses decoding
+            video.style.position = 'absolute';
+            video.style.opacity = '0.01'; 
+            video.style.width = '1px';
+            video.style.height = '1px';
+            video.style.pointerEvents = 'none';
+            
             canvas.style.display = 'block';
             
             initSegmentation();
@@ -614,8 +624,24 @@
             lobby.style.opacity = '0';
             lobby.style.transition = 'opacity 0.4s ease';
             setTimeout(() => {
-                lobby.style.display = 'none';
-                lobby.remove(); // Clean up DOM
+                if (segmentationActive) {
+                    // Do not use display: none, visibility: hidden, or remove() because Chrome will pause video decoding
+                    // Keep it in DOM but invisible and out of the way
+                    lobby.style.position = 'absolute';
+                    lobby.style.top = '-10000px';
+                    lobby.style.pointerEvents = 'none';
+                    // We must ensure the video element itself is NOT display: none
+                    const video = document.getElementById('lobby-video');
+                    if (video) {
+                        video.style.display = 'block';
+                        video.style.opacity = '0.01';
+                        video.style.width = '1px';
+                        video.style.height = '1px';
+                    }
+                } else {
+                    lobby.style.display = 'none';
+                    lobby.remove(); // Clean up DOM
+                }
             }, 400);
         }
 
