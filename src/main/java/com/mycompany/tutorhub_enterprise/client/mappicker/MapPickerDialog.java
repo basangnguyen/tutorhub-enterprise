@@ -1,5 +1,6 @@
 package com.mycompany.tutorhub_enterprise.client.mappicker;
 
+import com.mycompany.tutorhub_enterprise.client.JcefManager;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.browser.CefBrowser;

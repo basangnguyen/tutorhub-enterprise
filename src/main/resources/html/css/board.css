@@ -728,9 +728,11 @@
 /* --- Background Panel --- */
 #lobby-bg-panel {
     position: fixed;
-    bottom: 50%;
-    left: 50%;
-    transform: translate(-80%, 60%);
+    top: 50%;
+    right: 50px;
+    bottom: auto;
+    left: auto;
+    transform: translateY(-50%);
     background: rgba(15, 23, 42, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
@@ -740,6 +742,8 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
     display: none;
     min-width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
     animation: lobbySlideUp 0.3s ease;
 }
 

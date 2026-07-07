@@ -6,6 +6,7 @@ import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubAttemptSe
 import com.mycompany.tutorhub_enterprise.client.quizhub.service.QuizHubDeckService;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefMessageRouter;
+import org.cef.handler.CefMessageRouterHandlerAdapter;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,6 +18,7 @@ import java.net.URL;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import org.cef.handler.CefMessageRouterHandlerAdapter;
 
 /**
  * JDialog chứa JCEF + Luckysheet để nhập/sửa đề QuizHub — kiến trúc giống ExcelEditorDialog

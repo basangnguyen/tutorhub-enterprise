@@ -1,5 +1,6 @@
         let livekitRoom = null;
-        
+        let isAudioEnabled = false;
+        let isVideoEnabled = false;
         async function connectToLiveKit() {
             if (window.roomState.get('livekitRoom')) return; // Đã kết nối
 
@@ -128,6 +129,38 @@
                         } else {
                             const vidElement = document.getElementById('participant-video-' + participant.identity) || document.getElementById('participant-' + participant.identity);
                             if (vidElement) vidElement.remove();
+                        }
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication, participant) => {
+                    if (publication.track.kind === LivekitClient.Track.Kind.Video) {
+                        const element = publication.track.attach();
+                        element.style.transform = 'scaleX(-1)';
+                        if (window.videoLayoutManager) {
+                            window.videoLayoutManager.addVideo(participant.identity, element);
+                            const myVid = window.videoLayoutManager.videos.get(participant.identity);
+                            if (myVid) {
+                                const nameTag = myVid.wrapperEl.querySelector('.video-name-tag');
+                                if (nameTag && !nameTag.innerText.includes("(Bạn)")) nameTag.innerText += " (Bạn)";
+                            }
+                        } else {
+                            const container = document.getElementById('video-layout-container') || document.getElementById('video-sidebar');
+                            if (container) container.appendChild(element);
+                        }
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (publication, participant) => {
+                    if (publication.track) {
+                        publication.track.detach();
+                    }
+                    if (publication.track.kind === LivekitClient.Track.Kind.Video) {
+                        if (window.videoLayoutManager) {
+                            window.videoLayoutManager.removeVideo(participant.identity);
+                        } else {
+                            const wrapper = document.getElementById('local-video-wrapper') || document.getElementById('participant-video-' + participant.identity);
+                            if (wrapper) wrapper.remove();
                         }
                     }
                 });
@@ -362,6 +395,7 @@
                 if (window._lobbyMicEnabled) {
                     try {
                         await room.localParticipant.setMicrophoneEnabled(true);
+                        isAudioEnabled = true;
                         const micBtn = document.getElementById('toggle-mic-btn');
                         if (micBtn) {
                             micBtn.classList.add('active');
@@ -430,7 +464,6 @@
             }
         }
 
-        let isAudioEnabled = false;
         async function toggleMic() {
             if (!window.roomState.get('livekitRoom')) {
                 alert("Đang kết nối tới phòng học, vui lòng thử lại sau vài giây...");
@@ -479,7 +512,6 @@
             }
         }
 
-        let isVideoEnabled = false;
         async function startVideoCall() {
             if (!window.roomState.get('livekitRoom')) {
                 alert("Đang kết nối tới phòng học, vui lòng thử lại sau vài giây...");
@@ -492,7 +524,11 @@
             try {
                 if (isVideoEnabled) {
                     // Tắt Camera
-                    await window.roomState.get('livekitRoom').localParticipant.setCameraEnabled(false);
+                    if (window._lobbyProcessedTrack) {
+                        await window.roomState.get('livekitRoom').localParticipant.unpublishTrack(window._lobbyProcessedTrack, true);
+                    } else {
+                        await window.roomState.get('livekitRoom').localParticipant.setCameraEnabled(false);
+                    }
                     isVideoEnabled = false;
                     
                     // Cập nhật UI nút
@@ -501,19 +537,14 @@
                         icon.className = 'fa-solid fa-video-slash';
                         icon.style.color = '#ef4444';
                     }
-                    
-                    // Xóa phần tử video hiển thị
-                    const localParticipantId = window.roomState.get('livekitRoom').localParticipant.identity;
-                    if (window.videoLayoutManager) {
-                        window.videoLayoutManager.removeVideo(localParticipantId);
-                    } else {
-                        // Fallback: Tự tìm và xóa
-                        const wrapper = document.getElementById('local-video-wrapper') || document.getElementById('participant-video-' + localParticipantId);
-                        if (wrapper) wrapper.remove();
-                    }
+                    // Layout is handled by LocalTrackUnpublished
                 } else {
                     // Bật Camera
-                    await window.roomState.get('livekitRoom').localParticipant.setCameraEnabled(true);
+                    if (window._lobbyProcessedTrack) {
+                        await window.roomState.get('livekitRoom').localParticipant.publishTrack(window._lobbyProcessedTrack, { source: LivekitClient.Track.Source.Camera });
+                    } else {
+                        await window.roomState.get('livekitRoom').localParticipant.setCameraEnabled(true);
+                    }
                     isVideoEnabled = true;
                     
                     // Cập nhật UI nút
@@ -522,26 +553,7 @@
                         icon.className = 'fa-solid fa-video';
                         icon.style.color = '';
                     }
-                    
-                    const localTrackPub = window.roomState.get('livekitRoom').localParticipant.getTrackPublication(LivekitClient.Track.Source.Camera);
-                    if (localTrackPub && localTrackPub.track) {
-                        const element = localTrackPub.track.attach();
-                        element.style.transform = 'scaleX(-1)'; // Lật ngang cho camera chính mình
-                        
-                        const localParticipantId = window.roomState.get('livekitRoom').localParticipant.identity;
-                        if (window.videoLayoutManager) {
-                            window.videoLayoutManager.addVideo(localParticipantId, element);
-                            // Highlight the local video name to distinguish
-                            const myVid = window.videoLayoutManager.videos.get(localParticipantId);
-                            if (myVid) {
-                                const nameTag = myVid.wrapperEl.querySelector('.video-name-tag');
-                                if (nameTag) nameTag.innerText += " (Bạn)";
-                            }
-                        } else {
-                            const container = document.getElementById('video-layout-container') || document.getElementById('video-sidebar');
-                            if (container) container.appendChild(element);
-                        }
-                    }
+                    // Layout is handled by LocalTrackPublished
                 }
 
             } catch (e) {

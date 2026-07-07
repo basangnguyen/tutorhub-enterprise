@@ -400,7 +400,7 @@
         const panel = document.getElementById('lobby-bg-panel');
         if (!panel) return;
 
-        panel.innerHTML = '<div class="lobby-bg-panel-title">Nền ảo & Hiệu ứng</div><div class="lobby-bg-grid">';
+        panel.innerHTML = '<div class="lobby-bg-panel-title" style="display:flex; justify-content:space-between; align-items:center;"><span>Nền ảo & Hiệu ứng</span><button onclick="toggleBackgroundPanel()" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:18px; padding:0 5px;" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#94a3b8\'"><i class="fa-solid fa-xmark"></i></button></div><div class="lobby-bg-grid">';
 
         VIRTUAL_BACKGROUNDS.forEach(bg => {
             const isActive = selectedBackground === bg.id;
@@ -621,28 +621,55 @@
     function hideLobby() {
         const lobby = document.getElementById('prejoin-lobby');
         if (lobby) {
-            lobby.style.opacity = '0';
-            lobby.style.transition = 'opacity 0.4s ease';
+            if (!segmentationActive) {
+                lobby.style.transition = 'opacity 0.4s ease';
+                lobby.style.opacity = '0';
+            }
             setTimeout(() => {
                 if (segmentationActive) {
-                    // Do not use display: none, visibility: hidden, or remove() because Chrome will pause video decoding
-                    // Keep it in DOM but invisible and out of the way
-                    lobby.style.position = 'absolute';
-                    lobby.style.top = '-10000px';
-                    lobby.style.pointerEvents = 'none';
-                    // We must ensure the video element itself is NOT display: none
+                    // Extract video and canvas to body so Chrome doesn't kill WebGL/Video decoding
                     const video = document.getElementById('lobby-video');
+                    const canvas = document.getElementById('lobby-canvas');
+                    
                     if (video) {
-                        video.style.display = 'block';
+                        document.body.appendChild(video);
+                        video.style.position = 'fixed';
+                        video.style.top = '0';
+                        video.style.left = '0';
+                        video.style.width = '10px';
+                        video.style.height = '10px';
                         video.style.opacity = '0.01';
-                        video.style.width = '1px';
-                        video.style.height = '1px';
+                        video.style.zIndex = '-9999';
+                        video.style.pointerEvents = 'none';
                     }
+                    if (canvas) {
+                        document.body.appendChild(canvas);
+                        canvas.style.position = 'fixed';
+                        canvas.style.top = '0';
+                        canvas.style.left = '0';
+                        canvas.style.width = '10px';
+                        canvas.style.height = '10px';
+                        canvas.style.opacity = '0.01';
+                        canvas.style.zIndex = '-9999';
+                        canvas.style.pointerEvents = 'none';
+                    }
+                    
+                    // Stop lobby audio track to free the microphone for LiveKit
+                    if (typeof lobbyStream !== 'undefined' && lobbyStream) {
+                        lobbyStream.getAudioTracks().forEach(t => t.stop());
+                    }
+
+                    lobby.style.display = 'none';
+                    lobby.remove();
                 } else {
+                    // Stop lobby audio track to free the microphone for LiveKit
+                    if (typeof lobbyStream !== 'undefined' && lobbyStream) {
+                        lobbyStream.getAudioTracks().forEach(t => t.stop());
+                    }
                     lobby.style.display = 'none';
                     lobby.remove(); // Clean up DOM
                 }
-            }, 400);
+            }, segmentationActive ? 0 : 400);
         }
 
         // Show the board UI
