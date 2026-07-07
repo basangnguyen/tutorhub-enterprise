@@ -2,7 +2,7 @@
   var fallbackBanners = [
     {
       id: "banner-1",
-      imageUrl: "../images/slide1.png",
+      imageUrl: "../images/banner_new_1.png",
       kicker: "TutorHub Enterprise",
       title: "Explore Dream Platform",
       subtitle: "Lop live, lich hoc va khoanh khac hoc tap duoc gom gon trong mot bang tin.",
@@ -10,7 +10,7 @@
     },
     {
       id: "banner-2",
-      imageUrl: "../images/slide2.png",
+      imageUrl: "../images/banner_new_2.png",
       kicker: "Live Classroom",
       title: "Lop hoc thong minh hon",
       subtitle: "Theo doi lop dang dien ra, lich sap toi va nhung noi dung noi bat cua lop.",
@@ -18,11 +18,19 @@
     },
     {
       id: "banner-3",
-      imageUrl: "../images/slide3.png",
+      imageUrl: "../images/banner_new_3.png",
       kicker: "Study Moments",
       title: "Giu lai buoi hoc dang nho",
       subtitle: "Locket luu lai khoanh khac hoc tap bang anh, cam xuc va tin nhan.",
       cta: "Xem Locket"
+    },
+    {
+      id: "banner-4",
+      imageUrl: "../images/banner_new_4.png",
+      kicker: "Great Tutors",
+      title: "Giao vien xuat sac",
+      subtitle: "Ket noi voi hang ngan gia su hang dau tai TutorHub.",
+      cta: "Tim hieu them"
     }
   ];
 

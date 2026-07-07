@@ -548,24 +548,31 @@ public class HomeTab extends JPanel {
         java.util.List<HomeBannerItem> banners = new ArrayList<>();
         banners.add(new HomeBannerItem(
                 "home-banner-1",
-                "../images/slide1.png",
+                "../images/banner_new_1.png",
                 "Explore Dream Platform",
                 "Bang tin lop, lich hoc va khoanh khac hoc tap trong mot khong gian gon gang.",
                 "Kham pha ngay"
         ));
         banners.add(new HomeBannerItem(
                 "home-banner-2",
-                "../images/slide2.png",
+                "../images/banner_new_2.png",
                 "Lop hoc thong minh hon",
                 "Theo doi lop dang dien ra, lich sap toi va noi dung noi bat cua lop.",
                 "Mo lop hoc"
         ));
         banners.add(new HomeBannerItem(
                 "home-banner-3",
-                "../images/slide3.png",
+                "../images/banner_new_3.png",
                 "Giu lai buoi hoc dang nho",
                 "Locket giup luu lai khoanh khac hoc tap bang anh, cam xuc va tin nhan.",
                 "Xem Locket"
+        ));
+        banners.add(new HomeBannerItem(
+                "home-banner-4",
+                "../images/banner_new_4.png",
+                "Giao vien xuat sac",
+                "Ket noi voi hang ngan gia su hang dau tai TutorHub.",
+                "Tim hieu them"
         ));
         return banners;
     }

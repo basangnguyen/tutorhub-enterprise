@@ -34,7 +34,7 @@ button {
 
 .home-social-shell {
   width: 100%;
-  height: 480px;
+  height: 520px; /* Tổng chiều cao */
   padding: 14px 24px 0;
   background:
     radial-gradient(circle at 12% 10%, rgba(37, 99, 235, 0.055), transparent 26%),
@@ -44,7 +44,7 @@ button {
 .hero-carousel {
   position: relative;
   width: 100%;
-  height: 180px;
+  height: 220px; /* Tỉ lệ phù hợp nhất với slide gốc (2400x520) */
   overflow: hidden;
   border-radius: 18px;
   background: linear-gradient(135deg, #0ea5e9, #2563eb);
@@ -77,8 +77,8 @@ button {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(7, 20, 44, 0.56), rgba(7, 20, 44, 0.22) 50%, rgba(255, 255, 255, 0.04)),
-    radial-gradient(circle at 83% 15%, rgba(255, 255, 255, 0.18), transparent 25%);
+    linear-gradient(90deg, rgba(7, 20, 44, 0.35), rgba(7, 20, 44, 0.10) 50%, rgba(255, 255, 255, 0.04)),
+    radial-gradient(circle at 83% 15%, rgba(255, 255, 255, 0.15), transparent 25%);
 }
 
 .banner-copy {
