@@ -125,10 +125,78 @@ public final class OpenAiCompatibleAiAgentService implements AiAgentService {
         JsonArray messages = new JsonArray();
         JsonObject userMessage = new JsonObject();
         userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", AiPromptComposer.compose(request));
+        String prompt = AiPromptComposer.compose(request);
+        JsonArray multimodalContent = buildMultimodalContent(request, prompt);
+        if (multimodalContent == null) {
+            userMessage.addProperty("content", prompt);
+        } else {
+            userMessage.add("content", multimodalContent);
+        }
         messages.add(userMessage);
         payload.add("messages", messages);
         return payload;
+    }
+
+    private JsonArray buildMultimodalContent(AiAgentRequest request, String prompt) {
+        JsonArray imageParts = buildImageParts(request);
+        if (imageParts.size() == 0) {
+            return null;
+        }
+        JsonArray content = new JsonArray();
+        JsonObject textPart = new JsonObject();
+        textPart.addProperty("type", "text");
+        textPart.addProperty("text", prompt == null ? "" : prompt);
+        content.add(textPart);
+        for (JsonElement imagePart : imageParts) {
+            content.add(imagePart);
+        }
+        return content;
+    }
+
+    private JsonArray buildImageParts(AiAgentRequest request) {
+        JsonArray parts = new JsonArray();
+        if (request == null || request.getMetadata() == null) {
+            return parts;
+        }
+        String raw = request.getMetadata().getOrDefault(AiPromptComposer.METADATA_ATTACHMENTS_JSON, "");
+        if (raw == null || raw.trim().isEmpty() || "[]".equals(raw.trim())) {
+            return parts;
+        }
+        try {
+            JsonElement parsed = JsonParser.parseString(raw);
+            if (!parsed.isJsonArray()) {
+                return parts;
+            }
+            for (JsonElement element : parsed.getAsJsonArray()) {
+                if (element == null || !element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject attachment = element.getAsJsonObject();
+                String kind = stringValue(attachment, "kind");
+                String dataUrl = stringValue(attachment, "dataUrl");
+                if (!"image".equals(kind) || !isInlineImageUrl(dataUrl)) {
+                    continue;
+                }
+                JsonObject imageUrl = new JsonObject();
+                imageUrl.addProperty("url", dataUrl);
+
+                JsonObject part = new JsonObject();
+                part.addProperty("type", "image_url");
+                part.add("image_url", imageUrl);
+                parts.add(part);
+            }
+        } catch (RuntimeException ignored) {
+            // Keep the request text-only if attachment metadata cannot be parsed.
+        }
+        return parts;
+    }
+
+    private boolean isInlineImageUrl(String value) {
+        if (value == null) {
+            return false;
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        return lower.startsWith("data:image/") && lower.contains(";base64,");
     }
 
     private boolean handleSseLine(String line, AiAgentStreamCallback callback) {
@@ -209,6 +277,13 @@ public final class OpenAiCompatibleAiAgentService implements AiAgentService {
     private boolean hasString(JsonObject obj, String key) {
         JsonElement element = obj == null ? null : obj.get(key);
         return element != null && !element.isJsonNull() && element.isJsonPrimitive();
+    }
+
+    private String stringValue(JsonObject obj, String key) {
+        if (!hasString(obj, key)) {
+            return "";
+        }
+        return obj.get(key).getAsString();
     }
 
     private String readBody(InputStream stream) {

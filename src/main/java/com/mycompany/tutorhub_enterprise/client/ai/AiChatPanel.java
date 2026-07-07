@@ -3,6 +3,7 @@ package com.mycompany.tutorhub_enterprise.client.ai;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mycompany.tutorhub_enterprise.client.JcefManager;
@@ -31,6 +32,7 @@ import com.mycompany.tutorhub_enterprise.client.ai.ui.CommandPreviewView;
 import com.mycompany.tutorhub_enterprise.client.ai.ui.McpToolCallPreviewView;
 import com.mycompany.tutorhub_enterprise.client.ai.ui.PatchPreviewView;
 import com.mycompany.tutorhub_enterprise.client.ai.ui.ToolCallLogView;
+import com.mycompany.tutorhub_enterprise.config.AppConfig;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
@@ -39,24 +41,34 @@ import org.cef.handler.CefMessageRouterHandlerAdapter;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.TargetDataLine;
 import java.awt.*;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -65,10 +77,14 @@ public class AiChatPanel extends JPanel {
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String BRIDGE_CHANNEL = "tutorhub.ai";
     private static final long MAX_ATTACHMENT_BYTES = 12L * 1024L * 1024L;
+    private static final long MAX_INLINE_IMAGE_BYTES = 8L * 1024L * 1024L;
     private static final int MAX_ATTACHMENT_TEXT_BYTES = 96 * 1024;
     private static final int MAX_ATTACHMENT_CONTEXT_CHARS = 14_000;
     private static final int MAX_ATTACHMENT_PREVIEW_CHARS = 9_000;
     private static final int MAX_PENDING_ATTACHMENTS = 8;
+    private static final int MAX_VOICE_RECORD_SECONDS = 60;
+    private static final int MIN_VOICE_PCM_BYTES = 3_200;
+    private static final String LAVIE_SERVER_USER_ID = "java_user";
 
     private CefBrowser browser;
     private Timer activeMockTimer;
@@ -80,6 +96,8 @@ public class AiChatPanel extends JPanel {
     private final ExecutorService providerProbeExecutor;
     private final ExecutorService agentExecutor;
     private final ExecutorService attachmentExecutor;
+    private final ExecutorService voiceExecutor;
+    private final ExecutorService remoteContextExecutor;
     private final AiConversationMemory conversationMemory = new AiConversationMemory();
     private final AiLongTermMemoryStore longTermMemoryStore;
     private final PendingPatchStore pendingPatchStore = new PendingPatchStore();
@@ -97,6 +115,7 @@ public class AiChatPanel extends JPanel {
     private volatile Consumer<Boolean> lavieExpandedListener;
     private Runnable onOpenEmojiCallback;
     private final List<AiAttachment> pendingAttachments = new ArrayList<>();
+    private volatile VoiceCaptureSession activeVoiceSession;
 
     public AiChatPanel() {
         this(AiAgentServiceFactory.loadDefaultConfig(), "tutorhub_desktop", "lavie");
@@ -115,10 +134,13 @@ public class AiChatPanel extends JPanel {
         this.providerProbeExecutor = createProviderProbeExecutor();
         this.agentExecutor = createAgentExecutor();
         this.attachmentExecutor = createAttachmentExecutor();
+        this.voiceExecutor = createVoiceExecutor();
+        this.remoteContextExecutor = createRemoteContextExecutor();
         this.agentWorkspacePath = defaultAgentWorkspacePath();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
         initBrowser();
+        warmUpLavieRemoteContext();
     }
 
     public AiChatPanel(AiAgentProviderConfig providerConfig, String userId, String conversationId) {
@@ -130,10 +152,13 @@ public class AiChatPanel extends JPanel {
         this.providerProbeExecutor = createProviderProbeExecutor();
         this.agentExecutor = createAgentExecutor();
         this.attachmentExecutor = createAttachmentExecutor();
+        this.voiceExecutor = createVoiceExecutor();
+        this.remoteContextExecutor = createRemoteContextExecutor();
         this.agentWorkspacePath = defaultAgentWorkspacePath();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
         initBrowser();
+        warmUpLavieRemoteContext();
     }
 
     private ExecutorService createProviderProbeExecutor() {
@@ -169,12 +194,45 @@ public class AiChatPanel extends JPanel {
         });
     }
 
+    private ExecutorService createVoiceExecutor() {
+        return Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "ai-native-voice");
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+    }
+
+    private ExecutorService createRemoteContextExecutor() {
+        return Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "ai-lavie-remote-context");
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+    }
+
+    private void warmUpLavieRemoteContext() {
+        remoteContextExecutor.submit(() -> LavieRemoteContextProvider.shared().contextFor(LAVIE_SERVER_USER_ID));
+    }
+
     @Override
     public void removeNotify() {
         stopStream();
+        VoiceCaptureSession voiceSession = activeVoiceSession;
+        if (voiceSession != null) {
+            voiceSession.stop();
+            activeVoiceSession = null;
+        }
         providerProbeExecutor.shutdownNow();
         agentExecutor.shutdownNow();
         attachmentExecutor.shutdownNow();
+        voiceExecutor.shutdownNow();
+        remoteContextExecutor.shutdownNow();
         super.removeNotify();
     }
 
@@ -364,12 +422,12 @@ public class AiChatPanel extends JPanel {
                 if (text.isEmpty()) {
                     text = "Hãy phân tích các tệp hoặc hình ảnh mình vừa đính kèm.";
                 }
-                String attachmentContext = drainPendingAttachmentContext();
+                AttachmentPayload attachmentPayload = drainPendingAttachmentPayload();
                 callback.success("{\"ok\":true}");
                 if (getBoolean(payload, "agentMode", agentModeEnabled)) {
-                    startReadOnlyAgent(text, attachmentContext);
+                    startReadOnlyAgent(text, attachmentPayload.context);
                 } else {
-                    startAiStream(text, attachmentContext);
+                    startAiStream(text, attachmentPayload.context, attachmentPayload.attachmentsJson);
                 }
                 break;
             case "STOP_STREAM":
@@ -395,8 +453,14 @@ public class AiChatPanel extends JPanel {
                 callback.success(GSON.toJson(buildAttachmentStateJson()));
                 break;
             case "VOICE_START":
+                System.out.println("[LAVIE_VOICE] VOICE_START received");
                 callback.success("{\"ok\":true}");
-                executeAgentJs("showError", "Neu WebView khong ho tro nhan giong noi, can bat STT native o phase sau.");
+                startVoiceCapture();
+                break;
+            case "VOICE_STOP":
+                System.out.println("[LAVIE_VOICE] VOICE_STOP received");
+                callback.success("{\"ok\":true}");
+                stopVoiceCapture();
                 break;
             default:
                 callback.failure(-4, "Unknown AI request type: " + type);
@@ -541,18 +605,18 @@ public class AiChatPanel extends JPanel {
         }
     }
 
-    private String drainPendingAttachmentContext() {
+    private AttachmentPayload drainPendingAttachmentPayload() {
         List<AiAttachment> drained;
         synchronized (pendingAttachments) {
             if (pendingAttachments.isEmpty()) {
-                return "";
+                return new AttachmentPayload("", "[]");
             }
             drained = new ArrayList<>(pendingAttachments);
             pendingAttachments.clear();
         }
         executeAgentJs("clearAttachments");
         executeAgentJs("setAgentContextState", buildAgentContextJson());
-        return buildAttachmentsContext(drained);
+        return new AttachmentPayload(buildAttachmentsContext(drained), buildAttachmentsJson(drained));
     }
 
     private void clearPendingAttachments() {
@@ -589,6 +653,32 @@ public class AiChatPanel extends JPanel {
         return json;
     }
 
+    private String buildAttachmentsJson(List<AiAttachment> attachments) {
+        JsonArray items = new JsonArray();
+        if (attachments == null || attachments.isEmpty()) {
+            return GSON.toJson(items);
+        }
+        for (AiAttachment attachment : attachments) {
+            JsonObject node = toAttachmentJson(attachment);
+            if ("image".equals(attachment.kind) && attachment.size <= MAX_INLINE_IMAGE_BYTES) {
+                try {
+                    byte[] bytes = Files.readAllBytes(Paths.get(attachment.path));
+                    String mime = attachment.mime == null || attachment.mime.isBlank()
+                            ? "image/png"
+                            : attachment.mime;
+                    node.addProperty("dataUrl", "data:" + mime + ";base64,"
+                            + Base64.getEncoder().encodeToString(bytes));
+                } catch (IOException ex) {
+                    node.addProperty("inlineError", safeErrorMessage(ex));
+                }
+            } else if ("image".equals(attachment.kind)) {
+                node.addProperty("inlineError", "Image is larger than inline multimodal limit.");
+            }
+            items.add(node);
+        }
+        return GSON.toJson(items);
+    }
+
     private String buildAttachmentsContext(List<AiAttachment> attachments) {
         if (attachments == null || attachments.isEmpty()) {
             return "";
@@ -609,7 +699,7 @@ public class AiChatPanel extends JPanel {
                         .append(attachment.textPreview)
                         .append("\n");
             } else if ("image".equals(attachment.kind)) {
-                sb.append("Ghi chú: đây là ảnh. Provider hiện tại nhận metadata ảnh; phân tích thị giác trực tiếp cần bật payload multimodal ở phase sau.\n");
+                sb.append("Ghi chú: đây là ảnh. Nếu provider hỗ trợ multimodal, ảnh đã được gửi kèm riêng trong payload; nếu không, hãy dựa trên metadata này.\n");
             } else {
                 sb.append("Ghi chú: chưa trích xuất nội dung cho định dạng này; Lavie dùng metadata tệp làm ngữ cảnh.\n");
             }
@@ -713,6 +803,406 @@ public class AiChatPanel extends JPanel {
             return "";
         }
         return name.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private void startVoiceCapture() {
+        synchronized (this) {
+            if (activeVoiceSession != null) {
+                setVoiceNativeState("recording", true, "Đang nghe. Bấm mic lần nữa để dừng.");
+                return;
+            }
+            activeVoiceSession = new VoiceCaptureSession(MAX_VOICE_RECORD_SECONDS);
+        }
+        VoiceCaptureSession session = activeVoiceSession;
+        setVoiceNativeState("recording", true, "Đang nghe. Bấm mic lần nữa để dừng.");
+        voiceExecutor.submit(() -> {
+            System.out.println("[LAVIE_VOICE] Native recording started");
+            session.record();
+            finishVoiceCapture(session);
+        });
+    }
+
+    private void stopVoiceCapture() {
+        VoiceCaptureSession session = activeVoiceSession;
+        if (session == null) {
+            setVoiceNativeState("idle", false, "");
+            return;
+        }
+        setVoiceNativeState("transcribing", true, "Đang chuyển giọng nói thành văn bản...");
+        session.stop();
+    }
+
+    private void finishVoiceCapture(VoiceCaptureSession session) {
+        if (session == null || !session.markFinalizing()) {
+            return;
+        }
+        session.stop();
+        try {
+            byte[] wavBytes = session.awaitWav();
+            synchronized (this) {
+                if (activeVoiceSession == session) {
+                    activeVoiceSession = null;
+                }
+            }
+            if (session.getPcmByteCount() < MIN_VOICE_PCM_BYTES) {
+                throw new IllegalStateException("Âm thanh quá ngắn hoặc chưa thu được tín hiệu micro.");
+            }
+            System.out.println("[LAVIE_VOICE] Captured WAV bytes=" + wavBytes.length
+                    + ", PCM bytes=" + session.getPcmByteCount());
+            setVoiceNativeState("transcribing", true, "Đang gửi giọng nói tới Lavie...");
+            try {
+                VoiceBackendResult voiceResult = callLavieVoiceChat(wavBytes);
+                if (voiceResult.hasUserText()) {
+                    submitVoiceTranscript(voiceResult.userText);
+                    return;
+                }
+                if (voiceResult.hasAssistantText()) {
+                    JsonObject json = new JsonObject();
+                    String userText = "Voice message";
+                    json.addProperty("userText", userText);
+                    json.addProperty("assistantText", voiceResult.assistantText);
+                    json.addProperty("audioUrl", voiceResult.audioUrl);
+                    SwingUtilities.invokeLater(() -> {
+                        executeAgentJs("appendVoiceExchange", json);
+                        rememberCompletedExchange(userText, voiceResult.assistantText);
+                        executeAgentJs("setMemoryState", buildMemoryStateJson());
+                        executeAgentJs("setAgentContextState", buildAgentContextJson());
+                        setVoiceNativeState("idle", false, "");
+                        executeAgentJs("showError", "");
+                    });
+                    return;
+                }
+            } catch (Exception lavieVoiceError) {
+                System.out.println("[LAVIE_VOICE] Lavie voice endpoint failed: "
+                        + safeErrorMessage(lavieVoiceError));
+                setVoiceNativeState("transcribing", true,
+                        "Lavie voice chưa phản hồi. Đang dùng Gemini STT...");
+            }
+
+            String transcript = transcribeVoiceWithGemini(wavBytes);
+            submitVoiceTranscript(transcript);
+        } catch (Exception ex) {
+            System.out.println("[LAVIE_VOICE] Voice capture failed: " + safeErrorMessage(ex));
+            synchronized (this) {
+                if (activeVoiceSession == session) {
+                    activeVoiceSession = null;
+                }
+            }
+            SwingUtilities.invokeLater(() -> setVoiceNativeState("error", false,
+                    "Không nhận được giọng nói. " + safeErrorMessage(ex)));
+        }
+    }
+
+    private void setVoiceNativeState(String status, boolean active, String message) {
+        JsonObject json = new JsonObject();
+        json.addProperty("status", status == null ? "idle" : status);
+        json.addProperty("active", active);
+        json.addProperty("message", message == null ? "" : message);
+        executeAgentJs("setVoiceNativeState", json);
+    }
+
+    private void submitVoiceTranscript(String transcript) {
+        String text = transcript == null ? "" : transcript.trim();
+        if (text.isEmpty()) {
+            SwingUtilities.invokeLater(() -> setVoiceNativeState("error", false,
+                    "Không nhận được nội dung giọng nói."));
+            return;
+        }
+        JsonObject json = new JsonObject();
+        json.addProperty("text", text);
+        SwingUtilities.invokeLater(() -> {
+            executeAgentJs("submitVoiceTranscript", json);
+            setVoiceNativeState("idle", false, "");
+            executeAgentJs("showError", "");
+        });
+    }
+
+    private VoiceBackendResult callLavieVoiceChat(byte[] wavBytes) throws IOException {
+        String boundary = "----TutorHubLavieVoice" + System.currentTimeMillis();
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(joinUrl(AppConfig.AI_SERVER_URL, "/api/chat/voice")).openConnection();
+            conn.setUseCaches(false);
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(120000);
+            conn.setRequestProperty("Accept", "application/json, text/event-stream, text/plain, */*");
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (OutputStream outputStream = conn.getOutputStream()) {
+                writeMultipartFile(outputStream, boundary, "audio", "lavie_voice.wav", "audio/wav", wavBytes);
+                writeMultipartField(outputStream, boundary, "user_id", LAVIE_SERVER_USER_ID);
+                writeUtf8(outputStream, "--" + boundary + "--\r\n");
+            }
+
+            int status = conn.getResponseCode();
+            String response = status >= 200 && status < 300
+                    ? readHttpBody(conn.getInputStream())
+                    : readHttpBody(conn.getErrorStream());
+            if (status < 200 || status >= 300) {
+                throw new IOException("Lavie voice HTTP " + status + ": " + response);
+            }
+            VoiceBackendResult result = parseVoiceBackendResponse(response);
+            if (result.isEmpty()) {
+                throw new IOException("Lavie voice endpoint returned no transcript or answer.");
+            }
+            return result;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    private void writeMultipartFile(OutputStream outputStream, String boundary, String fieldName,
+                                    String fileName, String contentType, byte[] bytes) throws IOException {
+        writeUtf8(outputStream, "--" + boundary + "\r\n");
+        writeUtf8(outputStream, "Content-Disposition: form-data; name=\"" + fieldName
+                + "\"; filename=\"" + fileName + "\"\r\n");
+        writeUtf8(outputStream, "Content-Type: " + contentType + "\r\n\r\n");
+        outputStream.write(bytes == null ? new byte[0] : bytes);
+        writeUtf8(outputStream, "\r\n");
+    }
+
+    private void writeMultipartField(OutputStream outputStream, String boundary, String fieldName,
+                                     String value) throws IOException {
+        writeUtf8(outputStream, "--" + boundary + "\r\n");
+        writeUtf8(outputStream, "Content-Disposition: form-data; name=\"" + fieldName + "\"\r\n\r\n");
+        writeUtf8(outputStream, value == null ? "" : value);
+        writeUtf8(outputStream, "\r\n");
+    }
+
+    private void writeUtf8(OutputStream outputStream, String value) throws IOException {
+        outputStream.write((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private VoiceBackendResult parseVoiceBackendResponse(String response) {
+        if (response == null || response.isBlank()) {
+            return VoiceBackendResult.empty();
+        }
+        VoiceBackendResult merged = VoiceBackendResult.empty();
+        boolean sawSse = false;
+        for (String line : response.split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) {
+                continue;
+            }
+            sawSse = true;
+            String data = trimmed.substring(5).trim();
+            if (data.isEmpty() || "[DONE]".equals(data)) {
+                continue;
+            }
+            merged = merged.merge(parseVoiceJsonFragment(data));
+        }
+        if (sawSse && !merged.isEmpty()) {
+            return merged;
+        }
+        return parseVoiceJsonFragment(response.trim());
+    }
+
+    private VoiceBackendResult parseVoiceJsonFragment(String fragment) {
+        if (fragment == null || fragment.isBlank()) {
+            return VoiceBackendResult.empty();
+        }
+        try {
+            return extractVoiceBackendResult(JsonParser.parseString(fragment));
+        } catch (RuntimeException ex) {
+            return new VoiceBackendResult("", fragment.trim(), "");
+        }
+    }
+
+    private VoiceBackendResult extractVoiceBackendResult(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return VoiceBackendResult.empty();
+        }
+        if (element.isJsonArray()) {
+            VoiceBackendResult merged = VoiceBackendResult.empty();
+            for (JsonElement child : element.getAsJsonArray()) {
+                merged = merged.merge(extractVoiceBackendResult(child));
+            }
+            return merged;
+        }
+        if (element.isJsonPrimitive()) {
+            return new VoiceBackendResult("", element.getAsString(), "");
+        }
+        if (!element.isJsonObject()) {
+            return VoiceBackendResult.empty();
+        }
+
+        JsonObject object = element.getAsJsonObject();
+        String userText = firstJsonString(object, "user_text", "transcript", "text", "query", "prompt");
+        String assistantText = firstJsonString(object, "answer", "response", "reply",
+                "assistant", "assistant_text", "content", "message", "chunk");
+        String audioUrl = firstJsonString(object, "audio_url", "audioUrl", "audio");
+
+        VoiceBackendResult result = new VoiceBackendResult(userText, assistantText, audioUrl);
+        for (String nestedKey : List.of("data", "result", "output")) {
+            if (object.has(nestedKey)) {
+                result = result.merge(extractVoiceBackendResult(object.get(nestedKey)));
+            }
+        }
+        return result;
+    }
+
+    private String firstJsonString(JsonObject object, String... keys) {
+        if (object == null || keys == null) {
+            return "";
+        }
+        for (String key : keys) {
+            if (!object.has(key) || object.get(key).isJsonNull()) {
+                continue;
+            }
+            JsonElement element = object.get(key);
+            if (element.isJsonPrimitive()) {
+                String value = element.getAsString();
+                if (value != null && !value.trim().isEmpty()) {
+                    return value.trim();
+                }
+            }
+        }
+        return "";
+    }
+
+    private String transcribeVoiceWithGemini(byte[] wavBytes) throws IOException {
+        AiAgentProviderConfig config = providerConfig == null
+                ? AiAgentServiceFactory.loadDefaultConfig()
+                : providerConfig;
+        String baseUrl = config.getOpenAiBaseUrl();
+        if (!config.isOpenAiCompatible()
+                || baseUrl == null
+                || !baseUrl.toLowerCase(Locale.ROOT).contains("generativelanguage.googleapis.com")) {
+            throw new IllegalStateException("STT native hiện dùng Gemini. Hãy chọn provider Gemini/OpenAI-compatible.");
+        }
+        String apiKey = config.getOpenAiApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("Cần API key Gemini để nhận giọng nói native.");
+        }
+
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(geminiGenerateContentUrl(config)).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(90000);
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            conn.setRequestProperty("x-goog-api-key", apiKey.trim());
+            conn.setDoOutput(true);
+
+            byte[] body = GSON.toJson(buildGeminiVoicePayload(wavBytes)).getBytes(StandardCharsets.UTF_8);
+            try (OutputStream outputStream = conn.getOutputStream()) {
+                outputStream.write(body);
+            }
+
+            int status = conn.getResponseCode();
+            String response = status >= 200 && status < 300
+                    ? readHttpBody(conn.getInputStream())
+                    : readHttpBody(conn.getErrorStream());
+            if (status < 200 || status >= 300) {
+                throw new IOException("Gemini STT HTTP " + status + ": " + response);
+            }
+            String text = extractGeminiText(response);
+            if (text.isBlank()) {
+                throw new IOException("Gemini không trả về transcript.");
+            }
+            return text;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    private String geminiGenerateContentUrl(AiAgentProviderConfig config) {
+        String base = config.getOpenAiBaseUrl() == null || config.getOpenAiBaseUrl().trim().isEmpty()
+                ? AiAgentProviderConfig.DEFAULT_OPENAI_BASE_URL
+                : config.getOpenAiBaseUrl().trim();
+        String lower = base.toLowerCase(Locale.ROOT);
+        int openAiIndex = lower.indexOf("/openai");
+        if (openAiIndex >= 0) {
+            base = base.substring(0, openAiIndex);
+        }
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        String model = config.getOpenAiModel() == null || config.getOpenAiModel().isBlank()
+                ? AiAgentProviderConfig.DEFAULT_OPENAI_MODEL
+                : config.getOpenAiModel().trim();
+        String encodedModel = URLEncoder.encode(model, StandardCharsets.UTF_8).replace("+", "%20");
+        return base + "/models/" + encodedModel + ":generateContent";
+    }
+
+    private JsonObject buildGeminiVoicePayload(byte[] wavBytes) {
+        JsonObject payload = new JsonObject();
+        JsonArray contents = new JsonArray();
+        JsonObject content = new JsonObject();
+        JsonArray parts = new JsonArray();
+
+        JsonObject instruction = new JsonObject();
+        instruction.addProperty("text",
+                "Hãy chép lại nguyên văn nội dung tiếng Việt hoặc tiếng Anh trong audio. "
+                        + "Chỉ trả về transcript, không giải thích thêm.");
+        parts.add(instruction);
+
+        JsonObject inlineData = new JsonObject();
+        inlineData.addProperty("mimeType", "audio/wav");
+        inlineData.addProperty("data", Base64.getEncoder().encodeToString(wavBytes));
+        JsonObject audioPart = new JsonObject();
+        audioPart.add("inlineData", inlineData);
+        parts.add(audioPart);
+
+        content.add("parts", parts);
+        contents.add(content);
+        payload.add("contents", contents);
+
+        JsonObject generationConfig = new JsonObject();
+        generationConfig.addProperty("temperature", 0.0);
+        generationConfig.addProperty("maxOutputTokens", 512);
+        payload.add("generationConfig", generationConfig);
+        return payload;
+    }
+
+    private String extractGeminiText(String response) {
+        if (response == null || response.isBlank()) {
+            return "";
+        }
+        try {
+            JsonObject root = JsonParser.parseString(response).getAsJsonObject();
+            JsonArray candidates = root.getAsJsonArray("candidates");
+            if (candidates == null || candidates.size() == 0) {
+                return "";
+            }
+            JsonObject content = candidates.get(0).getAsJsonObject().getAsJsonObject("content");
+            if (content == null) {
+                return "";
+            }
+            JsonArray parts = content.getAsJsonArray("parts");
+            if (parts == null || parts.size() == 0) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder();
+            for (JsonElement partElement : parts) {
+                if (partElement == null || !partElement.isJsonObject()) {
+                    continue;
+                }
+                JsonObject part = partElement.getAsJsonObject();
+                if (part.has("text") && !part.get("text").isJsonNull()) {
+                    sb.append(part.get("text").getAsString());
+                }
+            }
+            return sb.toString().trim();
+        } catch (RuntimeException ex) {
+            return "";
+        }
+    }
+
+    private String readHttpBody(InputStream stream) throws IOException {
+        if (stream == null) {
+            return "";
+        }
+        try (InputStream inputStream = stream) {
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private JsonObject buildProviderConfigJson() {
@@ -1333,7 +1823,7 @@ public class AiChatPanel extends JPanel {
         return "Agent Mode chưa hoàn tất yêu cầu.\n\nLý do: " + error;
     }
 
-    private void startAiStream(String userMessage, String attachmentContext) {
+    private void startAiStream(String userMessage, String attachmentContext, String attachmentsJson) {
         SwingUtilities.invokeLater(() -> {
             stopStream();
             AiAgentService service = aiService;
@@ -1350,17 +1840,20 @@ public class AiChatPanel extends JPanel {
             String context = conversationMemory.buildContext();
             AiLongTermMemoryStore.MemorySnapshot longTermSnapshot = longTermMemoryStore.snapshot();
             StringBuilder assistantBuffer = new StringBuilder();
+            String remoteServerContext = LavieRemoteContextProvider.shared().contextFor(LAVIE_SERVER_USER_ID);
             AiAgentRequest request = AiAgentRequest.builder()
                     .message(userMessage)
-                    .userId(userId)
+                    .userId(requestUserIdForProvider(config))
                     .conversationId(conversationId)
                     .metadata("provider", service == null ? "" : service.getProviderName())
                     .metadata("providerKey", config == null ? "" : config.getProvider())
+                    .metadata(AiPromptComposer.METADATA_REMOTE_SERVER_CONTEXT, remoteServerContext)
                     .metadata(AiPromptComposer.METADATA_CONTEXT, context)
                     .metadata(AiPromptComposer.METADATA_MEMORY_SIZE, String.valueOf(conversationMemory.size()))
                     .metadata(AiPromptComposer.METADATA_LONG_TERM_MEMORY, longTermSnapshot.getContext())
                     .metadata(AiPromptComposer.METADATA_LONG_TERM_MEMORY_SIZE, String.valueOf(longTermSnapshot.getCount()))
                     .metadata(AiPromptComposer.METADATA_ATTACHMENTS_CONTEXT, attachmentContext)
+                    .metadata(AiPromptComposer.METADATA_ATTACHMENTS_JSON, attachmentsJson)
                     .build();
 
             activeStreamHandle = service.streamChat(request, new AiAgentStreamCallback() {
@@ -1386,6 +1879,15 @@ public class AiChatPanel extends JPanel {
                         executeAgentJs("setMemoryState", buildMemoryStateJson());
                         executeAgentJs("setAgentContextState", buildAgentContextJson());
                         executeAgentJs("setStatus", "Sẵn sàng - " + (config == null ? "AI Agent" : config.getDisplayName()));
+                    });
+                }
+
+                @Override
+                public void onAudio(String audioUrl) {
+                    SwingUtilities.invokeLater(() -> {
+                        JsonObject json = new JsonObject();
+                        json.addProperty("audioUrl", audioUrl);
+                        executeAgentJs("playVoiceAudio", json);
                     });
                 }
 
@@ -1448,6 +1950,13 @@ public class AiChatPanel extends JPanel {
                 + "Lỗi kỹ thuật: " + (detail.isEmpty() ? "không có mô tả chi tiết." : detail);
     }
 
+    private String requestUserIdForProvider(AiAgentProviderConfig config) {
+        if (config == null || (!config.isOpenAiCompatible() && !config.isOllama())) {
+            return LAVIE_SERVER_USER_ID;
+        }
+        return userId == null || userId.trim().isEmpty() ? LAVIE_SERVER_USER_ID : userId;
+    }
+
     private void startMockStream(String userMessage) {
         SwingUtilities.invokeLater(() -> {
             stopStream();
@@ -1481,11 +1990,13 @@ public class AiChatPanel extends JPanel {
             executeAgentJs("setStatus", "Đang kết nối Lavie");
 
             AtomicBoolean hasDelta = new AtomicBoolean(false);
+            String remoteServerContext = LavieRemoteContextProvider.shared().contextFor(LAVIE_SERVER_USER_ID);
             AiAgentRequest request = AiAgentRequest.builder()
                     .message(userMessage)
-                    .userId(userId)
+                    .userId(LAVIE_SERVER_USER_ID)
                     .conversationId(conversationId)
                     .metadata("provider", aiService.getProviderName())
+                    .metadata(AiPromptComposer.METADATA_REMOTE_SERVER_CONTEXT, remoteServerContext)
                     .build();
             activeStreamHandle = aiService.streamChat(request, new AiAgentStreamCallback() {
                 @Override
@@ -1506,6 +2017,15 @@ public class AiChatPanel extends JPanel {
                         activeStreamHandle = null;
                         executeAgentJs("finishAssistantMessage");
                         executeAgentJs("setStatus", "Sẵn sàng");
+                    });
+                }
+
+                @Override
+                public void onAudio(String audioUrl) {
+                    SwingUtilities.invokeLater(() -> {
+                        JsonObject json = new JsonObject();
+                        json.addProperty("audioUrl", audioUrl);
+                        executeAgentJs("playVoiceAudio", json);
                     });
                 }
 
@@ -1596,6 +2116,185 @@ public class AiChatPanel extends JPanel {
         }
         js.append("); }");
         browser.executeJavaScript(js.toString(), browser.getURL(), 0);
+    }
+
+    private static final class AttachmentPayload {
+        private final String context;
+        private final String attachmentsJson;
+
+        private AttachmentPayload(String context, String attachmentsJson) {
+            this.context = context == null ? "" : context;
+            this.attachmentsJson = attachmentsJson == null || attachmentsJson.isBlank() ? "[]" : attachmentsJson;
+        }
+    }
+
+    private static final class VoiceBackendResult {
+        private final String userText;
+        private final String assistantText;
+        private final String audioUrl;
+
+        private VoiceBackendResult(String userText, String assistantText, String audioUrl) {
+            this.userText = clean(userText);
+            this.assistantText = clean(assistantText);
+            this.audioUrl = clean(audioUrl);
+        }
+
+        private static VoiceBackendResult empty() {
+            return new VoiceBackendResult("", "", "");
+        }
+
+        private boolean isEmpty() {
+            return !hasUserText() && !hasAssistantText() && audioUrl.isEmpty();
+        }
+
+        private boolean hasUserText() {
+            return !userText.isEmpty();
+        }
+
+        private boolean hasAssistantText() {
+            return !assistantText.isEmpty();
+        }
+
+        private VoiceBackendResult merge(VoiceBackendResult other) {
+            if (other == null || other.isEmpty()) {
+                return this;
+            }
+            String mergedUser = hasUserText() ? userText : other.userText;
+            String mergedAssistant = mergeText(assistantText, other.assistantText);
+            String mergedAudio = audioUrl.isEmpty() ? other.audioUrl : audioUrl;
+            return new VoiceBackendResult(mergedUser, mergedAssistant, mergedAudio);
+        }
+
+        private static String mergeText(String left, String right) {
+            String a = clean(left);
+            String b = clean(right);
+            if (a.isEmpty()) {
+                return b;
+            }
+            if (b.isEmpty()) {
+                return a;
+            }
+            return a + b;
+        }
+
+        private static String clean(String value) {
+            return value == null ? "" : value.trim();
+        }
+    }
+
+    private static final class VoiceCaptureSession {
+        private final AudioFormat format = new AudioFormat(16_000f, 16, 1, true, false);
+        private final int maxPcmBytes;
+        private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
+        private final CountDownLatch finished = new CountDownLatch(1);
+        private final AtomicBoolean finalizing = new AtomicBoolean(false);
+        private volatile boolean running = true;
+        private volatile Exception error;
+        private volatile TargetDataLine line;
+
+        private VoiceCaptureSession(int maxSeconds) {
+            this.maxPcmBytes = Math.max(1, (int) (format.getFrameRate() * format.getFrameSize() * maxSeconds));
+        }
+
+        private void record() {
+            try {
+                DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+                line = (TargetDataLine) AudioSystem.getLine(info);
+                line.open(format);
+                line.start();
+                byte[] buffer = new byte[4096];
+                while (running && pcm.size() < maxPcmBytes) {
+                    int read = line.read(buffer, 0, buffer.length);
+                    if (read > 0) {
+                        pcm.write(buffer, 0, read);
+                    }
+                }
+            } catch (Exception ex) {
+                error = ex;
+            } finally {
+                TargetDataLine currentLine = line;
+                if (currentLine != null) {
+                    try {
+                        currentLine.stop();
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        currentLine.close();
+                    } catch (Exception ignored) {
+                    }
+                }
+                finished.countDown();
+            }
+        }
+
+        private void stop() {
+            running = false;
+            TargetDataLine currentLine = line;
+            if (currentLine != null) {
+                try {
+                    currentLine.stop();
+                } catch (Exception ignored) {
+                }
+                try {
+                    currentLine.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        private boolean markFinalizing() {
+            return finalizing.compareAndSet(false, true);
+        }
+
+        private int getPcmByteCount() {
+            return pcm.size();
+        }
+
+        private byte[] awaitWav() throws Exception {
+            finished.await(8, TimeUnit.SECONDS);
+            if (error != null) {
+                throw error;
+            }
+            return toWav(pcm.toByteArray(), format);
+        }
+
+        private static byte[] toWav(byte[] pcmBytes, AudioFormat format) {
+            byte[] audio = pcmBytes == null ? new byte[0] : pcmBytes;
+            int byteRate = (int) (format.getSampleRate() * format.getChannels() * format.getSampleSizeInBits() / 8);
+            int blockAlign = format.getChannels() * format.getSampleSizeInBits() / 8;
+            ByteArrayOutputStream out = new ByteArrayOutputStream(44 + audio.length);
+            writeAscii(out, "RIFF");
+            writeLeInt(out, 36 + audio.length);
+            writeAscii(out, "WAVE");
+            writeAscii(out, "fmt ");
+            writeLeInt(out, 16);
+            writeLeShort(out, 1);
+            writeLeShort(out, format.getChannels());
+            writeLeInt(out, (int) format.getSampleRate());
+            writeLeInt(out, byteRate);
+            writeLeShort(out, blockAlign);
+            writeLeShort(out, format.getSampleSizeInBits());
+            writeAscii(out, "data");
+            writeLeInt(out, audio.length);
+            out.writeBytes(audio);
+            return out.toByteArray();
+        }
+
+        private static void writeAscii(ByteArrayOutputStream out, String value) {
+            out.writeBytes(value.getBytes(StandardCharsets.US_ASCII));
+        }
+
+        private static void writeLeInt(ByteArrayOutputStream out, int value) {
+            out.write(value & 0xff);
+            out.write((value >> 8) & 0xff);
+            out.write((value >> 16) & 0xff);
+            out.write((value >> 24) & 0xff);
+        }
+
+        private static void writeLeShort(ByteArrayOutputStream out, int value) {
+            out.write(value & 0xff);
+            out.write((value >> 8) & 0xff);
+        }
     }
 
     private static final class AiAttachment {

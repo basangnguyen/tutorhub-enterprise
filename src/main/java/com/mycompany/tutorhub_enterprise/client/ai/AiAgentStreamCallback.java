@@ -4,4 +4,5 @@ public interface AiAgentStreamCallback {
     void onDelta(String delta);
     void onComplete();
     void onError(Exception error);
+    default void onAudio(String audioUrl) {}
 }

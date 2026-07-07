@@ -64,13 +64,17 @@ public class LavieAiService implements AiAgentService {
             conn.setReadTimeout(45000);
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             conn.setRequestProperty("Accept", "text/event-stream, application/json");
+            String hfToken = System.getProperty("tutorhub.lavie.token", "");
+            if (!hfToken.isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + hfToken);
+            }
             conn.setDoOutput(true);
 
             JsonObject payload = new JsonObject();
             payload.addProperty("message", AiPromptComposer.compose(request));
             payload.addProperty("raw_message", request.getMessage());
             payload.addProperty("user_id", request.getUserId());
-            payload.addProperty("voice", false);
+            payload.addProperty("voice", true);
             payload.addProperty("conversation_id", request.getConversationId());
             String context = request.getMetadata().get(AiPromptComposer.METADATA_CONTEXT);
             if (context != null && !context.trim().isEmpty()) {
@@ -135,6 +139,9 @@ public class LavieAiService implements AiAgentService {
             JsonObject json = JsonParser.parseString(data).getAsJsonObject();
             if (json.has("content") && !json.get("content").isJsonNull()) {
                 callback.onDelta(json.get("content").getAsString());
+            }
+            if (json.has("audio_url") && !json.get("audio_url").isJsonNull()) {
+                callback.onAudio(json.get("audio_url").getAsString());
             }
         } catch (RuntimeException ignored) {
             // Some SSE servers send keepalive or partial metadata lines. Ignore safely.

@@ -2680,6 +2680,7 @@
 
   <footer class="composer-shell">
     <form id="composer" class="composer">
+      <div id="attachmentTray" class="attachment-tray" hidden></div>
       <!-- Row 1: input -->
       <div class="composer-input-row">
         <div class="composer-row">
@@ -2963,14 +2964,50 @@
     }
 
     async function toggleVoiceInput() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      const hasNativeBridge = typeof window.cefQuery === 'function';
+      if (hasNativeBridge) {
+        if (voiceListening) {
+          try {
+            setVoiceListening(true);
+            showError('Đang chuyển giọng nói thành văn bản...');
+            await postBridge('VOICE_STOP', {});
+          } catch (err) {
+            setVoiceListening(false);
+            showError(err.message);
+          }
+          return;
+        }
+        setVoiceListening(true);
+        showError('Đang nghe. Bấm mic lần nữa để dừng.');
         try {
           await postBridge('VOICE_START', {});
-        } catch (_) {
-          // Bridge fallback is optional; the visible message below is enough for users.
+        } catch (err) {
+          setVoiceListening(false);
+          showError(err.message);
         }
-        showError('WebView hiện tại chưa hỗ trợ nhận giọng nói trực tiếp. Cần bật STT native ở bước sau.');
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        if (voiceListening) {
+          try {
+            showError('Đang chuyển giọng nói thành văn bản...');
+            await postBridge('VOICE_STOP', {});
+          } catch (err) {
+            setVoiceListening(false);
+            showError(err.message);
+          }
+          return;
+        }
+        setVoiceListening(true);
+        showError('Đang nghe. Bấm mic lần nữa để dừng.');
+        try {
+          await postBridge('VOICE_START', {});
+        } catch (err) {
+          setVoiceListening(false);
+          showError(err.message);
+        }
         return;
       }
       if (voiceListening && speechRecognition) {
@@ -3014,6 +3051,80 @@
         speechRecognition = null;
         showError('Không thể bật nhận giọng nói: ' + (err?.message || err));
       }
+    }
+
+    function setVoiceNativeState(payload = {}) {
+      const status = String(payload.status || 'idle');
+      const message = payload.message || '';
+      if (status === 'recording') {
+        setVoiceListening(true);
+        showError(message || 'Đang nghe. Bấm mic lần nữa để dừng.');
+        return;
+      }
+      if (status === 'transcribing') {
+        setVoiceListening(true);
+        showError(message || 'Đang chuyển giọng nói thành văn bản...');
+        return;
+      }
+      if (status === 'error') {
+        setVoiceListening(false);
+        showError(message || 'Không nhận được giọng nói.');
+        return;
+      }
+      setVoiceListening(false);
+      hideError();
+    }
+
+    function insertVoiceTranscript(payload = {}) {
+      const text = String(typeof payload === 'string' ? payload : (payload.text || '')).trim();
+      if (!text) return;
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? input.value.length;
+      const before = input.value.slice(0, start);
+      const after = input.value.slice(end);
+      const prefix = before && !/\s$/.test(before) ? ' ' : '';
+      const suffix = after && !/^\s/.test(after) ? ' ' : '';
+      input.value = before + prefix + text + suffix + after;
+      const caret = (before + prefix + text).length;
+      input.selectionStart = caret;
+      input.selectionEnd = caret;
+      resizeInput();
+      input.focus();
+    }
+
+    function submitVoiceTranscript(payload = {}) {
+      const text = String(typeof payload === 'string' ? payload : (payload.text || '')).trim();
+      if (!text) return;
+      if (isGenerating) {
+        insertVoiceTranscript({ text });
+        showError('Lavie đang trả lời. Transcript đã được đưa vào ô nhập.');
+        return;
+      }
+      input.value = text;
+      resizeInput();
+      input.focus();
+      sendCurrent();
+    }
+
+    function appendVoiceExchange(payload = {}) {
+      const userText = String(payload.userText || '').trim();
+      const assistantText = String(payload.assistantText || '').trim();
+      if (userText) {
+        lastUserPrompt = userText;
+        appendMessage('user', userText);
+      }
+      if (assistantText) {
+        appendMessage('assistant', assistantText);
+      }
+      if (payload.audioUrl) {
+        const audio = new Audio(payload.audioUrl);
+        audio.play().catch(e => console.error("Voice auto-play failed:", e));
+      }
+      setVoiceListening(false);
+      setGeneratingState(false);
+      hideError();
+      statusText.textContent = providerInitialStatusText();
+      scrollBottom();
     }
 
     function cssEscape(value) {
@@ -4601,6 +4712,16 @@
       setAgentContextState,
       addAttachmentPreview,
       clearAttachments,
+      setVoiceNativeState,
+      insertVoiceTranscript,
+      submitVoiceTranscript,
+      appendVoiceExchange,
+      playVoiceAudio(payload = {}) {
+        if (payload.audioUrl) {
+          const audio = new Audio(payload.audioUrl);
+          audio.play().catch(e => console.error("Auto-play failed:", e));
+        }
+      },
       appendToolLog,
       appendToolLogs,
       appendPatchProposal,
