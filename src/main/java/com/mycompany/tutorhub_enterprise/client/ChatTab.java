@@ -38,8 +38,8 @@ import java.util.Map;
 public class ChatTab extends JPanel {
 
     private static final int LAVIE_AI_CONVERSATION_ID = -999;
-    private static final int CHAT_LIST_WIDTH = 360;
-    private static final int CHAT_LIST_COMPACT_WIDTH = 92;
+    private static final int CHAT_LIST_WIDTH = 340;
+    private static final int CHAT_LIST_COMPACT_WIDTH = 72;
 
     // ===== THEME TUTORHUB ENTERPRISE =====
     private final Color PRIMARY       = Color.decode("#4F6EF7"); // TutorHub blue-purple
@@ -694,20 +694,24 @@ public class ChatTab extends JPanel {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int size = 56;
+                int x = (getWidth() - size) / 2;
+                int y = (getHeight() - size) / 2;
                 if (isActive) {
                     g2.setColor(Color.WHITE);
-                    g2.fillRoundRect(12, 4, getWidth() - 24, getHeight() - 8, 18, 18);
-                    g2.setColor(new Color(0xDCE7FF));
-                    g2.drawRoundRect(12, 4, getWidth() - 25, getHeight() - 9, 18, 18);
+                    g2.fillRoundRect(x, y, size, size, 16, 16);
+                    g2.setColor(new Color(0xE2E8F0));
+                    g2.drawRoundRect(x, y, size - 1, size - 1, 16, 16);
+                    
                     g2.setColor(PRIMARY);
-                    g2.fillRoundRect(16, 16, 3, getHeight() - 32, 3, 3);
+                    g2.fillRoundRect(0, (getHeight() - 24) / 2, 4, 24, 4, 4);
                 } else if (Boolean.TRUE.equals(getClientProperty("hovered"))) {
                     g2.setColor(HOVER_BG);
-                    g2.fillRoundRect(12, 4, getWidth() - 24, getHeight() - 8, 18, 18);
+                    g2.fillRoundRect(x, y, size, size, 16, 16);
                 }
                 if (hasUnread) {
                     g2.setColor(BADGE_COLOR);
-                    g2.fillOval(getWidth() - 27, 13, 10, 10);
+                    g2.fillOval(getWidth() - 18, 13, 10, 10);
                 }
                 g2.dispose();
                 super.paintComponent(g);
