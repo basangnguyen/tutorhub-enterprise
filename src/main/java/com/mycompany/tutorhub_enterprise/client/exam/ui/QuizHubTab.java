@@ -39,14 +39,9 @@ public class QuizHubTab extends JPanel {
             browser = com.mycompany.tutorhub_enterprise.client.JcefManager.getClient().createBrowser(url.toExternalForm(), false, false);
 
             // Register Bridge
-            CefMessageRouter.CefMessageRouterConfig config = new CefMessageRouter.CefMessageRouterConfig("cefQuery", "cefQueryCancel");
-            CefMessageRouter router = CefMessageRouter.create(config);
-            
             QuizHubBridge bridge = new QuizHubBridge(new QuizHubDeckService(), new QuizHubAttemptService());
             CefMessageRouterHandler handler = new QuizHubCefRouterHandler(bridge);
-            router.addHandler(handler, true);
-            
-            com.mycompany.tutorhub_enterprise.client.JcefManager.getClient().addMessageRouter(router);
+            com.mycompany.tutorhub_enterprise.client.JcefManager.getSharedMessageRouter().addHandler(handler, true);
 
             add(browser.getUIComponent(), BorderLayout.CENTER);
             System.out.println("[QUIZHUB] Loaded quiz.html in JCEF");

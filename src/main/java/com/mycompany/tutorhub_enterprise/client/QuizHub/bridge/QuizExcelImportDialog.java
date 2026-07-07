@@ -24,7 +24,7 @@ import java.util.jar.JarFile;
 public class QuizExcelImportDialog extends JDialog {
 
     private final CefBrowser browser;
-    private final CefMessageRouter msgRouter;
+    private CefMessageRouterHandlerAdapter routerHandler;
     private static File extractAssetsDir = null;
 
     public QuizExcelImportDialog(Window owner) {
@@ -44,10 +44,8 @@ public class QuizExcelImportDialog extends JDialog {
         System.out.println("[QUIZ_EXCEL_EDITOR] Loading UI from: " + htmlUrl);
         browser = JcefManager.getClient().createBrowser(htmlUrl, false, false);
 
-        msgRouter = CefMessageRouter.create();
-        msgRouter.addHandler(new QuizHubCefRouterHandler(bridge), true);
-
-        JcefManager.getClient().addMessageRouter(msgRouter);
+        routerHandler = new QuizHubCefRouterHandler(bridge);
+        JcefManager.getSharedMessageRouter().addHandler(routerHandler, true);
         add(browser.getUIComponent(), BorderLayout.CENTER);
     }
 
@@ -102,5 +100,16 @@ public class QuizExcelImportDialog extends JDialog {
         
         extractAssetsDir = destDir;
         return destDir;
+    }
+
+    @Override
+    public void dispose() {
+        if (routerHandler != null) {
+            JcefManager.getSharedMessageRouter().removeHandler(routerHandler);
+        }
+        if (browser != null) {
+            browser.close(true);
+        }
+        super.dispose();
     }
 }

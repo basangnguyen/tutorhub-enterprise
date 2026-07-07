@@ -16,13 +16,16 @@
 
                 const currentRoomId = window.roomState.get('boardId') || window.currentBoardId || 'default-room';
                 const safeName = encodeURIComponent(window.roomState.get('userName'));
+                console.log("=== STARTING LIVEKIT CONNECT ===");
                 
                 // Fetch token qua CefQuery (bảo mật, Java làm Proxy ẩn)
                 const data = await new Promise((resolve, reject) => {
+                    console.log("=== INSIDE PROMISE ===", {cefQuery: !!window.cefQuery});
                     if (window.cefQuery) {
                         window.cefQuery({
                             request: `GET_LIVEKIT_TOKEN:${currentRoomId}:${safeName}`,
                             onSuccess: function(response) {
+                                console.log("=== onSuccess CALLED ===", response);
                                 try {
                                     resolve(JSON.parse(response));
                                 } catch (e) {
@@ -30,6 +33,7 @@
                                 }
                             },
                             onFailure: function(errorCode, errorMessage) {
+                                console.log("=== onFailure CALLED ===", errorCode, errorMessage);
                                 reject(new Error(errorMessage));
                             }
                         });
@@ -44,6 +48,8 @@
                             .then(resolve).catch(reject);
                     }
                 });
+                
+                console.log("=== GOT TOKEN DATA ===", data);
                 
                 if (!data || !data.token) {
                     console.error('Lỗi lấy token từ server!', data);
@@ -385,6 +391,55 @@
             } catch (e) {
                 console.error("Lỗi kết nối LiveKit:", e);
                 alert("Lỗi kết nối LiveKit: " + e.message);
+            }
+        }
+
+        let isAudioEnabled = false;
+        async function toggleMic() {
+            if (!window.roomState.get('livekitRoom')) {
+                alert("Đang kết nối tới phòng học, vui lòng thử lại sau vài giây...");
+                return;
+            }
+            
+            const btn = document.getElementById('toggle-mic-btn') || document.getElementById('mute-all-btn');
+            let icon = null;
+            if (btn) icon = btn.querySelector('i');
+            
+            try {
+                if (isAudioEnabled) {
+                    // Tắt Mic
+                    await window.roomState.get('livekitRoom').localParticipant.setMicrophoneEnabled(false);
+                    isAudioEnabled = false;
+                    
+                    if (btn) btn.classList.remove('active');
+                    if (icon) {
+                        icon.className = 'fa-solid fa-microphone-slash';
+                        icon.style.color = '#ef4444';
+                    }
+                } else {
+                    // Bật Mic
+                    await window.roomState.get('livekitRoom').localParticipant.setMicrophoneEnabled(true);
+                    isAudioEnabled = true;
+                    
+                    if (btn) btn.classList.add('active');
+                    if (icon) {
+                        icon.className = 'fa-solid fa-microphone';
+                        icon.style.color = '';
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi toggle mic:", e);
+                alert("Không thể thao tác Mic. Lỗi chi tiết: " + e.message);
+                
+                // Trả về trạng thái cũ nếu lỗi
+                if (isAudioEnabled) {
+                    isAudioEnabled = false;
+                    if (btn) btn.classList.remove('active');
+                    if (icon) {
+                        icon.className = 'fa-solid fa-microphone-slash';
+                        icon.style.color = '#ef4444';
+                    }
+                }
             }
         }
 

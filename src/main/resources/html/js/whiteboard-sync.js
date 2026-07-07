@@ -43,9 +43,13 @@ window.setInfiniteMode = (isInfinite) => {
         let isSyncing = false;
 
         window.loadBoardData = async (jsonStr, boardId) => {
+            console.log("=== LOAD BOARD DATA CALLED ===", {jsonStr: !!jsonStr, boardId, tldrawAPI: !!window.tldrawAPI});
             window.roomState.set('boardId', boardId);
             window.currentBoardId = boardId; // Lưu lại để LiveKit dùng (Fallback)
-            if (!window.tldrawAPI) return;
+            if (!window.tldrawAPI) {
+                console.warn("=== tldrawAPI IS NULL, RETURNING IMMEDIATELY ===");
+                return;
+            }
             try {
                 if (jsonStr && jsonStr !== 'null') {
                     const data = JSON.parse(jsonStr);

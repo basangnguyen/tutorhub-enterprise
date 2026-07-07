@@ -41,6 +41,7 @@ public class BlackboardFrame extends JFrame {
     private boolean isEditorReady = false;
     // private PermissionPanel permissionPanel;
     private String pendingLoadData = null;
+    private CefMessageRouterHandlerAdapter routerHandler;
 
     public BlackboardFrame(MainDashboard dashboard, String classId, String role) {
         this(dashboard, classId, role, false);
@@ -66,8 +67,7 @@ public class BlackboardFrame extends JFrame {
             cefClient = JcefManager.getClient();
 
             // Add Javascript binding message router
-            CefMessageRouter msgRouter = CefMessageRouter.create();
-            msgRouter.addHandler(new CefMessageRouterHandlerAdapter() {
+            routerHandler = new CefMessageRouterHandlerAdapter() {
                 @Override
                 public boolean onQuery(CefBrowser browser, org.cef.browser.CefFrame frame, long queryId, String request,
                         boolean persistent, CefQueryCallback callback) {
@@ -104,21 +104,19 @@ public class BlackboardFrame extends JFrame {
                         if (parts.length == 3) {
                             String roomId = parts[1];
                             String safeName = parts[2];
-                            new Thread(() -> {
-                                try {
-                                    java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
-                                    java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                                        .uri(java.net.URI.create(com.mycompany.tutorhub_enterprise.config.AppConfig.SYNC_SERVER_URL + "/livekit/token?room=" + roomId + "&username=" + safeName))
-                                        .header("Authorization", "Bearer TUTORHUB_SECRET_2026")
-                                        .GET()
-                                        .build();
-                                    java.net.http.HttpResponse<String> res = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
-                                    callback.success(res.body());
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                    callback.failure(500, e.getMessage());
-                                }
-                            }).start();
+                            try {
+                                java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+                                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                                    .uri(java.net.URI.create(com.mycompany.tutorhub_enterprise.config.AppConfig.SYNC_SERVER_URL + "/livekit/token?room=" + roomId + "&username=" + safeName))
+                                    .header("Authorization", "Bearer TUTORHUB_SECRET_2026")
+                                    .GET()
+                                    .build();
+                                java.net.http.HttpResponse<String> res = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                                callback.success(res.body());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                callback.failure(500, e.getMessage());
+                            }
                         } else {
                             callback.failure(400, "Invalid format");
                         }
@@ -145,8 +143,8 @@ public class BlackboardFrame extends JFrame {
                     }
                     return false;
                 }
-            }, true);
-            cefClient.addMessageRouter(msgRouter);
+            };
+            JcefManager.getSharedMessageRouter().addHandler(routerHandler, true);
 
             String url = "";
             try {
@@ -214,6 +212,7 @@ public class BlackboardFrame extends JFrame {
     }
 
     private void handleEditorReady() {
+        System.out.println("=== HANDLE EDITOR READY CALLED ===");
         isEditorReady = true;
         if (pendingLoadData != null) {
             String dataToLoad = pendingLoadData;
@@ -223,6 +222,7 @@ public class BlackboardFrame extends JFrame {
                     cefBrowser.getURL(), 0);
         } else {
             String bId = currentBoardId != null ? escapeJsString(currentBoardId) : "default";
+            System.out.println("=== EXECUTING window.loadBoardData('null', '" + bId + "') ===");
             cefBrowser.executeJavaScript("window.loadBoardData('null', '" + bId + "');", cefBrowser.getURL(), 0);
         }
     }
@@ -462,6 +462,9 @@ public class BlackboardFrame extends JFrame {
 
     @Override
     public void dispose() {
+        if (routerHandler != null) {
+            JcefManager.getSharedMessageRouter().removeHandler(routerHandler);
+        }
         if (cefBrowser != null) {
             System.out.println("[DEBUG] Disposing CEF browser to free up RAM (C6)");
             cefBrowser.close(true);

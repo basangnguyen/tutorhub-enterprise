@@ -25,7 +25,7 @@ import java.util.jar.JarFile;
 import java.nio.file.Files;
 public class ExcelEditorDialog extends JDialog {
     private final CefBrowser browser;
-    private final CefMessageRouter msgRouter;
+    private CefMessageRouterHandlerAdapter routerHandler;
     private static File extractAssetsDir = null;
     private final Map<String, byte[]> fileCache = new java.util.HashMap<>();
     private CefLoadHandlerAdapter loadHandler;
@@ -62,8 +62,7 @@ public class ExcelEditorDialog extends JDialog {
         browser = JcefManager.getClient().createBrowser(htmlUrl, false, false);
 
         // 2. Tạo MessageRouter để nhận sự kiện từ JavaScript (cefQuery)
-        msgRouter = CefMessageRouter.create();
-        msgRouter.addHandler(new CefMessageRouterHandlerAdapter() {
+        routerHandler = new CefMessageRouterHandlerAdapter() {
             @Override
             public boolean onQuery(CefBrowser browser, CefFrame frame, long queryId, String request, boolean persistent, CefQueryCallback callback) {
                 if (request.startsWith("SAVE:") || request.startsWith("SAVE_DEG:")) {
@@ -102,9 +101,8 @@ public class ExcelEditorDialog extends JDialog {
                 }
                 return false;
             }
-        }, true);
-        
-        JcefManager.getClient().addMessageRouter(msgRouter);
+        };
+        JcefManager.getSharedMessageRouter().addHandler(routerHandler, true);
         add(browser.getUIComponent(), BorderLayout.CENTER);
     }
 
@@ -274,9 +272,8 @@ public class ExcelEditorDialog extends JDialog {
     @Override
     public void dispose() {
 
-        if (msgRouter != null) {
-            JcefManager.getClient().removeMessageRouter(msgRouter);
-            msgRouter.dispose();
+        if (routerHandler != null) {
+            JcefManager.getSharedMessageRouter().removeHandler(routerHandler);
         }
         if (browser != null) {
             browser.close(true);

@@ -20,7 +20,8 @@ public class ExamTakingPanel extends JPanel {
     private String title;
     private int duration;
     private int currentUserId;
-    private NetworkManager networkManager;
+    private final NetworkManager networkManager;
+    private CefMessageRouterHandlerAdapter routerHandler;
     private CefBrowser browser;
     private Timer autoSaveTimer;
 
@@ -61,8 +62,7 @@ public class ExamTakingPanel extends JPanel {
 
             browser = JcefManager.getClient().createBrowser(tempHtml.toURI().toString(), false, false);
             
-            CefMessageRouter msgRouter = CefMessageRouter.create();
-            msgRouter.addHandler(new CefMessageRouterHandlerAdapter() {
+            routerHandler = new CefMessageRouterHandlerAdapter() {
                 @Override
                 public boolean onQuery(CefBrowser browser, org.cef.browser.CefFrame frame, long queryId, String request, boolean persistent, CefQueryCallback callback) {
                     if (request.startsWith("SAVE_ANSWER:")) {
@@ -77,8 +77,8 @@ public class ExamTakingPanel extends JPanel {
                     }
                     return false;
                 }
-            }, true);
-            JcefManager.getClient().addMessageRouter(msgRouter);
+            };
+            JcefManager.getSharedMessageRouter().addHandler(routerHandler, true);
             
             add(browser.getUIComponent(), BorderLayout.CENTER);
             
@@ -100,6 +100,9 @@ public class ExamTakingPanel extends JPanel {
             parentWindow.setVisible(false); // Hide immediately for good UX
             
             new Thread(() -> {
+                if (routerHandler != null) {
+                    JcefManager.getSharedMessageRouter().removeHandler(routerHandler);
+                }
                 if (browser != null) {
                     browser.close(true); // Close CEF asynchronously
                 }
@@ -130,6 +133,9 @@ public class ExamTakingPanel extends JPanel {
             parentWindow.setVisible(false); // Hide immediately
             
             new Thread(() -> {
+                if (routerHandler != null) {
+                    JcefManager.getSharedMessageRouter().removeHandler(routerHandler);
+                }
                 if (browser != null) {
                     browser.close(true);
                 }

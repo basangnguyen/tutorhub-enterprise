@@ -173,11 +173,7 @@ public class AiChatPanel extends JPanel {
 
             browser = JcefManager.getClient().createBrowser(url.toExternalForm(), false, false);
 
-            CefMessageRouter.CefMessageRouterConfig config =
-                    new CefMessageRouter.CefMessageRouterConfig("cefQuery", "cefQueryCancel");
-            CefMessageRouter router = CefMessageRouter.create(config);
-            router.addHandler(new AiBridgeHandler(), true);
-            JcefManager.getClient().addMessageRouter(router);
+            JcefManager.getSharedMessageRouter().addHandler(new AiBridgeHandler(), true);
 
             add(browser.getUIComponent(), BorderLayout.CENTER);
         } catch (Exception ex) {

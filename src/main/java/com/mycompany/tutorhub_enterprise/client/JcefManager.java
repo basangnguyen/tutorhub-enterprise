@@ -7,9 +7,21 @@ import org.cef.CefClient;
 import javax.swing.*;
 import java.io.File;
 
+import org.cef.browser.CefMessageRouter;
+
 public class JcefManager {
     private static CefApp cefApp = null;
     private static CefClient cefClient = null;
+    private static CefMessageRouter sharedMessageRouter = null;
+
+    public static synchronized CefMessageRouter getSharedMessageRouter() {
+        if (sharedMessageRouter == null) {
+            CefMessageRouter.CefMessageRouterConfig config = new CefMessageRouter.CefMessageRouterConfig("cefQuery", "cefQueryCancel");
+            sharedMessageRouter = CefMessageRouter.create(config);
+            getClient().addMessageRouter(sharedMessageRouter);
+        }
+        return sharedMessageRouter;
+    }
 
     public static synchronized CefClient getClient() {
         if (cefClient == null) {

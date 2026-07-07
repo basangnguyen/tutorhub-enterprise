@@ -72,7 +72,7 @@ public class MapPickerDialog extends JDialog {
     private final CefClient cefClient;
     private final boolean ownsCefClient;
     private final CefBrowser browser;
-    private final CefMessageRouter messageRouter;
+
     private final MapAddressResult initialValue;
 
     private File tempHtmlFile;
@@ -113,9 +113,7 @@ public class MapPickerDialog extends JDialog {
         // Đây là cách phổ biến nhất khi nhúng JCEF vào Swing JDialog/JPanel.
         this.browser = cefClient.createBrowser(url, false, false);
 
-        this.messageRouter = CefMessageRouter.create(
-                new CefMessageRouter.CefMessageRouterConfig(), queryHandler);
-        this.cefClient.addMessageRouter(messageRouter);
+        JcefManager.getSharedMessageRouter().addHandler(queryHandler, true);
         this.cefClient.addLoadHandler(loadHandler);
 
         setLayout(new BorderLayout());
@@ -260,11 +258,7 @@ public class MapPickerDialog extends JDialog {
         } catch (Exception ignored) {
         }
         try {
-            cefClient.removeMessageRouter(messageRouter);
-        } catch (RuntimeException ignored) {
-        }
-        try {
-            messageRouter.dispose();
+            JcefManager.getSharedMessageRouter().removeHandler(queryHandler);
         } catch (RuntimeException ignored) {
         }
         try {
