@@ -8,6 +8,7 @@ public final class AiPromptComposer {
     public static final String METADATA_MEMORY_SIZE = "conversationMemorySize";
     public static final String METADATA_LONG_TERM_MEMORY = "longTermMemory";
     public static final String METADATA_LONG_TERM_MEMORY_SIZE = "longTermMemorySize";
+    public static final String METADATA_ATTACHMENTS_CONTEXT = "attachmentsContext";
 
     private AiPromptComposer() {
     }
@@ -19,13 +20,14 @@ public final class AiPromptComposer {
         String message = safe(request.getMessage());
         String context = safe(getMetadata(request, METADATA_CONTEXT));
         String longTermMemory = safe(getMetadata(request, METADATA_LONG_TERM_MEMORY));
-        if (context.isEmpty() && longTermMemory.isEmpty()) {
+        String attachmentsContext = safe(getMetadata(request, METADATA_ATTACHMENTS_CONTEXT));
+        if (context.isEmpty() && longTermMemory.isEmpty() && attachmentsContext.isEmpty()) {
             return message;
         }
 
         StringBuilder prompt = new StringBuilder();
         prompt.append("Bạn là Lavie AI Agent trong TutorHub. Hãy trả lời tự nhiên bằng tiếng Việt, ")
-                .append("dựa trên bộ nhớ và ngữ cảnh nếu chúng liên quan. ")
+                .append("dựa trên bộ nhớ, ngữ cảnh hội thoại và tệp/ngữ cảnh đính kèm nếu chúng liên quan. ")
                 .append("Không nhắc lại toàn bộ ngữ cảnh nếu người dùng không yêu cầu.\n\n");
         if (!longTermMemory.isEmpty()) {
             prompt.append("Bộ nhớ lâu dài do người dùng chủ động lưu:\n")
@@ -35,6 +37,11 @@ public final class AiPromptComposer {
         if (!context.isEmpty()) {
             prompt.append("Ngữ cảnh hội thoại gần đây:\n")
                     .append(context)
+                    .append("\n\n");
+        }
+        if (!attachmentsContext.isEmpty()) {
+            prompt.append("Tệp, ảnh hoặc ngữ cảnh nội bộ được đính kèm cho lượt này:\n")
+                    .append(attachmentsContext)
                     .append("\n\n");
         }
         prompt.append("Tin nhắn mới của người dùng:\n")

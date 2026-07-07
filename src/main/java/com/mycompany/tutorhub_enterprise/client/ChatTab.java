@@ -78,6 +78,7 @@ public class ChatTab extends JPanel {
     private Runnable onSwitchToChatCallback; 
     private int selectedPopupIndex = -1;
     private java.util.function.BooleanSupplier globalSearchPopupEnabledSupplier = () -> true;
+    private java.util.function.Consumer<String> currentEmojiSelectCallback;
 
     // ===== UI COMPONENTS =====
     private JPanel leftListPanel;
@@ -1396,8 +1397,6 @@ public class ChatTab extends JPanel {
         gbcLeft.insets = new Insets(0, 0, 0, 8);
         gbcLeft.anchor = GridBagConstraints.CENTER;
 
-        JPanel btnPlus = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/plus.svg#64748B");
-
         JPanel btnImage = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/image.svg#64748B");
         btnImage.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { chooseAndSendImage(); }
@@ -1418,7 +1417,6 @@ public class ChatTab extends JPanel {
                 }
             }
         });
-        leftIcons.add(btnPlus, gbcLeft);
         leftIcons.add(btnImage, gbcLeft);
         leftIcons.add(btnAttach, gbcLeft);
         toolbar.add(leftIcons, BorderLayout.WEST);
@@ -1467,7 +1465,12 @@ public class ChatTab extends JPanel {
         // 2. Nút Emoji
         JPanel btnEmoji = createActionIcon("https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/smile.svg#64748B");
         btnEmoji.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) { showEmojiPicker(btnEmoji); }
+            @Override public void mouseClicked(MouseEvent e) { 
+                showEmojiPicker(btnEmoji, tag -> {
+                    txtChatInput.setText(txtChatInput.getText() + tag);
+                    txtChatInput.requestFocus();
+                }); 
+            }
         });
         rightActions.add(btnEmoji, gbcRight);
 
@@ -2626,7 +2629,8 @@ public class ChatTab extends JPanel {
 
     // 1. Popup bảng chọn Emoji: Cuộn liên tục + Mục Gần Đây + Thanh Bottom Nav
     // 1. Popup bảng chọn Emoji: Cuộn liên tục + Mục Gần Đây + Thanh Bottom Nav (Hỗ trợ cuộn ngang)
-    private void showEmojiPicker(Component invoker) {
+    private void showEmojiPicker(Component invoker, java.util.function.Consumer<String> onSelect) {
+        this.currentEmojiSelectCallback = onSelect;
         JPopupMenu emojiPopup = new JPopupMenu();
         emojiPopup.setBackground(Color.WHITE);
         emojiPopup.setBorder(BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1));
@@ -2794,8 +2798,12 @@ public class ChatTab extends JPanel {
             @Override public void mouseExited(MouseEvent e) { lbl.setOpaque(false); lbl.repaint(); }
             @Override public void mouseClicked(MouseEvent e) {
                 // Thêm chữ vào khung chat
-                txtChatInput.setText(txtChatInput.getText() + tag);
-                txtChatInput.requestFocus();
+                if (currentEmojiSelectCallback != null) {
+                    currentEmojiSelectCallback.accept(tag);
+                } else {
+                    txtChatInput.setText(txtChatInput.getText() + tag);
+                    txtChatInput.requestFocus();
+                }
                 
                 // Logic cập nhật mảng "Gần đây"
                 recentEmojis.remove(tag); // Xóa nếu đã có để đôn lên đầu

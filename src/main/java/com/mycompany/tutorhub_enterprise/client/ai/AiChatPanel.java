@@ -38,13 +38,21 @@ import org.cef.callback.CefQueryCallback;
 import org.cef.handler.CefMessageRouterHandlerAdapter;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -56,6 +64,11 @@ public class AiChatPanel extends JPanel {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String BRIDGE_CHANNEL = "tutorhub.ai";
+    private static final long MAX_ATTACHMENT_BYTES = 12L * 1024L * 1024L;
+    private static final int MAX_ATTACHMENT_TEXT_BYTES = 96 * 1024;
+    private static final int MAX_ATTACHMENT_CONTEXT_CHARS = 14_000;
+    private static final int MAX_ATTACHMENT_PREVIEW_CHARS = 9_000;
+    private static final int MAX_PENDING_ATTACHMENTS = 8;
 
     private CefBrowser browser;
     private Timer activeMockTimer;
@@ -66,6 +79,7 @@ public class AiChatPanel extends JPanel {
     private volatile AiAgentProviderConfig providerConfig;
     private final ExecutorService providerProbeExecutor;
     private final ExecutorService agentExecutor;
+    private final ExecutorService attachmentExecutor;
     private final AiConversationMemory conversationMemory = new AiConversationMemory();
     private final AiLongTermMemoryStore longTermMemoryStore;
     private final PendingPatchStore pendingPatchStore = new PendingPatchStore();
@@ -81,6 +95,8 @@ public class AiChatPanel extends JPanel {
     private volatile Future<?> activeAgentFuture;
     private volatile boolean lavieExpanded = false;
     private volatile Consumer<Boolean> lavieExpandedListener;
+    private Runnable onOpenEmojiCallback;
+    private final List<AiAttachment> pendingAttachments = new ArrayList<>();
 
     public AiChatPanel() {
         this(AiAgentServiceFactory.loadDefaultConfig(), "tutorhub_desktop", "lavie");
@@ -98,6 +114,7 @@ public class AiChatPanel extends JPanel {
         this.longTermMemoryStore = new AiLongTermMemoryStore(this.userId, this.conversationId);
         this.providerProbeExecutor = createProviderProbeExecutor();
         this.agentExecutor = createAgentExecutor();
+        this.attachmentExecutor = createAttachmentExecutor();
         this.agentWorkspacePath = defaultAgentWorkspacePath();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
@@ -112,6 +129,7 @@ public class AiChatPanel extends JPanel {
         this.longTermMemoryStore = new AiLongTermMemoryStore(this.userId, this.conversationId);
         this.providerProbeExecutor = createProviderProbeExecutor();
         this.agentExecutor = createAgentExecutor();
+        this.attachmentExecutor = createAttachmentExecutor();
         this.agentWorkspacePath = defaultAgentWorkspacePath();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
@@ -140,16 +158,50 @@ public class AiChatPanel extends JPanel {
         });
     }
 
+    private ExecutorService createAttachmentExecutor() {
+        return Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "ai-attachment-loader");
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+    }
+
     @Override
     public void removeNotify() {
         stopStream();
         providerProbeExecutor.shutdownNow();
         agentExecutor.shutdownNow();
+        attachmentExecutor.shutdownNow();
         super.removeNotify();
     }
 
     public void focusComposer() {
         executeAgentJs("focusComposer");
+    }
+
+    public void setOnOpenEmojiCallback(Runnable callback) {
+        this.onOpenEmojiCallback = callback;
+    }
+
+    public void insertEmoji(String tag) {
+        String js = String.format(
+            "const el = document.getElementById('input');\n" +
+            "if (el) {\n" +
+            "  const start = el.selectionStart;\n" +
+            "  const end = el.selectionEnd;\n" +
+            "  const val = el.value;\n" +
+            "  el.value = val.substring(0, start) + '%s' + val.substring(end);\n" +
+            "  el.selectionStart = el.selectionEnd = start + %d;\n" +
+            "  el.focus();\n" +
+            "  el.dispatchEvent(new Event('input', { bubbles: true }));\n" +
+            "}", tag, tag.length()
+        );
+        if (browser != null) {
+            browser.executeJavaScript(js, browser.getURL(), 0);
+        }
     }
 
     public void setLavieExpandedListener(Consumer<Boolean> listener) {
@@ -305,25 +357,42 @@ public class AiChatPanel extends JPanel {
                 break;
             case "SEND_MESSAGE":
                 String text = getString(payload, "text").trim();
-                if (text.isEmpty()) {
+                if (text.isEmpty() && !hasPendingAttachments()) {
                     callback.failure(-3, "Tin nhắn rỗng");
                     return;
                 }
+                if (text.isEmpty()) {
+                    text = "Hãy phân tích các tệp hoặc hình ảnh mình vừa đính kèm.";
+                }
+                String attachmentContext = drainPendingAttachmentContext();
                 callback.success("{\"ok\":true}");
                 if (getBoolean(payload, "agentMode", agentModeEnabled)) {
-                    startReadOnlyAgent(text);
+                    startReadOnlyAgent(text, attachmentContext);
                 } else {
-                    startAiStream(text);
+                    startAiStream(text, attachmentContext);
                 }
                 break;
             case "STOP_STREAM":
                 stopStream();
                 callback.success("{\"ok\":true}");
                 break;
+            case "OPEN_EMOJI":
+                if (onOpenEmojiCallback != null) {
+                    javax.swing.SwingUtilities.invokeLater(onOpenEmojiCallback);
+                }
+                callback.success("{\"ok\":true}");
+                break;
             case "ATTACH_FILE":
+                callback.success("{\"ok\":true}");
+                chooseAttachmentAsync();
+                break;
+            case "CLEAR_ATTACHMENTS":
+                clearPendingAttachments();
+                callback.success(GSON.toJson(buildAttachmentStateJson()));
+                break;
             case "VOICE_START":
                 callback.success("{\"ok\":true}");
-                executeAgentJs("showError", "Chức năng này sẽ được nối vào Lavie service trong phase tiếp theo.");
+                executeAgentJs("showError", "Neu WebView khong ho tro nhan giong noi, can bat STT native o phase sau.");
                 break;
             default:
                 callback.failure(-4, "Unknown AI request type: " + type);
@@ -350,6 +419,268 @@ public class AiChatPanel extends JPanel {
             }
             return "true".equalsIgnoreCase(raw) || "1".equals(raw) || "yes".equalsIgnoreCase(raw);
         }
+    }
+
+    private boolean hasPendingAttachments() {
+        synchronized (pendingAttachments) {
+            return !pendingAttachments.isEmpty();
+        }
+    }
+
+    private int pendingAttachmentCount() {
+        synchronized (pendingAttachments) {
+            return pendingAttachments.size();
+        }
+    }
+
+    private void chooseAttachmentAsync() {
+        SwingUtilities.invokeLater(() -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Chọn tệp gửi cho Lavie");
+            chooser.setMultiSelectionEnabled(true);
+            chooser.setAcceptAllFileFilterUsed(true);
+            chooser.addChoosableFileFilter(new FileNameExtensionFilter(
+                    "Ảnh, tài liệu, mã nguồn",
+                    "png", "jpg", "jpeg", "webp", "gif", "bmp",
+                    "txt", "md", "java", "js", "ts", "html", "css", "json", "xml", "csv",
+                    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"));
+            try {
+                Path workspace = Paths.get(agentWorkspacePath == null ? "." : agentWorkspacePath);
+                if (Files.isDirectory(workspace)) {
+                    chooser.setCurrentDirectory(workspace.toFile());
+                }
+            } catch (Exception ignored) {
+                // File chooser can still open with the platform default directory.
+            }
+            int result = chooser.showOpenDialog(SwingUtilities.getWindowAncestor(this));
+            if (result != JFileChooser.APPROVE_OPTION) {
+                return;
+            }
+            for (java.io.File file : chooser.getSelectedFiles()) {
+                if (file != null) {
+                    attachmentExecutor.submit(() -> loadAttachment(file.toPath()));
+                }
+            }
+        });
+    }
+
+    private void loadAttachment(Path selectedPath) {
+        try {
+            Path path = selectedPath.toRealPath();
+            if (!Files.isRegularFile(path)) {
+                SwingUtilities.invokeLater(() -> executeAgentJs("showError", "Tệp đính kèm không hợp lệ."));
+                return;
+            }
+            long size = Files.size(path);
+            if (size > MAX_ATTACHMENT_BYTES) {
+                SwingUtilities.invokeLater(() -> executeAgentJs("showError",
+                        "Tệp quá lớn. Lavie hiện nhận tối đa 12MB cho mỗi tệp."));
+                return;
+            }
+            String mime = Files.probeContentType(path);
+            if (mime == null || mime.isBlank()) {
+                mime = guessMimeFromExtension(path);
+            }
+            String kind = detectAttachmentKind(path, mime);
+            String preview = isTextLikeAttachment(path, mime, kind) ? readTextPreview(path) : "";
+            AiAttachment attachment = new AiAttachment(
+                    UUID.randomUUID().toString(),
+                    path.getFileName().toString(),
+                    path.toString(),
+                    mime,
+                    kind,
+                    size,
+                    preview);
+            synchronized (pendingAttachments) {
+                while (pendingAttachments.size() >= MAX_PENDING_ATTACHMENTS) {
+                    pendingAttachments.remove(0);
+                }
+                pendingAttachments.add(attachment);
+            }
+            JsonObject json = toAttachmentJson(attachment);
+            SwingUtilities.invokeLater(() -> {
+                executeAgentJs("addAttachmentPreview", json);
+                executeAgentJs("setAgentContextState", buildAgentContextJson());
+                executeAgentJs("showError", "");
+            });
+        } catch (IOException ex) {
+            SwingUtilities.invokeLater(() -> executeAgentJs("showError",
+                    "Không đọc được tệp đính kèm: " + safeErrorMessage(ex)));
+        }
+    }
+
+    private String drainPendingAttachmentContext() {
+        List<AiAttachment> drained;
+        synchronized (pendingAttachments) {
+            if (pendingAttachments.isEmpty()) {
+                return "";
+            }
+            drained = new ArrayList<>(pendingAttachments);
+            pendingAttachments.clear();
+        }
+        executeAgentJs("clearAttachments");
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
+        return buildAttachmentsContext(drained);
+    }
+
+    private void clearPendingAttachments() {
+        synchronized (pendingAttachments) {
+            pendingAttachments.clear();
+        }
+        executeAgentJs("clearAttachments");
+        executeAgentJs("setAgentContextState", buildAgentContextJson());
+    }
+
+    private JsonObject buildAttachmentStateJson() {
+        JsonObject json = new JsonObject();
+        JsonArray items = new JsonArray();
+        synchronized (pendingAttachments) {
+            json.addProperty("count", pendingAttachments.size());
+            for (AiAttachment attachment : pendingAttachments) {
+                items.add(toAttachmentJson(attachment));
+            }
+        }
+        json.add("items", items);
+        return json;
+    }
+
+    private JsonObject toAttachmentJson(AiAttachment attachment) {
+        JsonObject json = new JsonObject();
+        json.addProperty("id", attachment.id);
+        json.addProperty("name", attachment.name);
+        json.addProperty("path", attachment.path);
+        json.addProperty("mime", attachment.mime);
+        json.addProperty("kind", attachment.kind);
+        json.addProperty("size", attachment.size);
+        json.addProperty("hasTextPreview", !attachment.textPreview.isBlank());
+        json.addProperty("textPreviewChars", attachment.textPreview.length());
+        return json;
+    }
+
+    private String buildAttachmentsContext(List<AiAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("Tệp và ngữ cảnh đính kèm trong lượt này:\n");
+        int index = 1;
+        for (AiAttachment attachment : attachments) {
+            sb.append(index++).append(". ")
+                    .append(attachment.name)
+                    .append(" | loại: ").append(attachment.kind)
+                    .append(" | MIME: ").append(attachment.mime)
+                    .append(" | kích thước: ").append(attachment.size).append(" bytes")
+                    .append(" | đường dẫn nội bộ: ").append(attachment.path)
+                    .append("\n");
+            if (!attachment.textPreview.isBlank()) {
+                sb.append("Nội dung trích xuất:\n")
+                        .append(attachment.textPreview)
+                        .append("\n");
+            } else if ("image".equals(attachment.kind)) {
+                sb.append("Ghi chú: đây là ảnh. Provider hiện tại nhận metadata ảnh; phân tích thị giác trực tiếp cần bật payload multimodal ở phase sau.\n");
+            } else {
+                sb.append("Ghi chú: chưa trích xuất nội dung cho định dạng này; Lavie dùng metadata tệp làm ngữ cảnh.\n");
+            }
+            sb.append("\n");
+            if (sb.length() > MAX_ATTACHMENT_CONTEXT_CHARS) {
+                return sb.substring(0, MAX_ATTACHMENT_CONTEXT_CHARS).trim()
+                        + "\n... attachment context truncated ...";
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private String mergeAttachmentContext(String userMessage, String attachmentContext) {
+        if (attachmentContext == null || attachmentContext.isBlank()) {
+            return userMessage;
+        }
+        return userMessage + "\n\n" + attachmentContext;
+    }
+
+    private String readTextPreview(Path path) throws IOException {
+        int limit = MAX_ATTACHMENT_TEXT_BYTES;
+        byte[] bytes;
+        try (InputStream inputStream = Files.newInputStream(path)) {
+            bytes = inputStream.readNBytes(limit);
+        }
+        String text = new String(bytes, StandardCharsets.UTF_8)
+                .replace("\u0000", "")
+                .replace("\r\n", "\n")
+                .replace("\r", "\n")
+                .trim();
+        if (text.length() > MAX_ATTACHMENT_PREVIEW_CHARS) {
+            return text.substring(0, MAX_ATTACHMENT_PREVIEW_CHARS).trim()
+                    + "\n... nội dung tệp đã được rút gọn ...";
+        }
+        return text;
+    }
+
+    private boolean isTextLikeAttachment(Path path, String mime, String kind) {
+        String ext = extension(path);
+        if ("text".equals(kind) || "code".equals(kind) || ("spreadsheet".equals(kind) && "csv".equals(ext))) {
+            return true;
+        }
+        String lowerMime = mime == null ? "" : mime.toLowerCase(Locale.ROOT);
+        if (lowerMime.startsWith("text/")
+                || lowerMime.contains("json")
+                || lowerMime.contains("xml")
+                || lowerMime.contains("csv")
+                || lowerMime.contains("javascript")) {
+            return true;
+        }
+        return ext.matches("txt|md|markdown|java|js|ts|tsx|jsx|html|htm|css|json|xml|csv|yml|yaml|properties|ini|log|sql|py|kt|rs|go|c|cpp|h|hpp|cs|php|rb|sh|bat|ps1");
+    }
+
+    private String detectAttachmentKind(Path path, String mime) {
+        String ext = extension(path);
+        String lowerMime = mime == null ? "" : mime.toLowerCase(Locale.ROOT);
+        if (lowerMime.startsWith("image/") || ext.matches("png|jpg|jpeg|webp|gif|bmp|svg")) {
+            return "image";
+        }
+        if ("pdf".equals(ext) || lowerMime.contains("pdf")) {
+            return "pdf";
+        }
+        if (ext.matches("doc|docx|ppt|pptx") || lowerMime.contains("word") || lowerMime.contains("presentation")) {
+            return "document";
+        }
+        if (ext.matches("xls|xlsx|csv") || lowerMime.contains("spreadsheet") || lowerMime.contains("csv")) {
+            return "spreadsheet";
+        }
+        if (ext.matches("java|js|ts|tsx|jsx|html|htm|css|json|xml|yml|yaml|py|kt|rs|go|c|cpp|cs|php|rb|sh|ps1")) {
+            return "code";
+        }
+        if (lowerMime.startsWith("text/") || ext.matches("txt|md|markdown|log|sql|properties|ini")) {
+            return "text";
+        }
+        return "file";
+    }
+
+    private String guessMimeFromExtension(Path path) {
+        String ext = extension(path);
+        return switch (ext) {
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "webp" -> "image/webp";
+            case "gif" -> "image/gif";
+            case "svg" -> "image/svg+xml";
+            case "pdf" -> "application/pdf";
+            case "json" -> "application/json";
+            case "html", "htm" -> "text/html";
+            case "css" -> "text/css";
+            case "js", "mjs" -> "text/javascript";
+            case "csv" -> "text/csv";
+            case "md", "txt", "log" -> "text/plain";
+            default -> "application/octet-stream";
+        };
+    }
+
+    private String extension(Path path) {
+        String name = path == null || path.getFileName() == null ? "" : path.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        if (dot < 0 || dot >= name.length() - 1) {
+            return "";
+        }
+        return name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private JsonObject buildProviderConfigJson() {
@@ -465,6 +796,7 @@ public class AiChatPanel extends JPanel {
         json.addProperty("conversationContextChars", conversationMemory.buildContext().length());
         json.addProperty("hasCompactedSummary", conversationMemory.hasCompactedSummary());
         json.addProperty("longTermMemoryCount", longTermMemoryStore.snapshot().getCount());
+        json.addProperty("pendingAttachmentCount", pendingAttachmentCount());
         json.addProperty("pendingPatchCount", pendingPatchStore.snapshot().size());
         json.addProperty("pendingCommandCount", pendingCommandStore.snapshot().size());
         json.addProperty("pendingMcpToolCallCount", pendingMcpToolCallStore.snapshot().size());
@@ -848,7 +1180,7 @@ public class AiChatPanel extends JPanel {
         conversationMemory.rememberAssistant(assistantMessage);
     }
 
-    private void startReadOnlyAgent(String userMessage) {
+    private void startReadOnlyAgent(String userMessage, String attachmentContext) {
         SwingUtilities.invokeLater(() -> {
             stopStream();
             AiAgentService service = aiService;
@@ -864,11 +1196,11 @@ public class AiChatPanel extends JPanel {
             executeAgentJs("setStatus", "Agent đang đọc workspace");
             executeAgentJs("showError", "");
 
-            activeAgentFuture = agentExecutor.submit(() -> runReadOnlyAgent(userMessage, service, config, workspace));
+            activeAgentFuture = agentExecutor.submit(() -> runReadOnlyAgent(userMessage, attachmentContext, service, config, workspace));
         });
     }
 
-    private void runReadOnlyAgent(String userMessage, AiAgentService service,
+    private void runReadOnlyAgent(String userMessage, String attachmentContext, AiAgentService service,
                                   AiAgentProviderConfig config, String workspace) {
         try {
             WorkspaceBoundary boundary = WorkspaceBoundary.from(workspace);
@@ -884,7 +1216,8 @@ public class AiChatPanel extends JPanel {
                     .longTermMemoryContext(longTermSnapshot.getContext())
                     .build();
             AgentLoop loop = new AgentLoop(service, AgentConfig.defaults());
-            AgentTurn turn = loop.run(userMessage, context, invocation -> SwingUtilities.invokeLater(() ->
+            String effectiveUserMessage = mergeAttachmentContext(userMessage, attachmentContext);
+            AgentTurn turn = loop.run(effectiveUserMessage, context, invocation -> SwingUtilities.invokeLater(() ->
                     handleAgentToolInvocation(invocation)));
             String assistantMessage = buildAgentTurnMessage(turn, workspace);
 
@@ -968,7 +1301,7 @@ public class AiChatPanel extends JPanel {
         return "Agent Mode chưa hoàn tất yêu cầu.\n\nLý do: " + error;
     }
 
-    private void startAiStream(String userMessage) {
+    private void startAiStream(String userMessage, String attachmentContext) {
         SwingUtilities.invokeLater(() -> {
             stopStream();
             AiAgentService service = aiService;
@@ -995,6 +1328,7 @@ public class AiChatPanel extends JPanel {
                     .metadata(AiPromptComposer.METADATA_MEMORY_SIZE, String.valueOf(conversationMemory.size()))
                     .metadata(AiPromptComposer.METADATA_LONG_TERM_MEMORY, longTermSnapshot.getContext())
                     .metadata(AiPromptComposer.METADATA_LONG_TERM_MEMORY_SIZE, String.valueOf(longTermSnapshot.getCount()))
+                    .metadata(AiPromptComposer.METADATA_ATTACHMENTS_CONTEXT, attachmentContext)
                     .build();
 
             activeStreamHandle = service.streamChat(request, new AiAgentStreamCallback() {
@@ -1232,6 +1566,27 @@ public class AiChatPanel extends JPanel {
         browser.executeJavaScript(js.toString(), browser.getURL(), 0);
     }
 
+    private static final class AiAttachment {
+        private final String id;
+        private final String name;
+        private final String path;
+        private final String mime;
+        private final String kind;
+        private final long size;
+        private final String textPreview;
+
+        private AiAttachment(String id, String name, String path, String mime,
+                             String kind, long size, String textPreview) {
+            this.id = id == null ? "" : id;
+            this.name = name == null ? "" : name;
+            this.path = path == null ? "" : path;
+            this.mime = mime == null || mime.isBlank() ? "application/octet-stream" : mime;
+            this.kind = kind == null || kind.isBlank() ? "file" : kind;
+            this.size = Math.max(0L, size);
+            this.textPreview = textPreview == null ? "" : textPreview;
+        }
+    }
+
     private static final class ProviderProbeResult {
         private final boolean ok;
         private final String status;
@@ -1269,3 +1624,4 @@ public class AiChatPanel extends JPanel {
         }
     }
 }
+
