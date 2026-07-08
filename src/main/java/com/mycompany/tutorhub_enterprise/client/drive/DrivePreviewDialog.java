@@ -56,19 +56,33 @@ public class DrivePreviewDialog extends JDialog {
                 if (isHttp) {
                     try {
                         String finalUrl = url;
+                        boolean isPresigned = false;
                         // Nếu file lưu trên S3/B2, tạo Presigned URL để mở khóa bucket Private cho Microsoft
                         if ("B2_AND_LOCAL".equalsIgnoreCase(file.getSourceLocation()) || "MINIO".equalsIgnoreCase(file.getSourceLocation())) {
                             String presignedUrl = com.mycompany.tutorhub_enterprise.server.CloudStorageService.getInstance().generatePresignedUrl(url, 15);
                             if (presignedUrl != null) {
                                 finalUrl = presignedUrl;
+                                isPresigned = true;
                             }
                         }
-                        // Thủ thuật: Microsoft Office Web Viewer yêu cầu URL phải KẾT THÚC bằng đuôi file (.xlsx, .docx...)
-                        // Các Presigned URL của S3 thường kết thúc bằng chữ ký (?X-Amz-Signature=...).
-                        // Ta thêm fragment "#/file.ext" vào cuối (trước khi URL encode) để đánh lừa bộ kiểm tra của Microsoft.
-                        // Fragment này sẽ không được gửi tới máy chủ S3 nên không làm hỏng chữ ký.
-                        finalUrl = finalUrl + "#/file." + ext;
-                        url = "https://view.officeapps.live.com/op/embed.aspx?src=" + URLEncoder.encode(finalUrl, "UTF-8");
+                        
+                        if (isPresigned) {
+                            // Máy chủ của Microsoft và Google thường xuyên chặn hoặc lỗi trắng màn hình với các Presigned URL dài.
+                            // Để tránh màn hình trắng gây hiểu nhầm, ta tạo một HTML tĩnh hiển thị thông báo.
+                            String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Preview Unavailable</title>"
+                                    + "<style>body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;}"
+                                    + ".container {background-color: white; padding: 40px 50px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; max-width: 450px;}"
+                                    + "h2 {color: #1f2937; margin-bottom: 12px; font-size: 22px; font-weight: 600;} "
+                                    + "p {color: #4b5563; line-height: 1.6; margin-bottom: 0; font-size: 15px;} "
+                                    + ".icon {font-size: 72px; margin-bottom: 24px;}</style></head>"
+                                    + "<body><div class=\"container\"><div class=\"icon\">\uD83D\uDCC4</div><h2>Tệp tin Office bảo mật</h2>"
+                                    + "<p>Trình duyệt không hỗ trợ xem trước trực tiếp tệp tin Office này do các giới hạn của chính sách bảo mật đường dẫn (Presigned URL).</p>"
+                                    + "<p style=\"margin-top: 16px; font-weight: 500; color: #2563eb;\">Vui lòng nhấn nút <b>Tải xuống</b> ở góc trên bên phải để xem trên máy tính của bạn.</p>"
+                                    + "</div></body></html>";
+                            url = "data:text/html;charset=utf-8," + URLEncoder.encode(html, "UTF-8").replace("+", "%20");
+                        } else {
+                            url = "https://view.officeapps.live.com/op/embed.aspx?src=" + URLEncoder.encode(finalUrl, "UTF-8");
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
