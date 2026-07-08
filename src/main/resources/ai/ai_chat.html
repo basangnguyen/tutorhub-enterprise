@@ -3748,9 +3748,11 @@
       if (!actions) return;
       actions.hidden = !raw.trim();
       const copyBtn = actions.querySelector('.copy-message');
+      const readBtn = actions.querySelector('.read-message');
       const openBtn = actions.querySelector('.open-panel');
       const retryBtn = actions.querySelector('.retry-message');
       if (copyBtn) copyBtn.disabled = !raw.trim();
+      if (readBtn) readBtn.disabled = !raw.trim();
       if (openBtn) openBtn.hidden = !shouldOpenInPanel(raw);
       if (retryBtn) retryBtn.disabled = !lastUserPrompt.trim() || isGenerating;
     }
@@ -3766,6 +3768,15 @@
       copyBtn.title = 'Copy phản hồi';
       copyBtn.addEventListener('click', () => {
         copyText(wrap.dataset.raw || bubble.innerText || '', copyBtn);
+      });
+
+      const readBtn = document.createElement('button');
+      readBtn.type = 'button';
+      readBtn.className = 'msg-action-btn read-message';
+      readBtn.textContent = 'Đọc';
+      readBtn.title = 'Đọc to câu trả lời bằng giọng Lavie';
+      readBtn.addEventListener('click', () => {
+        requestReadAloud(wrap.dataset.raw || bubble.innerText || '', readBtn);
       });
 
       const openBtn = document.createElement('button');
@@ -3785,6 +3796,7 @@
       retryBtn.addEventListener('click', () => retryLastPrompt());
 
       actions.appendChild(copyBtn);
+      actions.appendChild(readBtn);
       actions.appendChild(openBtn);
       actions.appendChild(retryBtn);
       return actions;
@@ -4696,6 +4708,52 @@
       errorText.textContent = '';
     }
 
+    async function requestReadAloud(text, button) {
+      const value = String(text || '').trim();
+      if (!value) return;
+      hideError();
+      const originalText = button?.textContent || 'Đọc';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Đang đọc';
+      }
+      try {
+        await postBridge('READ_ALOUD', { text: value });
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        if (button) {
+          window.setTimeout(() => {
+            button.disabled = false;
+            button.textContent = originalText;
+          }, 700);
+        }
+      }
+    }
+
+    function requestAutoReadAloud(text) {
+      const value = String(text || '').trim();
+      if (!value) return;
+      if (String(providerConfig?.provider || 'lavie') === 'lavie') {
+        return;
+      }
+      postBridge('AUTO_READ_ALOUD', { text: value }).catch(() => {});
+    }
+
+    function setSpeechState(payload = {}) {
+      const state = String(payload.state || 'idle');
+      const message = String(payload.message || '');
+      document.body.classList.toggle('tts-active', state === 'loading' || state === 'playing');
+      if (message) {
+        statusText.textContent = message;
+      } else if (state === 'idle' && !isGenerating) {
+        statusText.textContent = providerConfig?.displayName ? ('Sẵn sàng - ' + providerConfig.displayName) : 'Sẵn sàng';
+      }
+      if (state === 'error' && message) {
+        showError(message);
+      }
+    }
+
     window.TutorHubAgent = {
       focusComposer() {
         input.focus();
@@ -4713,6 +4771,7 @@
       addAttachmentPreview,
       clearAttachments,
       setVoiceNativeState,
+      setSpeechState,
       insertVoiceTranscript,
       submitVoiceTranscript,
       appendVoiceExchange,
@@ -4760,6 +4819,7 @@
         scrollBottom();
       },
       finishAssistantMessage() {
+        const finalAssistantText = assistantRaw;
         if (assistantBubble) {
           advanceActivityTo(4);
           assistantBubble.innerHTML = renderMarkdown(assistantRaw);
@@ -4768,6 +4828,7 @@
           maybeOpenArtifactFromAssistant(assistantRaw);
         }
         completeActivityPanel(false);
+        requestAutoReadAloud(finalAssistantText);
         assistantBubble = null;
         assistantToolLog = null;
         assistantPatchList = null;

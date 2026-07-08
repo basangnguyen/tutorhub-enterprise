@@ -106,6 +106,7 @@ public class AiChatPanel extends JPanel {
     private final PermissionPolicy permissionPolicy = PermissionPolicy.phase101Defaults();
     private final AuditLog auditLog = new AuditLog();
     private final McpServerRegistry mcpServerRegistry = McpServerRegistry.fromEnvironment();
+    private final LavieTextToSpeechService textToSpeechService = new LavieTextToSpeechService();
     private final String userId;
     private final String conversationId;
     private volatile boolean agentModeEnabled = false;
@@ -233,6 +234,7 @@ public class AiChatPanel extends JPanel {
         attachmentExecutor.shutdownNow();
         voiceExecutor.shutdownNow();
         remoteContextExecutor.shutdownNow();
+        textToSpeechService.shutdown();
         super.removeNotify();
     }
 
@@ -434,6 +436,25 @@ public class AiChatPanel extends JPanel {
                 stopStream();
                 callback.success("{\"ok\":true}");
                 break;
+            case "READ_ALOUD":
+                String readText = getString(payload, "text").trim();
+                if (readText.isEmpty()) {
+                    callback.failure(-6, "Không có nội dung để đọc.");
+                    return;
+                }
+                callback.success("{\"ok\":true}");
+                speakAssistantText(readText, false);
+                break;
+            case "AUTO_READ_ALOUD":
+                String autoReadText = getString(payload, "text").trim();
+                callback.success("{\"ok\":true}");
+                speakAssistantText(autoReadText, true);
+                break;
+            case "STOP_TTS":
+                textToSpeechService.stop();
+                callback.success("{\"ok\":true}");
+                setSpeechState("idle", "");
+                break;
             case "OPEN_EMOJI":
                 if (onOpenEmojiCallback != null) {
                     javax.swing.SwingUtilities.invokeLater(onOpenEmojiCallback);
@@ -487,6 +508,74 @@ public class AiChatPanel extends JPanel {
             }
             return "true".equalsIgnoreCase(raw) || "1".equals(raw) || "yes".equalsIgnoreCase(raw);
         }
+    }
+
+    private void speakAssistantText(String text, boolean automatic) {
+        String clean = text == null ? "" : text.trim();
+        if (automatic && !shouldAutoReadAloud(clean)) {
+            return;
+        }
+        if (clean.isEmpty()) {
+            if (!automatic) {
+                setSpeechState("error", "Không có nội dung để đọc.");
+            }
+            return;
+        }
+        textToSpeechService.speak(clean, new LavieTextToSpeechService.Listener() {
+            @Override
+            public void onQueued() {
+                setSpeechState("loading", "Đang tạo giọng đọc Lavie...");
+            }
+
+            @Override
+            public void onStarted(String audioUrl) {
+                setSpeechState("playing", "Lavie đang đọc câu trả lời...");
+            }
+
+            @Override
+            public void onFinished() {
+                setSpeechState("idle", "");
+            }
+
+            @Override
+            public void onError(Exception error) {
+                String message = "Không đọc được câu trả lời: " + safeErrorMessage(error);
+                if (automatic) {
+                    System.out.println("[LAVIE_TTS] " + message);
+                    setSpeechState("idle", "");
+                } else {
+                    setSpeechState("error", message);
+                }
+            }
+        });
+    }
+
+    private boolean shouldAutoReadAloud(String text) {
+        if (text == null) {
+            return false;
+        }
+        String clean = text.trim();
+        if (clean.length() < 3 || clean.length() > 2_800) {
+            return false;
+        }
+        String lower = clean.toLowerCase(Locale.ROOT);
+        if (lower.contains("```")
+                || lower.contains("<html")
+                || lower.contains("<!doctype")
+                || lower.contains("class ")
+                || lower.contains("function ")
+                || lower.contains("public static void")
+                || lower.contains("import ")) {
+            return false;
+        }
+        return true;
+    }
+
+    private void setSpeechState(String state, String message) {
+        JsonObject json = new JsonObject();
+        json.addProperty("state", state == null ? "idle" : state);
+        json.addProperty("message", message == null ? "" : message);
+        executeAgentJs("setSpeechState", json);
     }
 
     private boolean hasPendingAttachments() {

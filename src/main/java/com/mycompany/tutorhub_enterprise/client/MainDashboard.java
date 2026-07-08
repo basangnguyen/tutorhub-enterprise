@@ -51,6 +51,7 @@ public class MainDashboard extends JFrame {
     private DriveTab driveTab;
     private ReelsTabPanel reelsTab;
     private com.mycompany.tutorhub_enterprise.client.exam.ExamTab examTab;
+    private com.mycompany.tutorhub_enterprise.client.exam.ui.ExamPaperTab examPaperTab;
     // Locket Class fields
     public NativeReelPlayer activeLocketPlayer = null;
     public java.util.List<String> locketVideos = new java.util.ArrayList<>();
@@ -463,7 +464,7 @@ public class MainDashboard extends JFrame {
             menuPanel.add(createMenuItem("Lịch", "lucide-calendar.svg", "Schedule", 0)); 
             menuPanel.add(createMenuItem("Thi", "lucide-graduation-cap.svg", "Exam", 0)); 
             menuPanel.add(createMenuItem("QuizHub", "lucide-gamepad-2.svg", "QuizHub", 0)); 
-            menuPanel.add(createMenuItem("Đề thi", "lucide-file-text.svg", "Exam", 0)); 
+            menuPanel.add(createMenuItem("Đề thi", "lucide-file-text.svg", "ExamPaper", 0)); 
             menuPanel.add(createMenuItem("Câu hỏi", "lucide-library.svg", "Question", 0)); 
             menuPanel.add(createMenuItem("Nhiệm vụ", "lucide-list-todo.svg", "Todo", 0)); 
         } else {
@@ -852,6 +853,9 @@ public class MainDashboard extends JFrame {
 
         examTab = new com.mycompany.tutorhub_enterprise.client.exam.ExamTab(this.currentUserId, "TUTOR", NetworkManager.getInstance());
         mainCardPanel.add(examTab, "Exam");
+
+        examPaperTab = new com.mycompany.tutorhub_enterprise.client.exam.ui.ExamPaperTab(this.currentUserId, currentUserRole, NetworkManager.getInstance());
+        mainCardPanel.add(examPaperTab, "ExamPaper");
 
         com.mycompany.tutorhub_enterprise.client.exam.ui.QuestionBankTab questionBankTab = new com.mycompany.tutorhub_enterprise.client.exam.ui.QuestionBankTab(this.currentUserId, currentUserRole, NetworkManager.getInstance());
         mainCardPanel.add(questionBankTab, "Question");
