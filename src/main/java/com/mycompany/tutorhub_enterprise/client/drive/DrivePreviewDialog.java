@@ -63,8 +63,8 @@ public class DrivePreviewDialog extends JDialog {
                                 finalUrl = presignedUrl;
                             }
                         }
-                        // Chuyển sang dùng Microsoft Office Web Viewer (Chuyên trị các file Excel khó nhằn)
-                        url = "https://view.officeapps.live.com/op/embed.aspx?src=" + URLEncoder.encode(finalUrl, "UTF-8");
+                        // Chuyển sang dùng Google Docs Viewer vì Microsoft Office Web Viewer thường xuyên lỗi trắng màn hình với S3/B2 Presigned URL
+                        url = "https://docs.google.com/gview?url=" + URLEncoder.encode(finalUrl, "UTF-8") + "&embedded=true";
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
