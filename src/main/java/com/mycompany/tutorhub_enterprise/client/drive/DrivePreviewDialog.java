@@ -43,7 +43,21 @@ public class DrivePreviewDialog extends JDialog {
             showError(centerPanel, "Tệp không hợp lệ hoặc chưa được tải lên hoàn tất.");
         } else {
             boolean isHttp = url.startsWith("http://") || url.startsWith("https://");
-            if (!isHttp) {
+            
+            // Nếu là URL HTTP lưu trên S3/B2/MinIO -> LUÔN tạo Presigned URL để mở khóa bucket Private
+            // Điều này áp dụng cho cả hình ảnh, PDF, MP4 và Office documents.
+            boolean isPresigned = false;
+            if (isHttp && ("B2_AND_LOCAL".equalsIgnoreCase(file.getSourceLocation()) || "MINIO".equalsIgnoreCase(file.getSourceLocation()))) {
+                try {
+                    String presignedUrl = com.mycompany.tutorhub_enterprise.server.CloudStorageService.getInstance().generatePresignedUrl(url, 15);
+                    if (presignedUrl != null) {
+                        url = presignedUrl;
+                        isPresigned = true;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else if (!isHttp) {
                 try {
                     url = new java.io.File(url).toURI().toString();
                 } catch (Exception e) {}
@@ -51,24 +65,14 @@ public class DrivePreviewDialog extends JDialog {
             
             String ext = file.getFileType() != null ? file.getFileType().toLowerCase() : "";
             
-            // Nếu là Office Document và file public -> Dùng Google Docs Viewer
+            // Nếu là Office Document -> Dùng Microsoft/Google Docs Viewer hoặc HTML Fallback
             if (OFFICE_EXTENSIONS.contains(ext)) {
                 if (isHttp) {
-                    try {
-                        String finalUrl = url;
-                        boolean isPresigned = false;
-                        // Nếu file lưu trên S3/B2, tạo Presigned URL để mở khóa bucket Private cho Microsoft
-                        if ("B2_AND_LOCAL".equalsIgnoreCase(file.getSourceLocation()) || "MINIO".equalsIgnoreCase(file.getSourceLocation())) {
-                            String presignedUrl = com.mycompany.tutorhub_enterprise.server.CloudStorageService.getInstance().generatePresignedUrl(url, 15);
-                            if (presignedUrl != null) {
-                                finalUrl = presignedUrl;
-                                isPresigned = true;
-                            }
-                        }
-                        
-                        if (isPresigned) {
-                            // Máy chủ của Microsoft và Google thường xuyên chặn hoặc lỗi trắng màn hình với các Presigned URL dài.
-                            // Để tránh màn hình trắng gây hiểu nhầm, ta tạo một HTML tĩnh hiển thị thông báo.
+                    if (isPresigned) {
+                        // Máy chủ của Microsoft và Google thường xuyên chặn hoặc lỗi trắng màn hình với các Presigned URL dài.
+                        // Trình duyệt Chromium (JCEF) cũng chặn load data: URI trực tiếp.
+                        // Do đó, ta ghi thông báo ra một file HTML tạm thời và load file đó.
+                        try {
                             String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Preview Unavailable</title>"
                                     + "<style>body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;}"
                                     + ".container {background-color: white; padding: 40px 50px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; max-width: 450px;}"
@@ -79,12 +83,19 @@ public class DrivePreviewDialog extends JDialog {
                                     + "<p>Trình duyệt không hỗ trợ xem trước trực tiếp tệp tin Office này do các giới hạn của chính sách bảo mật đường dẫn (Presigned URL).</p>"
                                     + "<p style=\"margin-top: 16px; font-weight: 500; color: #2563eb;\">Vui lòng nhấn nút <b>Tải xuống</b> ở góc trên bên phải để xem trên máy tính của bạn.</p>"
                                     + "</div></body></html>";
-                            url = "data:text/html;charset=utf-8," + URLEncoder.encode(html, "UTF-8").replace("+", "%20");
-                        } else {
-                            url = "https://view.officeapps.live.com/op/embed.aspx?src=" + URLEncoder.encode(finalUrl, "UTF-8");
+                                    
+                            java.io.File tempHtml = java.io.File.createTempFile("office_preview_fallback", ".html");
+                            tempHtml.deleteOnExit();
+                            java.nio.file.Files.write(tempHtml.toPath(), html.getBytes("UTF-8"));
+                            
+                            url = tempHtml.toURI().toString();
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    } else {
+                        try {
+                            url = "https://view.officeapps.live.com/op/embed.aspx?src=" + URLEncoder.encode(url, "UTF-8");
+                        } catch (Exception e) {}
                     }
                 } else {
                     showError(centerPanel, "Định dạng Office (" + ext + ") lưu cục bộ hiện chưa hỗ trợ xem offline.");
