@@ -13,7 +13,9 @@ public class SecureExamLauncherBridge {
     public static void launchExam(int examId) throws Exception {
         File runBat = findExecutable();
         if (runBat == null || !runBat.exists()) {
-            throw new Exception("Launcher not found.");
+            LOGGER.info("Launcher not found. Attempting to use development classpath fallback...");
+            launchDevModeFallback(examId);
+            return;
         }
 
         LOGGER.info("Launching Secure Exam [2I.9.5 Diagnostics]");
@@ -111,5 +113,26 @@ public class SecureExamLauncherBridge {
         }
 
         return null;
+    }
+
+    private static void launchDevModeFallback(int examId) throws Exception {
+        String javaHome = System.getProperty("java.home");
+        String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            javaBin += "w.exe";
+        }
+        String classpath = System.getProperty("java.class.path");
+        String mainClass = "com.mycompany.tutorhub_enterprise.client.exam.ui.TSEProductionParentSubmitLabLauncher";
+        
+        ProcessBuilder pb;
+        if (examId > 0) {
+            pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass, "--exam-id", String.valueOf(examId));
+        } else {
+            pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass);
+        }
+        pb.directory(new File(System.getProperty("user.dir")));
+        
+        LOGGER.info("Starting Dev Mode Fallback: " + pb.command());
+        pb.start();
     }
 }
