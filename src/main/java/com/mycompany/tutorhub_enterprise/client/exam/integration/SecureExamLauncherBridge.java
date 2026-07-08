@@ -139,14 +139,8 @@ public class SecureExamLauncherBridge {
                 pb = new ProcessBuilder(mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass);
             }
             
-            // For Maven exec, we want it to run in a separate visible CMD window in Windows so we don't hang the parent and we can see logs
-            if (osName.contains("win")) {
-                if (examId > 0) {
-                    pb = new ProcessBuilder("cmd", "/c", "start", "\"TSE Dev Launcher\"", mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass, "-Dexec.args=--exam-id " + examId);
-                } else {
-                    pb = new ProcessBuilder("cmd", "/c", "start", "\"TSE Dev Launcher\"", mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass);
-                }
-            }
+            // Run mvn directly instead of cmd /c start, ProcessBuilder handles batch files on Windows fine
+            // and running it in the background will not block the parent Java application.
 
         } else {
             String javaHome = System.getProperty("java.home");
