@@ -116,22 +116,53 @@ public class SecureExamLauncherBridge {
     }
 
     private static void launchDevModeFallback(int examId) throws Exception {
-        String javaHome = System.getProperty("java.home");
-        String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
-        if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            javaBin += "w.exe";
-        }
-        String classpath = System.getProperty("java.class.path");
         String mainClass = "com.mycompany.tutorhub_enterprise.client.exam.ui.TSEProductionParentSubmitLabLauncher";
-        
+        String classpath = System.getProperty("java.class.path");
         ProcessBuilder pb;
-        if (examId > 0) {
-            pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass, "--exam-id", String.valueOf(examId));
+
+        if (classpath.contains("plexus-classworlds") || classpath.contains("surefire") || new File("pom.xml").exists()) {
+            // Running under Maven, so java.class.path is just plexus. We use Maven to launch the child process.
+            String osName = System.getProperty("os.name").toLowerCase();
+            String mvnCommand = "mvn";
+            if (osName.contains("win")) {
+                File nbMvn = new File("C:\\Program Files\\Apache NetBeans\\java\\maven\\bin\\mvn.cmd");
+                if (nbMvn.exists()) {
+                    mvnCommand = nbMvn.getAbsolutePath();
+                } else {
+                    mvnCommand = "mvn.cmd";
+                }
+            }
+
+            if (examId > 0) {
+                pb = new ProcessBuilder(mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass, "-Dexec.args=--exam-id " + examId);
+            } else {
+                pb = new ProcessBuilder(mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass);
+            }
+            
+            // For Maven exec, we want it to run in a separate visible CMD window in Windows so we don't hang the parent and we can see logs
+            if (osName.contains("win")) {
+                if (examId > 0) {
+                    pb = new ProcessBuilder("cmd", "/c", "start", "\"TSE Dev Launcher\"", mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass, "-Dexec.args=--exam-id " + examId);
+                } else {
+                    pb = new ProcessBuilder("cmd", "/c", "start", "\"TSE Dev Launcher\"", mvnCommand, "exec:java", "-Dexec.mainClass=" + mainClass);
+                }
+            }
+
         } else {
-            pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass);
+            String javaHome = System.getProperty("java.home");
+            String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
+            if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                javaBin += "w.exe";
+            }
+            
+            if (examId > 0) {
+                pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass, "--exam-id", String.valueOf(examId));
+            } else {
+                pb = new ProcessBuilder(javaBin, "-cp", classpath, mainClass);
+            }
         }
-        pb.directory(new File(System.getProperty("user.dir")));
         
+        pb.directory(new File(System.getProperty("user.dir")));
         LOGGER.info("Starting Dev Mode Fallback: " + pb.command());
         pb.start();
     }
